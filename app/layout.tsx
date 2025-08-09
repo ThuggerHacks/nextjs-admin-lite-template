@@ -5,12 +5,14 @@ import "./globals.css";
 import StyledComponentsRegistry from "@/theme/AntdRegistry";
 import { HandleOnComplete } from "@/lib/router-events";
 import ThemeProvider from "@/theme/theme-provider";
+import { UserProvider } from "@/contexts/UserContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 
 const font = Open_Sans({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Nextjs Admin",
-  description: "Nextjs Admin Template",
+  title: "Totalizer Platform",
+  description: "Comprehensive file, report, and goal management platform",
 };
 
 export default function RootLayout({
@@ -22,9 +24,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={""} suppressHydrationWarning={true}>
         <HandleOnComplete />
-        <ThemeProvider>
-          <StyledComponentsRegistry>{children}</StyledComponentsRegistry>
-        </ThemeProvider>
+        <LanguageProvider>
+          <UserProvider>
+            <ThemeProvider>
+              <StyledComponentsRegistry>{children}</StyledComponentsRegistry>
+            </ThemeProvider>
+          </UserProvider>
+        </LanguageProvider>
       </body>
     </html>
   );

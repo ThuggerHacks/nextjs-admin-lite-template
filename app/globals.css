@@ -22,6 +22,21 @@ body,
   margin-left: 0px !important;
 }
 
+/* Language selector in header */
+.custom-select .ant-select-selector {
+  background-color: transparent !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+  color: white !important;
+}
+
+.custom-select .ant-select-selection-item {
+  color: white !important;
+}
+
+.custom-select:hover .ant-select-selector {
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
 /* 滚动条样式 */
 @layer utilities {
   .scrollbar::-webkit-scrollbar {

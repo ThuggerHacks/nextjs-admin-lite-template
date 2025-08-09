@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { FloatButton, Drawer, Card, Typography, List } from "antd";
+import { QuestionCircleOutlined, BulbOutlined, FileTextOutlined, PhoneOutlined } from "@ant-design/icons";
 import NavBreadcrumb from "@/components/nav-breadcrumb/page";
 import HeaderPage from "@/components/layout/header/page";
 import SiderPage from "@/components/layout/sidebar/page";
@@ -8,14 +12,63 @@ import { cn } from "@/lib/utils";
 import { useCollapse } from "@/hooks/use-collapse-store";
 import { useSettingStore } from "@/hooks/use-setting-store";
 import { useThemeToken } from "@/theme/use-theme-token";
+import { useUser } from "@/contexts/UserContext";
 
 import { ThemeMode } from "@/types";
 
+const { Title, Text } = Typography;
+
 const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const { isCollapsed } = useCollapse();
-
   const { settings } = useSettingStore();
   const { colorBgContainer, colorBgElevated } = useThemeToken();
+  const { user, isAuthenticated, loading } = useUser();
+  const router = useRouter();
+  const [helpDrawerVisible, setHelpDrawerVisible] = useState(false);
+
+  const helpItems = [
+    {
+      title: "Goals Management",
+      description: "Create individual or department-wide goals, track progress with reports",
+      icon: <BulbOutlined />
+    },
+    {
+      title: "File Management", 
+      description: "Upload and organize files with progress tracking across libraries",
+      icon: <FileTextOutlined />
+    },
+    {
+      title: "User Management",
+      description: "Manage users, roles, and permissions (Admin/Super Admin only)",
+      icon: <QuestionCircleOutlined />
+    },
+    {
+      title: "Sucursal Management",
+      description: "Monitor branch servers and diagnostics (Super Admin only)", 
+      icon: <PhoneOutlined />
+    }
+  ];
+
+  useEffect(() => {
+    if (!loading && !isAuthenticated) {
+      router.push("/login");
+    }
+  }, [loading, isAuthenticated, router]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-4xl mb-4">📊</div>
+          <div className="text-lg">Loading Totalizer Platform...</div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <>
@@ -64,6 +117,79 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           {children}
         </main>
       </div>
+
+      {/* Help Float Button */}
+      <FloatButton
+        icon={<QuestionCircleOutlined />}
+        type="primary"
+        style={{ right: 24, bottom: 24 }}
+        onClick={() => setHelpDrawerVisible(true)}
+        tooltip="Help & Documentation"
+      />
+
+      {/* Help Drawer */}
+      <Drawer
+        title="Platform Help & Documentation"
+        placement="right"
+        width={400}
+        open={helpDrawerVisible}
+        onClose={() => setHelpDrawerVisible(false)}
+      >
+        <div className="space-y-4">
+          <Card size="small">
+            <Title level={5}>Welcome to Tonelizer Platform!</Title>
+            <Text type="secondary">
+              A comprehensive administrative platform for managing goals, files, users, and branch operations.
+            </Text>
+          </Card>
+
+          <Card size="small" title="Key Features">
+            <List
+              dataSource={helpItems}
+              renderItem={(item) => (
+                <List.Item>
+                  <List.Item.Meta
+                    avatar={item.icon}
+                    title={item.title}
+                    description={item.description}
+                  />
+                </List.Item>
+              )}
+            />
+          </Card>
+
+          <Card size="small" title="Quick Start">
+            <div className="space-y-2">
+              <Text strong>For Users:</Text>
+              <ul className="ml-4 text-sm">
+                <li>Set individual goals and track progress</li>
+                <li>Submit progress reports with attachments</li>
+                <li>Access shared documents and libraries</li>
+              </ul>
+              
+              <Text strong>For Admins:</Text>
+              <ul className="ml-4 text-sm">
+                <li>Create department-wide goals</li>
+                <li>Manage team members and permissions</li>
+                <li>Review and approve goal reports</li>
+              </ul>
+
+              <Text strong>For Super Admins:</Text>
+              <ul className="ml-4 text-sm">
+                <li>Full platform administration</li>
+                <li>Monitor branch servers (Sucursals)</li>
+                <li>Reset user passwords and manage roles</li>
+              </ul>
+            </div>
+          </Card>
+
+          <Card size="small" title="Support">
+            <Text>
+              Need help? Contact the IT support team or refer to the internal documentation portal.
+            </Text>
+          </Card>
+        </div>
+      </Drawer>
     </>
   );
 };

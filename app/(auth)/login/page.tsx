@@ -1,134 +1,257 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Form, Input, ConfigProvider, Divider } from "antd";
+import { Card, Form, Input, Button, Checkbox, message, Tabs, Select, Divider } from "antd";
+import { UserOutlined, LockOutlined, MailOutlined, TeamOutlined, GlobalOutlined } from "@ant-design/icons";
 
-import { onStart } from "@/lib/router-events/events";
-import { useSettingStore } from "@/hooks/use-setting-store";
-import { useThemeToken } from "@/theme/use-theme-token";
+import { useUser } from "@/contexts/UserContext";
+import { useLanguage, useTranslation } from "@/contexts/LanguageContext";
+import { UserRole } from "@/types";
 
-import { ThemeMode } from "@/types";
-
-type FieldType = {
-  account?: string;
-  password?: string;
-};
-
-const LoginPage = () => {
-  const { settings } = useSettingStore();
-  const { colorBgContainer, colorBgElevated } = useThemeToken();
-
+export default function LoginPage() {
+  const [loginForm] = Form.useForm();
+  const [registerForm] = Form.useForm();
+  const [loading, setLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState("login");
+  
+  const { login } = useUser();
+  const { locale, setLocale } = useLanguage();
+  const { t } = useTranslation();
   const router = useRouter();
 
-  const onSumbit = (values: FieldType) => {
-    console.log(values);
-    router.push("/profile");
-    onStart();
+  const handleLogin = async (values: { email: string; password: string; remember: boolean }) => {
+    setLoading(true);
+    try {
+      const success = await login(values.email, values.password);
+      if (success) {
+        message.success(t("auth.welcomeBack"));
+        router.push("/homepage");
+      } else {
+        message.error(t("auth.invalidCredentials") + " Try: joao@empresa.com / 123456");
+      }
+    } catch (error) {
+      console.error('Login error:', error);
+      message.error(t("auth.loginFailed"));
+    } finally {
+      setLoading(false);
+    }
   };
 
-  return (
-    <ConfigProvider
-      theme={{
-        components: {
-          Form: {
-            labelColor: settings.themeColor,
-            labelFontSize: 16,
-            itemMarginBottom: 21,
-          },
-        },
-      }}
-    >
-      <div
-        className="flex h-full justify-center items-center bg-[rgb(243,245,249)]"
-        style={{
-          color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
-          backgroundColor:
-            settings.themeMode === ThemeMode.Dark ? colorBgElevated : "",
-        }}
-      >
-        <div
-          className="bg-white w-[360px] md:min-w-[360px] flex flex-col items-center
-          border-solid shadow rounded-[24px]"
-          style={{
-            color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
-            backgroundColor:
-              settings.themeMode === ThemeMode.Dark ? colorBgContainer : "",
-          }}
-        >
-          <span
-            className="text-[32px] text-[#031b4e] font-[700] tracking-tighter mt-5 mb-3"
-            style={{
-              color:
-                settings.themeMode === ThemeMode.Dark
-                  ? settings.themeColor
-                  : "",
-            }}
-          >
-            🍞 Nextjs-Admin
-          </span>
-          {/* <span className="text-[32px] text-[#031b4e] font-[700] tracking-tighter space-y-2">
-            Log in to your account
-          </span> */}
-          <Form
-            layout="vertical"
-            autoComplete="off"
-            style={{ minWidth: 330 }}
-            onFinish={onSumbit}
-            initialValues={{ account: "admin", password: "123456" }}
-          >
-            <Form.Item<FieldType>
-              label="account"
-              name="account"
-              rules={[
-                { required: true, message: "Please input your account!" },
-              ]}
-            >
-              <Input
-                placeholder="Enter your account admin"
-                style={{
-                  height: 48,
-                }}
-              />
-            </Form.Item>
-            <Form.Item<FieldType>
-              label="password"
-              name="password"
-              rules={[
-                { required: true, message: "Please input your password!" },
-              ]}
-            >
-              <Input.Password
-                placeholder="Enter your password 123456"
-                style={{
-                  height: 48,
-                }}
-              />
-            </Form.Item>
-            <Form.Item wrapperCol={{ offset: 0, span: 16 }}>
-              <Button
-                type="primary"
-                htmlType="submit"
-                style={{
-                  width: 340,
-                  fontSize: 16,
-                  fontWeight: 600,
-                  height: 48,
-                  borderRadius: 10,
-                  marginTop: 15,
-                  backgroundColor: settings.themeColor,
-                }}
-              >
-                Log In
-              </Button>
-            </Form.Item>
-          </Form>
-          <div className="w-full -mt-4 -mb-1">
-            <Divider />
-          </div>
-        </div>
-      </div>
-    </ConfigProvider>
-  );
-};
+  const handleRegister = async (values: any) => {
+    setLoading(true);
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      message.success(t("auth.accountRequested"));
+      message.info(t("auth.waitingApproval"));
+      setActiveTab("login");
+    } catch (error) {
+      message.error("Registration failed");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-export default LoginPage;
+  const handleLanguageChange = (value: 'pt' | 'en') => {
+    setLocale(value);
+  };
+
+  const tabItems = [
+    {
+      key: 'login',
+      label: t("common.login"),
+      children: (
+        <Form
+          form={loginForm}
+          name="login"
+          onFinish={handleLogin}
+          layout="vertical"
+          size="large"
+        >
+          <Form.Item
+            label={t("auth.email")}
+            name="email"
+            rules={[
+              { required: true, message: `${t("auth.email")} is required` },
+              { type: "email", message: "Invalid email format" },
+            ]}
+          >
+            <Input
+              prefix={<MailOutlined />}
+              placeholder={t("auth.email")}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={t("auth.password")}
+            name="password"
+            rules={[{ required: true, message: `${t("auth.password")} is required` }]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t("auth.password")}
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <div className="flex justify-between items-center">
+              <Form.Item name="remember" valuePropName="checked" noStyle>
+                <Checkbox>{t("auth.rememberMe")}</Checkbox>
+              </Form.Item>
+              <Button type="link" className="p-0">
+                {t("auth.forgotPassword")}
+              </Button>
+            </div>
+          </Form.Item>
+
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              className="w-full"
+              size="large"
+            >
+              {t("common.login")}
+            </Button>
+          </Form.Item>
+        </Form>
+      )
+    },
+    {
+      key: 'register',
+      label: t("auth.signUp"),
+      children: (
+        <Form
+          form={registerForm}
+          name="register"
+          onFinish={handleRegister}
+          layout="vertical"
+          size="large"
+        >
+          <Form.Item
+            label={t("auth.fullName")}
+            name="name"
+            rules={[{ required: true, message: `${t("auth.fullName")} is required` }]}
+          >
+            <Input
+              prefix={<UserOutlined />}
+              placeholder={t("auth.fullName")}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={t("auth.email")}
+            name="email"
+            rules={[
+              { required: true, message: `${t("auth.email")} is required` },
+              { type: "email", message: "Invalid email format" },
+            ]}
+          >
+            <Input
+              prefix={<MailOutlined />}
+              placeholder={t("auth.email")}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={t("auth.department")}
+            name="department"
+            rules={[{ required: true, message: `${t("auth.department")} is required` }]}
+          >
+            <Input
+              prefix={<TeamOutlined />}
+              placeholder={t("auth.department")}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={t("auth.password")}
+            name="password"
+            rules={[
+              { required: true, message: `${t("auth.password")} is required` },
+              { min: 6, message: "Password must be at least 6 characters" },
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t("auth.password")}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={t("auth.confirmPassword")}
+            name="confirmPassword"
+            dependencies={["password"]}
+            rules={[
+              { required: true, message: `${t("auth.confirmPassword")} is required` },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue("password") === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error("Passwords do not match"));
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t("auth.confirmPassword")}
+            />
+          </Form.Item>
+
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              className="w-full"
+              size="large"
+            >
+              {t("auth.requestAccess")}
+            </Button>
+          </Form.Item>
+        </Form>
+      )
+    }
+  ];
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 px-4">
+      <div className="w-full max-w-md">
+        {/* Language Switcher */}
+        <div className="flex justify-center mb-6">
+          <Select
+            value={locale}
+            onChange={handleLanguageChange}
+            size="large"
+            style={{ width: 120 }}
+            suffixIcon={<GlobalOutlined />}
+            options={[
+              { value: 'pt', label: 'Português' },
+              { value: 'en', label: 'English' },
+            ]}
+          />
+        </div>
+
+        <Card className="shadow-2xl">
+          <div className="text-center mb-6">
+            <div className="text-4xl mb-2">📊</div>
+            <h1 className="text-2xl font-bold text-gray-800">Totalizer Platform</h1>
+            <p className="text-gray-600">{t("auth.enterCredentials")}</p>
+          </div>
+
+          <Tabs 
+            activeKey={activeTab} 
+            onChange={(key) => setActiveTab(key)} 
+            centered 
+            items={tabItems}
+          />
+        </Card>
+      </div>
+    </div>
+  );
+}
