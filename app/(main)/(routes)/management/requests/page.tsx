@@ -56,9 +56,18 @@ export default function RequestsManagementPage() {
     try {
       setLoading(true);
       const params: any = { page, limit };
+      
+      // Map frontend status to backend status
       if (status && status !== 'all') {
-        params.status = status;
+        if (status === 'pending') {
+          params.status = 'pending';
+        } else if (status === 'inactive') {
+          params.status = 'inactive';
+        } else if (status === 'approved') {
+          params.status = 'approved';
+        }
       }
+      // For 'all', don't send status parameter, backend will show both pending and inactive
 
       const response = await requestService.getAll(params);
       setRequests(response.requests);
@@ -76,10 +85,10 @@ export default function RequestsManagementPage() {
   };
 
   useEffect(() => {
-    loadRequests();
+    loadRequests(1, 10, 'all');
   }, []);
 
-  if (!canAccess([UserRole.ADMIN, UserRole.SUPER_ADMIN])) {
+  if (!canAccess([UserRole.SUPERVISOR, UserRole.ADMIN, UserRole.SUPER_ADMIN])) {
     return (
       <Card>
         <div className="text-center py-8">
@@ -104,10 +113,18 @@ export default function RequestsManagementPage() {
 
     setLoading(true);
     try {
-      await requestService.update(selectedRequest.id, {
-        status: values.status,
-        response: values.response,
-      });
+      // Use the appropriate API endpoint based on the status
+      if (values.status === 'approved') {
+        await requestService.approve(selectedRequest.id, values.response);
+      } else if (values.status === 'rejected') {
+        await requestService.reject(selectedRequest.id, values.response);
+      } else {
+        // For other status changes, use the update endpoint
+        await requestService.update(selectedRequest.id, {
+          status: values.status,
+          response: values.response,
+        });
+      }
 
       // Reload requests to get updated data
       await loadRequests(pagination.current, pagination.pageSize, activeTab);
@@ -127,8 +144,8 @@ export default function RequestsManagementPage() {
     switch (status) {
       case 'pending':
         return 'orange';
-      case 'in_review':
-        return 'blue';
+      case 'inactive':
+        return 'red';
       case 'approved':
         return 'green';
       case 'rejected':
@@ -172,7 +189,7 @@ export default function RequestsManagementPage() {
     const allRequests = requests; // Since we're loading all requests, we can count from the loaded data
     return {
       pending: allRequests.filter(r => r.status === 'pending').length,
-      in_review: allRequests.filter(r => r.status === 'in_review').length,
+      inactive: allRequests.filter(r => r.status === 'inactive').length,
       approved: allRequests.filter(r => r.status === 'approved').length,
       rejected: allRequests.filter(r => r.status === 'rejected').length,
     };
@@ -183,45 +200,45 @@ export default function RequestsManagementPage() {
     : requests.filter(r => r.status === activeTab);
 
   const columns = [
+    // {
+    //   title: t('requests.type') || 'Tipo',
+    //   dataIndex: 'type',
+    //   key: 'type',
+    //   render: (type: string) => (
+    //     <div className="flex items-center gap-2">
+    //       <span className="text-xl">{getTypeIcon(type)}</span>
+    //       <span className="capitalize">{type}</span>
+    //     </div>
+    //   ),
+    // },
     {
-      title: t('requests.type'),
-      dataIndex: 'type',
-      key: 'type',
-      render: (type: string) => (
-        <div className="flex items-center gap-2">
-          <span className="text-xl">{getTypeIcon(type)}</span>
-          <span className="capitalize">{type}</span>
-        </div>
-      ),
-    },
-    {
-      title: t('requests.title'),
+      title: t('requests.title') || 'Título',
       dataIndex: 'title',
       key: 'title',
       render: (title: string, record: UserRequest) => (
         <div>
           <div className="font-medium">{title}</div>
           <div className="text-sm text-gray-500 mt-1">
-            {t('requests.by')} {record.requestedBy.name}
+            {t('requests.by') || 'by'} {record.requestedBy.name}
           </div>
         </div>
       ),
     },
     {
-      title: t('users.department'),
+      title: t('users.department') || 'Departmento',
       dataIndex: ['requestedBy', 'department'],
       key: 'department',
     },
-    {
-      title: t('requests.priority'),
-      dataIndex: 'priority',
-      key: 'priority',
-      render: (priority: string) => (
-        <Tag color={getPriorityColor(priority)}>
-          {priority.toUpperCase()}
-        </Tag>
-      ),
-    },
+    // {
+    //   title: t('requests.priority') || 'Prioridade',
+    //   dataIndex: 'priority',
+    //   key: 'priority',
+    //   render: (priority: string) => (
+    //     <Tag color={getPriorityColor(priority)}>
+    //       {priority.toUpperCase()}
+    //     </Tag>
+    //   ),
+    // },
     {
       title: t('common.status'),
       dataIndex: 'status',
@@ -285,6 +302,34 @@ export default function RequestsManagementPage() {
               </Tooltip>
             </>
           )}
+          {record.status === 'inactive' && (
+            <>
+              <Tooltip title={t('requests.quickApprove')}>
+                <Button
+                  type="text"
+                  icon={<CheckOutlined />}
+                  className="text-green-600"
+                  onClick={() => {
+                    setSelectedRequest(record);
+                    form.setFieldsValue({ status: 'approved', response: '' });
+                    setIsModalVisible(true);
+                  }}
+                />
+              </Tooltip>
+              <Tooltip title={t('requests.quickReject')}>
+                <Button
+                  type="text"
+                  icon={<CloseOutlined />}
+                  className="text-red-600"
+                  onClick={() => {
+                    setSelectedRequest(record);
+                    form.setFieldsValue({ status: 'rejected', response: '' });
+                    setIsModalVisible(true);
+                  }}
+                />
+              </Tooltip>
+            </>
+          )}
         </Space>
       ),
     },
@@ -301,6 +346,14 @@ export default function RequestsManagementPage() {
         </Badge>
       ),
     },
+    // {
+    //   key: 'inactive',
+    //   label: (
+    //     <Badge count={counts.inactive} size="small">
+    //       <span>{t("common.inactive")}</span>
+    //     </Badge>
+    //   ),
+    // },
     {
       key: 'approved',
       label: (
@@ -309,10 +362,10 @@ export default function RequestsManagementPage() {
         </Badge>
       ),
     },
-    {
-      key: 'all',
-      label: t("common.all"),
-    },
+    // {
+    //   key: 'all',
+    //   label: t("common.all"),
+    // },
   ];
 
   return (
@@ -330,7 +383,10 @@ export default function RequestsManagementPage() {
       <Card>
         <Tabs
           activeKey={activeTab}
-          onChange={setActiveTab}
+          onChange={(key) => {
+            setActiveTab(key);
+            loadRequests(1, pagination.pageSize, key);
+          }}
           items={tabItems}
         />
         
@@ -360,21 +416,21 @@ export default function RequestsManagementPage() {
             {/* Request Info */}
             <Card size="small" title={t("requests.requestInformation")}>
               <div className="grid grid-cols-2 gap-4">
-                <div>
+                {/* <div>
                   <Text strong>Type:</Text>
                   <div className="flex items-center gap-2 mt-1">
                     <span className="text-xl">{getTypeIcon(selectedRequest.type)}</span>
                     <span className="capitalize">{selectedRequest.type}</span>
                   </div>
-                </div>
-                <div>
+                </div> */}
+                {/* <div>
                   <Text strong>Priority:</Text>
                   <div className="mt-1">
                     <Tag color={getPriorityColor(selectedRequest.priority)}>
                       {selectedRequest.priority.toUpperCase()}
                     </Tag>
                   </div>
-                </div>
+                </div> */}
                 <div>
                   <Text strong>{t("users.userDetails")}:</Text>
                   <div className="mt-1">
@@ -398,12 +454,12 @@ export default function RequestsManagementPage() {
                 </div>
               </div>
 
-              <div className="mt-4">
+              {/* <div className="mt-4">
                 <Text strong>{t("common.description")}:</Text>
                 <div className="mt-1 p-3 bg-gray-50 rounded">
                   {selectedRequest.description}
                 </div>
-              </div>
+              </div> */}
             </Card>
 
             {/* Response Form */}
@@ -418,7 +474,8 @@ export default function RequestsManagementPage() {
                 rules={[{ required: true, message: t('common.required') }]}
               >
                 <Select placeholder={t("users.selectStatus")}>
-                  <Select.Option value="pending">{t("common.pending")}</Select.Option>
+                  {/* <Select.Option value="pending">{t("common.pending")}</Select.Option>
+                  <Select.Option value="inactive">{t("common.inactive")}</Select.Option> */}
                   <Select.Option value="approved">{t("common.approved")}</Select.Option>
                   <Select.Option value="rejected">{t("common.rejected")}</Select.Option>
                 </Select>

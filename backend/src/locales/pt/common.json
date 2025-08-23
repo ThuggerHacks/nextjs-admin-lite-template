@@ -51,5 +51,11 @@
   "paste": "Colar",
   "cut": "Cortar",
   "undo": "Desfazer",
-  "redo": "Refazer"
+  "redo": "Refazer",
+  "approved": "Aprovado",
+  "rejected": "Rejeitado",
+  "required": "Obrigatório",
+  "response": "Resposta",
+  "description": "Descrição",
+  "accessDenied": "Acesso Negado"
 }

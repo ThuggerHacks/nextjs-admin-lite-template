@@ -24,7 +24,8 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       const savedLocale = localStorage.getItem(StorageEnum.Language) as Locale;
       if (savedLocale && ['en', 'pt'].includes(savedLocale)) {
         setLocaleState(savedLocale);
-        setDictionary(getDictionary(savedLocale));
+        const savedDict = getDictionary(savedLocale);
+        setDictionary(savedDict);
       }
     }
   }, []);
@@ -67,7 +68,9 @@ export function useTranslation() {
   const { dictionary, loading } = useLanguage();
   
   const t = (key: string): string => {
-    if (!dictionary || loading) return key;
+    if (!dictionary || loading) {
+      return key;
+    }
     
     const keys = key.split('.');
     let value: any = dictionary;

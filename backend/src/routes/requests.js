@@ -8,16 +8,43 @@ const { logError } = require('../utils/errorLogger');
 const router = express.Router();
 
 // Get all pending users (for requests page)
-router.get('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
-    const { page = 1, limit = 10, status = 'PENDING' } = req.query;
+    const { page = 1, limit = 10, status } = req.query;
     const offset = (page - 1) * limit;
 
-    // For requests, we show users with PENDING status
-    const where = {
+    // For requests, we show users with PENDING or INACTIVE status
+    let where = {
       sucursalId: req.user.sucursalId,
-      status: status
     };
+
+    // Department-based filtering based on user role
+    if (req.user.role === 'SUPERVISOR') {
+      // Supervisors only see users from their department
+      where.departmentId = req.user.departmentId;
+    } else if (req.user.role === 'ADMIN') {
+      // Admins only see users from their department (if they have one)
+      if (req.user.departmentId) {
+        where.departmentId = req.user.departmentId;
+      }
+    }
+    // SUPER_ADMIN sees all users (no additional filtering)
+
+    // If status is specified, filter by it, otherwise show both pending and inactive
+    if (status && status !== 'all') {
+      if (status === 'pending') {
+        where.status = 'PENDING';
+      } else if (status === 'inactive') {
+        where.status = 'INACTIVE';
+      } else if (status === 'approved') {
+        where.status = 'ACTIVE';
+      }
+    } else {
+      // Show both pending and inactive users by default
+      where.status = {
+        in: ['PENDING', 'INACTIVE']
+      };
+    }
 
     const users = await prisma.user.findMany({
       where,
@@ -44,7 +71,7 @@ router.get('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN']), async 
         email: user.email,
         department: user.department?.name || 'No Department'
       },
-      status: user.status === 'ACTIVE' ? 'approved' : user.status === 'INACTIVE' ? 'rejected' : 'pending',
+      status: user.status === 'ACTIVE' ? 'approved' : user.status === 'INACTIVE' ? 'inactive' : 'pending',
       priority: 'medium',
       createdAt: user.createdAt,
       reviewedAt: null,
@@ -237,7 +264,7 @@ router.post('/:requestId/reject', authenticateToken, requireRole(['ADMIN', 'SUPE
 router.put('/:requestId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
   try {
     const { requestId } = req.params;
-    const { response, priority } = req.body;
+    const { status, response, priority } = req.body;
 
     const user = await prisma.user.findUnique({
       where: { id: requestId },
@@ -251,8 +278,49 @@ router.put('/:requestId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN'
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // For now, we'll store response in a comment or note
-    // Since we don't have a requests table, we'll just return success
+    // Update user status based on request status
+    let userStatus = user.status;
+    if (status === 'approved') {
+      userStatus = 'ACTIVE';
+    } else if (status === 'rejected') {
+      userStatus = 'INACTIVE';
+    } else if (status === 'pending') {
+      userStatus = 'PENDING';
+    }
+
+    // Update user status if it changed
+    if (userStatus !== user.status) {
+      await prisma.user.update({
+        where: { id: requestId },
+        data: { status: userStatus }
+      });
+    }
+
+    // If rejected, delete the user
+    if (status === 'rejected') {
+      // Create notification for the user before deletion
+      await createNotification(
+        requestId,
+        'SYSTEM_UPDATE',
+        'Account Rejected',
+        `Your account registration has been rejected by ${req.user.name}. ${response || 'Your account registration has been rejected.'}`
+      );
+
+      // Delete the user completely when rejected
+      await prisma.user.delete({
+        where: { id: requestId }
+      });
+    } else if (status === 'approved') {
+      // Create notification for approved user
+      await createNotification(
+        requestId,
+        'SYSTEM_UPDATE',
+        'Account Approved',
+        `Your account has been approved by ${req.user.name}. Welcome to the platform!`
+      );
+    }
+
+    // Return updated request data
     const request = {
       id: user.id,
       type: 'account',
@@ -264,11 +332,11 @@ router.put('/:requestId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN'
         email: user.email,
         department: user.department?.name || 'No Department'
       },
-      status: user.status === 'ACTIVE' ? 'approved' : user.status === 'INACTIVE' ? 'rejected' : 'pending',
+      status: status,
       priority: priority || 'medium',
       createdAt: user.createdAt,
-      reviewedAt: user.status !== 'PENDING' ? new Date() : null,
-      reviewedBy: user.status !== 'PENDING' ? 'Admin' : null,
+      reviewedAt: status !== 'pending' ? new Date() : null,
+      reviewedBy: status !== 'pending' ? req.user.name : null,
       response: response || null
     };
 

@@ -1,0 +1,23 @@
+{
+  "dashboard": "Painel",
+  "homepage": "Página Inicial",
+  "users": "Usuários",
+  "departments": "Departamentos",
+  "requests": "Solicitações",
+  "sucursals": "Sucursais",
+  "management": "Gerenciamento",
+  "viewGoals": "Ver Metas",
+  "createGoals": "Criar Metas",
+  "editGoals": "Editar Metas",
+  "goals": "Metas",
+  "submitReports": "Enviar Relatórios",
+  "viewReports": "Ver Relatórios",
+  "reports": "Relatórios",
+  "documents": "Documentos",
+  "libraries": "Bibliotecas",
+  "scan": "Digitalizar",
+  "digitalize": "Digitalizar",
+  "notifications": "Notificações",
+  "profile": "Perfil",
+  "generalPanel": "Painel Geral"
+}

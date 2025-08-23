@@ -14,7 +14,7 @@ i18next
     },
     fallbackLng: 'en',
     preload: ['en', 'pt'],
-    ns: ['common', 'auth', 'files', 'goals', 'reports', 'notifications', 'users', 'errors'],
+    ns: ['common', 'auth', 'files', 'goals', 'reports', 'notifications', 'users', 'requests', 'navigation', 'errors'],
     defaultNS: 'common',
     detection: {
       order: ['header', 'querystring', 'cookie'],

@@ -30,9 +30,6 @@ export default function LoginPage() {
       setLoadingDepartments(true);
       try {
         const depts = await departmentService.getAllDepartments();
-        if (process.env.NODE_ENV === 'development') {
-          console.log('Fetched departments:', depts);
-        }
         setDepartments(depts || []);
       } catch (error) {
         console.error('Failed to fetch departments:', error);

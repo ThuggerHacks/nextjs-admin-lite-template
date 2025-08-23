@@ -51,5 +51,11 @@
   "paste": "Paste",
   "cut": "Cut",
   "undo": "Undo",
-  "redo": "Redo"
+  "redo": "Redo",
+  "approved": "Approved",
+  "rejected": "Rejected",
+  "required": "Required",
+  "response": "Response",
+  "description": "Description",
+  "accessDenied": "Access Denied"
 }

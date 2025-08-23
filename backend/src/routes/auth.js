@@ -77,6 +77,54 @@ router.post('/register', [
       'Sua conta foi criada e está aguardando aprovação.'
     );
 
+    // Notify super admins and department supervisors about new user registration
+    try {
+      // Get all super admins
+      const superAdmins = await prisma.user.findMany({
+        where: {
+          role: 'SUPER_ADMIN',
+          status: 'ACTIVE',
+          sucursalId: sucursalInfo.id
+        }
+      });
+
+      // Get department supervisors if user has a department
+      let departmentSupervisors = [];
+      if (departmentId) {
+        departmentSupervisors = await prisma.user.findMany({
+          where: {
+            departmentId: departmentId,
+            role: { in: ['SUPERVISOR', 'ADMIN'] },
+            status: 'ACTIVE',
+            sucursalId: sucursalInfo.id
+          }
+        });
+      }
+
+      // Create notifications for super admins
+      for (const admin of superAdmins) {
+        await createNotification(
+          admin.id,
+          'USER_REGISTRATION',
+          'New User Registration',
+          `A new user ${user.name} has registered and is awaiting approval for ${user.department?.name || 'the system'}.`
+        );
+      }
+
+      // Create notifications for department supervisors/admins
+      for (const supervisor of departmentSupervisors) {
+        await createNotification(
+          supervisor.id,
+          'USER_REGISTRATION',
+          'New User Registration in Your Department',
+          `A new user ${user.name} has registered for your department (${user.department?.name}) and is awaiting approval.`
+        );
+      }
+    } catch (notificationError) {
+      console.error('Failed to send notifications for new user registration:', notificationError);
+      // Don't fail the registration if notifications fail
+    }
+
     res.status(201).json({
       message: 'User registered successfully. Pending approval.',
       user: {

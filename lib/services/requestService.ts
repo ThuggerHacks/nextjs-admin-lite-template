@@ -5,7 +5,7 @@ export interface UserRequest {
   type: 'account' | 'access' | 'support' | 'feature';
   title: string;
   description: string;
-  status: 'pending' | 'approved' | 'rejected' | 'in_review';
+  status: 'pending' | 'approved' | 'rejected' | 'inactive';
   priority: 'low' | 'medium' | 'high' | 'urgent';
   requestedBy: {
     id: string;
@@ -27,7 +27,7 @@ export interface CreateRequestData {
 }
 
 export interface UpdateRequestData {
-  status?: 'pending' | 'approved' | 'rejected' | 'in_review';
+  status?: 'pending' | 'approved' | 'rejected' | 'inactive';
   response?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
 }

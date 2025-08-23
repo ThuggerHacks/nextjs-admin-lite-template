@@ -158,6 +158,52 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELO
       `Your account has been created by ${req.user.name}. Welcome to the platform!`
     );
 
+    // Notify super admins and department supervisors about new user creation
+    try {
+      // Get all super admins
+      const superAdmins = await prisma.user.findMany({
+        where: {
+          role: 'SUPER_ADMIN',
+          status: 'ACTIVE',
+          sucursalId: req.user.sucursalId
+        }
+      });
+
+      // Get department supervisors
+      const departmentSupervisors = await prisma.user.findMany({
+        where: {
+          departmentId: departmentId,
+          role: { in: ['SUPERVISOR', 'ADMIN'] },
+          status: 'ACTIVE',
+          sucursalId: req.user.sucursalId,
+          id: { not: newUser.id } // Don't notify the user themselves
+        }
+      });
+
+      // Create notifications for super admins
+      for (const admin of superAdmins) {
+        await createNotification(
+          admin.id,
+          'USER_REGISTRATION',
+          'New User Created',
+          `A new user ${newUser.name} has been created in ${newUser.department?.name || 'the system'} and is awaiting approval.`
+        );
+      }
+
+      // Create notifications for department supervisors/admins
+      for (const supervisor of departmentSupervisors) {
+        await createNotification(
+          supervisor.id,
+          'USER_REGISTRATION',
+          'New User in Your Department',
+          `A new user ${newUser.name} has been created in your department (${newUser.department?.name}) and is awaiting approval.`
+        );
+      }
+    } catch (notificationError) {
+      console.error('Failed to send notifications for new user:', notificationError);
+      // Don't fail the user creation if notifications fail
+    }
+
     res.status(201).json({
       message: 'User created successfully',
       user: newUser,

@@ -247,6 +247,25 @@ export interface Dictionary {
     pendingRequests: string;
     approvedRequests: string;
     rejectedRequests: string;
+    updateRequest: string;
+    reviewedAt: string;
+    reviewedBy: string;
+    userRequestsManagement: string;
+    pending: string;
+    inReview: string;
+    approved: string;
+    rejected: string;
+    createRequest: string;
+    requestType: string;
+    requestTitle: string;
+    requestDescription: string;
+    submitRequest: string;
+    requestSubmitted: string;
+    approveRequest: string;
+    rejectRequest: string;
+    requestedBy: string;
+    requestedAt: string;
+    requestReason: string;
   };
   goals: {
     myGoals: string;
@@ -581,6 +600,25 @@ const dictionaries: Record<Locale, Dictionary> = {
       pendingRequests: 'Solicitações Pendentes',
       approvedRequests: 'Solicitações Aprovadas',
       rejectedRequests: 'Solicitações Rejeitadas',
+      updateRequest: 'Atualizar Solicitação',
+      reviewedAt: 'Revisado em',
+      reviewedBy: 'Revisado por',
+      userRequestsManagement: 'Gerenciamento de Solicitações de Usuários',
+      pending: 'Pendente',
+      inReview: 'Em Revisão',
+      approved: 'Aprovado',
+      rejected: 'Rejeitado',
+      createRequest: 'Criar Solicitação',
+      requestType: 'Tipo de Solicitação',
+      requestTitle: 'Título da Solicitação',
+      requestDescription: 'Descrição da Solicitação',
+      submitRequest: 'Submeter Solicitação',
+      requestSubmitted: 'Solicitação submetida com sucesso',
+      approveRequest: 'Aprovar Solicitação',
+      rejectRequest: 'Rejeitar Solicitação',
+      requestedBy: 'Solicitado por',
+      requestedAt: 'Solicitado em',
+      requestReason: 'Motivo da Solicitação',
     },
     sucursal: {
       management: 'Gerenciamento de Sucursal',
@@ -792,18 +830,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       fileDeleted: 'Arquivo excluído',
       userCreation: 'Conta criada',
     },
-    requests: {
-      userRequests: 'Solicitações de Usuários',
-      pendingRequests: 'Solicitações Pendentes',
-      approvedRequests: 'Solicitações Aprovadas',
-      rejectedRequests: 'Solicitações Rejeitadas',
-      requestDetails: 'Detalhes da Solicitação',
-      approveRequest: 'Aprovar Solicitação',
-      rejectRequest: 'Rejeitar Solicitação',
-      requestedBy: 'Solicitado por',
-      requestedAt: 'Solicitado em',
-      requestReason: 'Motivo da Solicitação',
-    },
+
     profile: {
       myProfile: 'Meu Perfil',
       editProfile: 'Editar Perfil',
@@ -1054,6 +1081,15 @@ const dictionaries: Record<Locale, Dictionary> = {
       requestDescription: 'Request Description',
       submitRequest: 'Submit Request',
       requestSubmitted: 'Request submitted successfully',
+      userRequests: 'User Requests',
+      pendingRequests: 'Pending Requests',
+      approvedRequests: 'Approved Requests',
+      rejectedRequests: 'Rejected Requests',
+      approveRequest: 'Approve Request',
+      rejectRequest: 'Reject Request',
+      requestedBy: 'Requested by',
+      requestedAt: 'Requested at',
+      requestReason: 'Request Reason',
     },
     sucursal: {
       management: 'Sucursal Management',
@@ -1287,18 +1323,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       fileDeleted: 'File deleted',
       userCreation: 'Account created',
     },
-    requests: {
-      userRequests: 'User Requests',
-      pendingRequests: 'Pending Requests',
-      approvedRequests: 'Approved Requests',
-      rejectedRequests: 'Rejected Requests',
-      requestDetails: 'Request Details',
-      approveRequest: 'Approve Request',
-      rejectRequest: 'Reject Request',
-      requestedBy: 'Requested by',
-      requestedAt: 'Requested at',
-      requestReason: 'Request Reason',
-    },
+
     profile: {
       myProfile: 'My Profile',
       editProfile: 'Edit Profile',

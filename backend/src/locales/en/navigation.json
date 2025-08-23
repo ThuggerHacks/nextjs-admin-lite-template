@@ -1,0 +1,23 @@
+{
+  "dashboard": "Dashboard",
+  "homepage": "Homepage",
+  "users": "Users",
+  "departments": "Departments",
+  "requests": "Requests",
+  "sucursals": "Sucursals",
+  "management": "Management",
+  "viewGoals": "View Goals",
+  "createGoals": "Create Goals",
+  "editGoals": "Edit Goals",
+  "goals": "Goals",
+  "submitReports": "Submit Reports",
+  "viewReports": "View Reports",
+  "reports": "Reports",
+  "documents": "Documents",
+  "libraries": "Libraries",
+  "scan": "Scan",
+  "digitalize": "Digitalize",
+  "notifications": "Notifications",
+  "profile": "Profile",
+  "generalPanel": "General Panel"
+}

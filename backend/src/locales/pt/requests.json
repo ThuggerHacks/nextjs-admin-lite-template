@@ -1,0 +1,12 @@
+{
+  "type": "Tipo",
+  "title": "Título",
+  "by": "por",
+  "priority": "Prioridade",
+  "viewDetails": "Ver Detalhes",
+  "quickApprove": "Aprovar Rápido",
+  "quickReject": "Rejeitar Rápido",
+  "reviewRequests": "Revisar e gerenciar solicitações de registro de usuários",
+  "requestDetails": "Detalhes da Solicitação",
+  "requestInformation": "Informações da Solicitação"
+}

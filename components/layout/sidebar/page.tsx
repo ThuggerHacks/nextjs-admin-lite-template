@@ -93,21 +93,23 @@ const SiderPage = () => {
       );
     }
 
-    // Management section - Admin and above
-    if (isAdminOrHigher) {
+    // Management section - Supervisor and above
+    if (isSupervisorOrHigher) {
       const managementChildren: MenuItem[] = [];
 
       // Users management - Admin and above
-      managementChildren.push(
-        getItem(t("navigation.users"), "/management/users", <TeamOutlined />)
-      );
+      if (isAdminOrHigher) {
+        managementChildren.push(
+          getItem(t("navigation.users"), "/management/users", <TeamOutlined />)
+        );
+      }
 
       // Departments - Supervisor and above
       managementChildren.push(
         getItem(t("navigation.departments"), "/departments", <TeamOutlined />)
       );
 
-      // Requests - Admin and above (for approving users)
+      // Requests - Supervisor and above (for approving users)
       managementChildren.push(
         getItem(t("navigation.requests"), "/management/requests", <UserOutlined />)
       );
