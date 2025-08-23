@@ -397,12 +397,12 @@ export default function EditGoalPage() {
                     const user = mockUsers.find(u => u.id === option.value);
                     if (!user) return false;
                     return user.name.toLowerCase().includes(input.toLowerCase()) || 
-                           user.department.toLowerCase().includes(input.toLowerCase());
+                           (user.department?.name || '').toLowerCase().includes(input.toLowerCase());
                   }}
                 >
                   {mockUsers.map(user => (
                     <Select.Option key={user.id} value={user.id}>
-                      {user.name} ({user.department})
+                      {user.name} ({user.department?.name || 'No Department'})
                     </Select.Option>
                   ))}
                 </Select>

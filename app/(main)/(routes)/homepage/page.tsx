@@ -99,10 +99,10 @@ export default function HomePage() {
       {/* Welcome Header */}
       <div className="mb-6">
         <Title level={2}>
-          {t("dashboard.welcomeTo")} Totalizer, {user.name}! 👋
+          {t("dashboard.welcomeTo")} {t("common.platformName")}, {user?.name || 'User'}! 👋
         </Title>
         <Text type="secondary">
-          {t(`users.userTypes.${user.role}`)} - {user.department}
+          {t(`users.userTypes.${user?.role}`)} - {user?.department?.name || 'No Department'}
         </Text>
       </div>
 
@@ -225,20 +225,20 @@ export default function HomePage() {
       {hasRole(UserRole.SUPER_ADMIN) && (
         <Row gutter={[16, 16]} className="mt-6">
           <Col span={24}>
-            <Card title="Company Overview">
+            <Card title={t("dashboard.companyOverview")}>
               <Row gutter={[16, 16]}>
                 <Col xs={24} md={8}>
-                  <Text strong>New Users This Month</Text>
+                  <Text strong>{t("dashboard.newUsersThisMonth")}</Text>
                   <Progress percent={75} status="active" />
-                  <Text type="secondary">{mockStats.newUsers} new users</Text>
+                  <Text type="secondary">{mockStats.newUsers} {t("dashboard.newUsers").toLowerCase()}</Text>
                 </Col>
                 <Col xs={24} md={8}>
-                  <Text strong>Storage Usage</Text>
+                  <Text strong>{t("dashboard.storageUsage")}</Text>
                   <Progress percent={60} status="normal" />
                   <Text type="secondary">2.3 GB / 10 GB used</Text>
                 </Col>
                 <Col xs={24} md={8}>
-                  <Text strong>Reports Response Rate</Text>
+                  <Text strong>{t("dashboard.reportsResponseRate")}</Text>
                   <Progress percent={85} status="success" />
                   <Text type="secondary">85% responded within 24h</Text>
                 </Col>

@@ -1,135 +1,180 @@
-# Next.js Admin Lite Template
+# Tonelizer Platform
 
-It is a <b>Nextjs</b> Admin Lite Template. Maybe this is not a real template. I provide a generic layout. All you need to do is configure the page and then concentrate on writing your code.
+A comprehensive business management platform with user authentication, file management, and organizational tools.
 
-！！！ Now it's just a small sample, and there are still many features that haven't been added. I will add them as soon as possible. If you think there's anything you need, you can let me know.
+## Setup Instructions
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+```bash
+cd backend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Generate Prisma client:
+```bash
+npx prisma generate
+```
+
+4. Run database migrations:
+```bash
+npx prisma migrate deploy
+```
+
+5. Initialize the database with test data:
+```bash
+npm run init
+```
+
+6. Start the backend server:
+```bash
+npm start
+```
+
+### Frontend Setup
+
+1. Install frontend dependencies:
+```bash
+npm install
+```
+
+2. Start the frontend development server:
+```bash
+npm run dev
+```
+
+3. Open your browser and navigate to `http://localhost:3000`
+
+## Test Accounts
+
+After running the initialization script, you can use these test accounts:
+
+### Admin Accounts
+- **Super Admin**: superadmin@company.com / superadmin123
+- **Admin**: admin@company.com / admin123
+
+### Department Supervisors
+- **HR Supervisor**: hr.supervisor@company.com / password123
+- **IT Supervisor**: it.supervisor@company.com / password123
+
+## Departments Available for Testing
+- **Human Resources** - Managed by HR Supervisor
+- **Information Technology** - Managed by IT Supervisor
+
+## Testing Registration
+
+You can now register new users and select from these departments:
+1. Go to the login page
+2. Switch to the registration tab
+3. Fill in the form with any name, email, and password
+4. Select either "Human Resources" or "Information Technology" as the department
+5. Click "Request Access"
+6. The user will be created with PENDING status and needs approval from their department supervisor
 
 ## Features
 
-- ⚛️ [nextjs 13](https://nextjs.org/): The React Framework for the Web.
+- ✅ User authentication with role-based access control
+- ✅ Multi-language support (Portuguese/English)
+- ✅ File and folder management with permissions
+- ✅ Notification system with real-time updates
+- ✅ Department-based user management
+- ✅ Goal tracking and reporting
+- ✅ Document scanning and PDF generation
+- ✅ Library management system
 
-* 🎨 [ant-design](https://ant.design/): An enterprise-class UI design language and React UI library.
+## API Endpoints
 
-- 🐻 [zustand](https://zustand-demo.pmnd.rs/): A small, fast and scalable bearbones state-management solution using simplified flux principles.
+The backend provides comprehensive REST APIs for:
+- Authentication (`/api/auth`)
+- User management (`/api/users`)
+- Department management (`/api/departments`)
+- File operations (`/api/files`)
+- Folder operations (`/api/folders`)
+- Notifications (`/api/notifications`)
+- Goals (`/api/goals`)
+- Reports (`/api/reports`)
+- And more...
 
-- 🌊 [tailwind css](https://tailwindcss.com/): A utility-first CSS framework for rapidly building custom user interfaces.
+## Environment Variables
 
-## Online Preview
-
-https://nextjs-admin-lite-template.vercel.app
-
-## Docs
-
-### 1. Sidebar navigation configuration
-
-Configure the sidebar navigation what you want to see directly.
-
-Configure location: <b>/components/layouts/sidebar/page.tsx</b>, line 40.
-
-More information about meun component: https://ant.design/components/menu.
-
-`<UserOutlined />` is an icon component. More Icon: https://ant-design.antgroup.com/components/icon
-
-```typescript
-const items: MenuProps["items"] = [
-  getItem("Profile", "/profile", <UserOutlined />),
-  getItem("Form", "/form-page", <FormOutlined />, [
-    getItem("BasicForm", "/basic-form-page"),
-    getItem("StepForm", "/step-form-page"),
-  ]),
-];
+### Backend (.env)
+```env
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
+SUCURSAL_NAME="Main Office"
+PORT=3003
+NODE_ENV="development"
 ```
 
-Then you should create pages when you haved configured the sidebar navigation. This project uses <b>app router</b> mode. More information about app router: https://nextjs.org/docs/app/building-your-application/routing#the-app-router.
-
-```
-app
-|—(main)
-  |—(routes)
-    |—profile
-      |—page.tsx
-    |—form-page
-      |—basic-form-page
-        |—page.tsx
-      |—step-form-page
-        |—page.tsx
+### Frontend (.env.local)
+```env
+NEXT_PUBLIC_API_URL=http://localhost:3003/api
 ```
 
-Configure the three-level navigation. If the third parameter icon is not present, set it to null.
+## Database Schema
 
-```typescript
-const items: MenuProps["items"] = [
-  getItem("Prfoile", "/profile", <UserOutlined />),
-  getItem("Form", "/form-page", <FormOutlined />, [
-    getItem("BasicForm", "/basic-form-page"),
-    getItem("StepForm", "/step-form-page", null, [
-      getItem("StepOne", "/one"),
-      getItem("StepTwo", "/two"),
-    ]),
-  ]),
-];
+The application uses SQLite with Prisma ORM and includes tables for:
+- Users with roles and department assignments
+- Departments with supervisors
+- Files and folders with hierarchical structure
+- Notifications with read/unread status
+- Goals and reports
+- Libraries and permissions
+- And more...
+
+## Troubleshooting
+
+### "Sucursal not configured" Error
+If you get this error, it means the database hasn't been initialized properly:
+
+1. Make sure you've run the database migrations: `npx prisma migrate deploy`
+2. Initialize the database with test data: `npm run init`
+3. Restart the backend server: `npm start`
+
+### Login Issues
+- Make sure you're using one of the test accounts listed above
+- Check that the backend server is running on port 3003
+- Verify that the frontend is configured to connect to the correct API URL
+
+### Registration Issues
+- Make sure you've selected a department when registering
+- The registration creates users with PENDING status that need approval
+- Only supervisors and admins can approve new users
+
+## Development
+
+### Backend Development
+```bash
+cd backend
+npm run dev  # Starts with nodemon for auto-reload
 ```
 
-### 2. Partially modify the antd component style
-
-In order to avoid page flicker, I have used the method provided by Antd，extract and inject antd's first-screen styles into HTML. See more: https://ant.design/docs/react/use-with-next#using-app-router.
-But this will cause a problem, if you use tailwind css in the className of the Antd component, it will not working. There is a solution below.
-
-- Define a custom class outside the component, like `custom-breadcrumb`
-
-```tsx
-<div className="custom-breadcrumb ml-2 cursor-pointer">
-  <Breadcrumb items={labels} />
-</div>
+### Frontend Development
+```bash
+npm run dev  # Starts Next.js development server
 ```
 
-- Then you can create a new css file in the same directory as page.tsx and import it in page.tsx, or write it in /app/globals.css.
-
-```css
-.custom-breadcrumb > .ant-breadcrumb {
-  color: #c6a7fe;
-}
+### Database Management
+```bash
+npx prisma studio  # Open Prisma Studio for database management
+npx prisma migrate dev  # Create new migrations during development
 ```
 
-### 3. Dark mode
+## Business Requirements
 
-The configuration related to the antd theme is located at `/theme/antd/theme.ts`. More information: https://ant-design.antgroup.com/docs/react/customize-theme.
-
-If you are using antd component, when you switch to dark mode, it will automatically switch to dark state. If it is a custom component, you need to add dark state manually. For example:
-
-```ts
-// 1:
-import { useSettingStore } from "@/hooks/use-setting-store";
-import { useThemeToken } from "@/theme/use-theme-token";
-import { ThemeMode } from "@/types";
-
-// 2:
-const { settings } = useSettingStore();
-const { themeMode } = settings();
-const { colorBgContainer, colorBgElevated } = useThemeToken();
-// colorBgContainer: antd container background color "#212b36"
-// colorBgElevated: antd elevated container background color "#161c24"
-// You can customize dark color you want at /theme/antd/theme.ts
-
-// 3:
-<div
-  style={{
-    color: themeMode === ThemeMode.Dark ? "#ffffff" : "",
-    backgroundColor: themeMode === ThemeMode.Dark ? colorBgElevated : "",
-  }}
->
-  xxx
-</div>;
-```
-
-## Getting Started
-
-```
-git clone https://github.com/Grapeve/nextjs-admin-lite-template.git
-
-cd nextjs-admin-lite-template
-
-pnpm i
-
-pnpm dev
-```
+The platform supports:
+- Users with roles (USER, SUPERVISOR, ADMIN, SUPER_ADMIN, DEVELOPER)
+- Department-based organization with supervisors
+- File and folder management with tree structure
+- Goal tracking and reporting system
+- Document scanning and PDF generation
+- Library management with permissions
+- Multi-sucursal architecture
+- Notification system for all actions
+- Multi-language support (Portuguese/English)
+- Role-based access control throughout the system

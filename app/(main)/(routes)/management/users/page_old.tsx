@@ -176,7 +176,7 @@ export default function UserManagementPage() {
       name: user.name,
       email: user.email,
       role: user.role,
-      department: user.department,
+      department: user.department?.name || '',
       phone: user.phone,
       status: user.status,
     });
@@ -219,7 +219,7 @@ export default function UserManagementPage() {
         user.name,
         user.email,
         user.role,
-        user.department,
+        user.department?.name || 'No Department',
         user.phone || '',
         user.status,
         user.createdAt.toLocaleDateString()

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Table,
@@ -29,111 +29,62 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
 import { UserRole, UserStatus } from '@/types';
+import { requestService } from '@/lib/services/requestService';
+import type { UserRequest } from '@/lib/services/requestService';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
 
-interface UserRequest {
-  id: string;
-  type: 'account' | 'access' | 'support' | 'feature';
-  title: string;
-  description: string;
-  requestedBy: {
-    name: string;
-    email: string;
-    department: string;
-  };
-  status: 'pending' | 'approved' | 'rejected' | 'in_review';
-  priority: 'low' | 'medium' | 'high' | 'urgent';
-  createdAt: Date;
-  reviewedAt?: Date;
-  reviewedBy?: string;
-  response?: string;
-}
-
-// Mock requests data
-const mockRequests: UserRequest[] = [
-  {
-    id: '1',
-    type: 'account',
-    title: 'New User Account Request',
-    description: 'Request to create account for new employee Ana Silva in Marketing department.',
-    requestedBy: {
-      name: 'Carlos Manager',
-      email: 'carlos.manager@company.com',
-      department: 'Marketing',
-    },
-    status: 'pending',
-    priority: 'high',
-    createdAt: new Date('2024-03-15T10:30:00'),
-  },
-  {
-    id: '2',
-    type: 'access',
-    title: 'Admin Access Request',
-    description: 'Request admin privileges for project management system access.',
-    requestedBy: {
-      name: 'Pedro Costa',
-      email: 'pedro.costa@company.com',
-      department: 'IT',
-    },
-    status: 'in_review',
-    priority: 'medium',
-    createdAt: new Date('2024-03-14T14:20:00'),
-  },
-  {
-    id: '3',
-    type: 'support',
-    title: 'Password Reset Issue',
-    description: 'Unable to reset password, not receiving email confirmation.',
-    requestedBy: {
-      name: 'Maria Santos',
-      email: 'maria.santos@company.com',
-      department: 'Finance',
-    },
-    status: 'approved',
-    priority: 'low',
-    createdAt: new Date('2024-03-13T09:15:00'),
-    reviewedAt: new Date('2024-03-13T11:30:00'),
-    reviewedBy: 'João Silva',
-    response: 'Password reset completed. Email configuration was updated.',
-  },
-  {
-    id: '4',
-    type: 'feature',
-    title: 'Bulk Upload Feature',
-    description: 'Request to add bulk file upload functionality to the documents section.',
-    requestedBy: {
-      name: 'Ana Oliveira',
-      email: 'ana.oliveira@company.com',
-      department: 'Operations',
-    },
-    status: 'rejected',
-    priority: 'low',
-    createdAt: new Date('2024-03-12T16:45:00'),
-    reviewedAt: new Date('2024-03-14T10:20:00'),
-    reviewedBy: 'João Silva',
-    response: 'Feature is already available in the Libraries section.',
-  },
-];
-
 export default function RequestsManagementPage() {
-  const [requests, setRequests] = useState<UserRequest[]>(mockRequests);
+  const [requests, setRequests] = useState<UserRequest[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<UserRequest | null>(null);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('pending');
-  
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+
   const { user, canAccess } = useUser();
   const { t } = useTranslation();
+
+  // Load requests from API
+  const loadRequests = async (page = 1, limit = 10, status?: string) => {
+    try {
+      setLoading(true);
+      const params: any = { page, limit };
+      if (status && status !== 'all') {
+        params.status = status;
+      }
+
+      const response = await requestService.getAll(params);
+      setRequests(response.requests);
+      setPagination({
+        current: response.pagination.page,
+        pageSize: response.pagination.limit,
+        total: response.pagination.total,
+      });
+    } catch (error) {
+      console.error('Failed to load requests:', error);
+      message.error(t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
 
   if (!canAccess([UserRole.ADMIN, UserRole.SUPER_ADMIN])) {
     return (
       <Card>
         <div className="text-center py-8">
-          <h3>Access Denied</h3>
-          <p>You don&apos;t have permission to access this page.</p>
+          <h3>{t('common.error')}</h3>
+          <p>{t('common.accessDenied')}</p>
         </div>
       </Card>
     );
@@ -153,25 +104,20 @@ export default function RequestsManagementPage() {
 
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      setRequests(prev => prev.map(req => 
-        req.id === selectedRequest.id 
-          ? {
-              ...req,
-              status: values.status,
-              response: values.response,
-              reviewedAt: new Date(),
-              reviewedBy: user?.name || 'Admin',
-            }
-          : req
-      ));
-      
+      await requestService.update(selectedRequest.id, {
+        status: values.status,
+        response: values.response,
+      });
+
+      // Reload requests to get updated data
+      await loadRequests(pagination.current, pagination.pageSize, activeTab);
+
       setIsModalVisible(false);
       form.resetFields();
-      message.success('Request updated successfully');
+      message.success(t('common.success'));
     } catch (error) {
-      message.error('Failed to update request');
+      console.error('Failed to update request:', error);
+      message.error(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -223,21 +169,22 @@ export default function RequestsManagementPage() {
   };
 
   const getRequestCounts = () => {
+    const allRequests = requests; // Since we're loading all requests, we can count from the loaded data
     return {
-      pending: requests.filter(r => r.status === 'pending').length,
-      in_review: requests.filter(r => r.status === 'in_review').length,
-      approved: requests.filter(r => r.status === 'approved').length,
-      rejected: requests.filter(r => r.status === 'rejected').length,
+      pending: allRequests.filter(r => r.status === 'pending').length,
+      in_review: allRequests.filter(r => r.status === 'in_review').length,
+      approved: allRequests.filter(r => r.status === 'approved').length,
+      rejected: allRequests.filter(r => r.status === 'rejected').length,
     };
   };
 
-  const filteredRequests = activeTab === 'all' 
-    ? requests 
+  const filteredRequests = activeTab === 'all'
+    ? requests
     : requests.filter(r => r.status === activeTab);
 
   const columns = [
     {
-      title: 'Type',
+      title: t('requests.type'),
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
@@ -248,25 +195,25 @@ export default function RequestsManagementPage() {
       ),
     },
     {
-      title: 'Request',
+      title: t('requests.title'),
       dataIndex: 'title',
       key: 'title',
       render: (title: string, record: UserRequest) => (
         <div>
           <div className="font-medium">{title}</div>
           <div className="text-sm text-gray-500 mt-1">
-            by {record.requestedBy.name}
+            {t('requests.by')} {record.requestedBy.name}
           </div>
         </div>
       ),
     },
     {
-      title: 'Department',
+      title: t('users.department'),
       dataIndex: ['requestedBy', 'department'],
       key: 'department',
     },
     {
-      title: 'Priority',
+      title: t('requests.priority'),
       dataIndex: 'priority',
       key: 'priority',
       render: (priority: string) => (
@@ -276,7 +223,7 @@ export default function RequestsManagementPage() {
       ),
     },
     {
-      title: 'Status',
+      title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
@@ -286,24 +233,24 @@ export default function RequestsManagementPage() {
       ),
     },
     {
-      title: 'Created',
+      title: t('users.createdAt'),
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: Date) => (
+      render: (date: string) => (
         <div>
-          <div>{date.toLocaleDateString()}</div>
+          <div>{new Date(date).toLocaleDateString()}</div>
           <div className="text-sm text-gray-500">
-            {date.toLocaleTimeString()}
+            {new Date(date).toLocaleTimeString()}
           </div>
         </div>
       ),
     },
     {
-      title: 'Actions',
+      title: t('users.actions'),
       key: 'actions',
       render: (_: any, record: UserRequest) => (
         <Space>
-          <Tooltip title="View Details">
+          <Tooltip title={t('requests.viewDetails')}>
             <Button
               type="text"
               icon={<EyeOutlined />}
@@ -312,7 +259,7 @@ export default function RequestsManagementPage() {
           </Tooltip>
           {record.status === 'pending' && (
             <>
-              <Tooltip title="Quick Approve">
+              <Tooltip title={t('requests.quickApprove')}>
                 <Button
                   type="text"
                   icon={<CheckOutlined />}
@@ -324,7 +271,7 @@ export default function RequestsManagementPage() {
                   }}
                 />
               </Tooltip>
-              <Tooltip title="Quick Reject">
+              <Tooltip title={t('requests.quickReject')}>
                 <Button
                   type="text"
                   icon={<CloseOutlined />}
@@ -350,15 +297,7 @@ export default function RequestsManagementPage() {
       key: 'pending',
       label: (
         <Badge count={counts.pending} size="small">
-          <span>Pending</span>
-        </Badge>
-      ),
-    },
-    {
-      key: 'in_review',
-      label: (
-        <Badge count={counts.in_review} size="small">
-          <span>In Review</span>
+          <span>{t("common.pending")}</span>
         </Badge>
       ),
     },
@@ -366,21 +305,13 @@ export default function RequestsManagementPage() {
       key: 'approved',
       label: (
         <Badge count={counts.approved} size="small">
-          <span>Approved</span>
-        </Badge>
-      ),
-    },
-    {
-      key: 'rejected',
-      label: (
-        <Badge count={counts.rejected} size="small">
-          <span>Rejected</span>
+          <span>{t("common.approved")}</span>
         </Badge>
       ),
     },
     {
       key: 'all',
-      label: 'All Requests',
+      label: t("common.all"),
     },
   ];
 
@@ -389,10 +320,10 @@ export default function RequestsManagementPage() {
       <Card>
         <Title level={3} className="mb-2">
           <MessageOutlined className="mr-2" />
-          User Requests Management
+          {t("navigation.requests")}
         </Title>
         <Text type="secondary">
-          Review and manage user requests for accounts, access, and support
+          {t("requests.reviewRequests")}
         </Text>
       </Card>
 
@@ -418,7 +349,7 @@ export default function RequestsManagementPage() {
 
       {/* Request Details Modal */}
       <Modal
-        title={`Request Details - ${selectedRequest?.title}`}
+        title={`${t("requests.requestDetails")} - ${selectedRequest?.title}`}
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
@@ -427,7 +358,7 @@ export default function RequestsManagementPage() {
         {selectedRequest && (
           <div className="space-y-4">
             {/* Request Info */}
-            <Card size="small" title="Request Information">
+            <Card size="small" title={t("requests.requestInformation")}>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Text strong>Type:</Text>
@@ -445,7 +376,7 @@ export default function RequestsManagementPage() {
                   </div>
                 </div>
                 <div>
-                  <Text strong>Requested by:</Text>
+                  <Text strong>{t("users.userDetails")}:</Text>
                   <div className="mt-1">
                     <div>{selectedRequest.requestedBy.name}</div>
                     <div className="text-sm text-gray-500">
@@ -457,18 +388,18 @@ export default function RequestsManagementPage() {
                   </div>
                 </div>
                 <div>
-                  <Text strong>Created:</Text>
+                  <Text strong>{t("users.createdAt")}:</Text>
                   <div className="mt-1">
-                    <div>{selectedRequest.createdAt.toLocaleDateString()}</div>
+                    <div>{new Date(selectedRequest.createdAt).toLocaleDateString()}</div>
                     <div className="text-sm text-gray-500">
-                      {selectedRequest.createdAt.toLocaleTimeString()}
+                      {new Date(selectedRequest.createdAt).toLocaleTimeString()}
                     </div>
                   </div>
                 </div>
               </div>
-              
+
               <div className="mt-4">
-                <Text strong>Description:</Text>
+                <Text strong>{t("common.description")}:</Text>
                 <div className="mt-1 p-3 bg-gray-50 rounded">
                   {selectedRequest.description}
                 </div>
@@ -482,35 +413,34 @@ export default function RequestsManagementPage() {
               layout="vertical"
             >
               <Form.Item
-                label="Status"
+                label={t("common.status")}
                 name="status"
-                rules={[{ required: true, message: 'Please select status' }]}
+                rules={[{ required: true, message: t('common.required') }]}
               >
-                <Select placeholder="Select status">
-                  <Select.Option value="pending">Pending</Select.Option>
-                  <Select.Option value="in_review">In Review</Select.Option>
-                  <Select.Option value="approved">Approved</Select.Option>
-                  <Select.Option value="rejected">Rejected</Select.Option>
+                <Select placeholder={t("users.selectStatus")}>
+                  <Select.Option value="pending">{t("common.pending")}</Select.Option>
+                  <Select.Option value="approved">{t("common.approved")}</Select.Option>
+                  <Select.Option value="rejected">{t("common.rejected")}</Select.Option>
                 </Select>
               </Form.Item>
 
               <Form.Item
-                label="Response"
+                label={t("common.response")}
                 name="response"
               >
                 <TextArea
                   rows={4}
-                  placeholder="Enter response or additional notes..."
+                  placeholder={t("common.response")}
                 />
               </Form.Item>
 
               <Form.Item>
                 <Space>
                   <Button type="primary" htmlType="submit" loading={loading}>
-                    Update Request
+                    {t("common.submit")}
                   </Button>
                   <Button onClick={() => setIsModalVisible(false)}>
-                    Cancel
+                    {t("common.cancel")}
                   </Button>
                 </Space>
               </Form.Item>

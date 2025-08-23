@@ -1,127 +1,84 @@
 "use client";
 
-import { useState } from "react";
-import { Card, Table, Tag, Button, Modal, Form, Input, message, Select, Space, Tabs } from "antd";
-import { EyeOutlined, MessageOutlined, FilterOutlined } from "@ant-design/icons";
+import { useState, useEffect, useCallback } from "react";
+import { Card, Table, Tag, Button, Modal, Form, Input, message, Select, Space, Tabs, Spin } from "antd";
+import { EyeOutlined, MessageOutlined, FilterOutlined, ReloadOutlined } from "@ant-design/icons";
 
 import { useUser } from "@/contexts/UserContext";
 import { useTranslation } from "@/contexts/LanguageContext";
-import { Report, ReportStatus, UserRole } from "@/types";
+import { UserRole } from "@/types";
+import { reportService, GeneralReport } from "@/lib/services/reportService";
 
 const { TextArea } = Input;
 const { TabPane } = Tabs;
 
-// Mock reports data
-const mockReports: Report[] = [
-  {
-    id: '1',
-    title: 'Monthly Sales Report - March 2024',
-    description: 'Comprehensive sales analysis for March including targets vs achievements.',
-    type: 'Monthly Progress Report',
-    status: ReportStatus.PENDING,
-    submittedBy: { 
-      id: '3', 
-      name: 'Pedro Costa', 
-      email: 'pedro@empresa.com', 
-      role: UserRole.USER, 
-      department: 'Vendas',
-      status: 'active' as any,
-      createdAt: new Date()
-    } as any,
-    submittedAt: new Date('2024-03-25'),
-    attachments: [],
-  },
-  {
-    id: '2',
-    title: 'System Performance Issues',
-    description: 'Report on recent system slowdowns and proposed solutions.',
-    type: 'Issue Report',
-    status: ReportStatus.RESPONDED,
-    submittedBy: { 
-      id: '4', 
-      name: 'Ana Silva', 
-      email: 'ana@empresa.com', 
-      role: UserRole.USER, 
-      department: 'TI',
-      status: 'active' as any,
-      createdAt: new Date()
-    } as any,
-    submittedAt: new Date('2024-03-20'),
-    respondedAt: new Date('2024-03-22'),
-    response: 'Issues have been identified and fixes are being implemented.',
-    attachments: [],
-  },
-  {
-    id: '3',
-    title: 'Q1 Training Progress',
-    description: 'Update on employee training programs completed in Q1.',
-    type: 'Project Update',
-    status: ReportStatus.ARCHIVED,
-    submittedBy: { 
-      id: '5', 
-      name: 'Carlos Oliveira', 
-      email: 'carlos@empresa.com', 
-      role: UserRole.USER, 
-      department: 'Recursos Humanos',
-      status: 'active' as any,
-      createdAt: new Date()
-    } as any,
-    submittedAt: new Date('2024-03-15'),
-    respondedAt: new Date('2024-03-18'),
-    response: 'Training program completed successfully. All objectives met.',
-    attachments: [],
-  },
-];
-
 export default function ViewReportsPage() {
-  const [reports, setReports] = useState<Report[]>(mockReports);
-  const [selectedReport, setSelectedReport] = useState<Report | null>(null);
+  const [reports, setReports] = useState<GeneralReport[]>([]);
+  const [selectedReport, setSelectedReport] = useState<GeneralReport | null>(null);
   const [isModalVisible, setIsModalVisible] = useState(false);
   const [isResponseModalVisible, setIsResponseModalVisible] = useState(false);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<string>('');
+  const [filterType, setFilterType] = useState<string>('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalReports, setTotalReports] = useState(0);
   
   const { user, hasRole } = useUser();
   const { t } = useTranslation();
+
+  // Load reports function
+  const loadReports = useCallback(async (
+    status?: string,
+    type?: string,
+    page = 1,
+    pageSize = 10
+  ) => {
+    setLoading(true);
+    try {
+      const result = await reportService.getGeneralReports({
+        status: status || undefined,
+        type: type || undefined,
+        page,
+        limit: pageSize,
+      });
+
+      if (result.success && result.reports) {
+        setReports(result.reports);
+        setTotalReports(result.total || 0);
+      } else {
+        message.error(result.error || t("reports.failedToLoadReports"));
+      }
+    } catch (error) {
+      console.error('Error loading reports:', error);
+      message.error(t("reports.failedToLoadReports"));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  // Load reports on component mount and when filters change
+  useEffect(() => {
+    loadReports(filterStatus, filterType, currentPage, pageSize);
+  }, [loadReports, filterStatus, filterType, currentPage, pageSize]);
 
   // Early return if user is not available
   if (!user) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div>Loading user data...</div>
+        <Spin size="large" />
+        <div className="ml-3">{t("reports.loadingUserData")}</div>
       </div>
     );
   }
 
-  // Filter reports based on user role
-  const getFilteredReports = () => {
-    if (!user) return [];
-    
-    try {
-      if (hasRole(UserRole.SUPER_ADMIN)) {
-        return reports; // Super admin sees all reports
-      } else if (hasRole(UserRole.ADMIN)) {
-        // Admin sees reports from their department and reports submitted to them
-        return reports.filter(report => 
-          report.submittedBy?.department === user.department ||
-          report.submittedTo?.id === user.id
-        );
-      } else {
-        // Users see only their own reports
-        return reports.filter(report => report.submittedBy?.id === user.id);
-      }
-    } catch (error) {
-      console.error('Error filtering reports:', error);
-      return [];
-    }
-  };
-
-  const handleViewReport = (report: Report) => {
+  const handleViewReport = (report: GeneralReport) => {
     setSelectedReport(report);
     setIsModalVisible(true);
   };
 
-  const handleRespond = (report: Report) => {
+  const handleRespond = (report: GeneralReport) => {
     setSelectedReport(report);
     setIsResponseModalVisible(true);
   };
@@ -131,100 +88,119 @@ export default function ViewReportsPage() {
     
     setLoading(true);
     try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await reportService.respondToGeneralReport(selectedReport.id, values.response);
       
-      // Update report status and response
-      const updatedReports = reports.map(report => 
-        report.id === selectedReport.id 
-          ? { 
-              ...report, 
-              status: ReportStatus.RESPONDED,
-              response: values.response,
-              respondedAt: new Date()
-            }
-          : report
-      );
-      
-      setReports(updatedReports);
-      setIsResponseModalVisible(false);
-      form.resetFields();
-      message.success("Response submitted successfully");
+      if (result.success) {
+        message.success(t("reports.reportResponseSubmitted"));
+        setIsResponseModalVisible(false);
+        form.resetFields();
+        // Reload reports to get updated data
+        loadReports(filterStatus, filterType, currentPage, pageSize);
+      } else {
+        message.error(result.error || t("reports.failedToRespond"));
+      }
     } catch (error) {
-      message.error("Failed to submit response");
+      console.error('Submit response error:', error);
+      message.error(t("reports.failedToRespond"));
     } finally {
       setLoading(false);
     }
   };
 
-  const getStatusColor = (status: ReportStatus) => {
+  const getStatusColor = (status: string) => {
     switch (status) {
-      case ReportStatus.PENDING:
-        return 'orange';
-      case ReportStatus.RESPONDED:
-        return 'green';
-      case ReportStatus.ARCHIVED:
-        return 'blue';
-      default:
-        return 'default';
+      case 'PENDING': return 'orange';
+      case 'RESPONDED': return 'green';
+      case 'ARCHIVED': return 'gray';
+      default: return 'blue';
     }
   };
+
+  const getStatusText = (status: string) => {
+    switch (status) {
+      case 'PENDING': return t("reports.pending");
+      case 'RESPONDED': return t("reports.responded");
+      case 'ARCHIVED': return t("reports.archived");
+      default: return status;
+    }
+  };
+
+  // Report types with translation keys
+  const reportTypeKeys = [
+    { key: 'Monthly Progress Report', translationKey: "reports.monthlyProgressReport" },
+    { key: 'Issue Report', translationKey: "reports.issueReport" },
+    { key: 'Project Update', translationKey: "reports.projectUpdate" },
+    { key: 'Expense Report', translationKey: "reports.expenseReport" },
+    { key: 'Performance Review', translationKey: "reports.performanceReview" },
+    { key: 'Incident Report', translationKey: "reports.incidentReport" },
+    { key: 'Other', translationKey: "reports.other" },
+  ];
+
+  const getReportTypes = () => reportTypeKeys.map(type => ({
+    key: type.key,
+    label: t(type.translationKey)
+  }));
 
   const columns = [
     {
       title: t("reports.title"),
       dataIndex: 'title',
       key: 'title',
-      render: (text: string, record: Report) => (
-        <div>
-          <div className="font-medium">{text}</div>
-          <div className="text-sm text-gray-500">{record.type}</div>
-        </div>
-      ),
+      ellipsis: true,
+    },
+    {
+      title: t("reports.reportType"),
+      dataIndex: 'type',
+      key: 'type',
     },
     {
       title: t("reports.submittedBy"),
-      dataIndex: 'submittedBy',
       key: 'submittedBy',
-      render: (submittedBy: any) => (
+      render: (record: GeneralReport) => (
         <div>
-          <div>{submittedBy?.name || 'Unknown User'}</div>
-          <div className="text-sm text-gray-500">{submittedBy?.department || 'No Department'}</div>
+          <div>{record.submittedBy?.name}</div>
+          <div className="text-xs text-gray-500">
+            {record.submittedBy?.department?.name || 'No Department'}
+          </div>
         </div>
       ),
     },
     {
-      title: t("reports.submittedAt"),
-      dataIndex: 'submittedAt',
-      key: 'submittedAt',
-      render: (date: Date) => date.toLocaleDateString(),
-    },
-    {
       title: t("reports.status"),
-      dataIndex: 'status',
       key: 'status',
-      render: (status: ReportStatus) => (
-        <Tag color={getStatusColor(status)}>
-          {status.toUpperCase()}
+      render: (record: GeneralReport) => (
+        <Tag color={getStatusColor(record.status)}>
+          {getStatusText(record.status)}
         </Tag>
       ),
     },
     {
-      title: 'Actions',
+      title: t("reports.submittedAt"),
+      key: 'submittedAt',
+      render: (record: GeneralReport) => new Date(record.submittedAt).toLocaleDateString(),
+    },
+    {
+      title: t("reports.actions"),
       key: 'actions',
-      render: (_: any, record: Report) => (
+      render: (record: GeneralReport) => (
         <Space>
-          <Button 
-            icon={<EyeOutlined />} 
+          <Button
+            icon={<EyeOutlined />}
             onClick={() => handleViewReport(record)}
+            size="small"
           >
-            {t("common.view")}
+            {t("reports.viewReport")}
           </Button>
-          {hasRole(UserRole.ADMIN) && record.status === ReportStatus.PENDING && (
-            <Button 
-              type="primary"
-              icon={<MessageOutlined />} 
+          {record.status === 'PENDING' && (
+            hasRole(UserRole.SUPERVISOR) || 
+            hasRole(UserRole.ADMIN) || 
+            hasRole(UserRole.SUPER_ADMIN)
+          ) && (
+            <Button
+              icon={<MessageOutlined />}
               onClick={() => handleRespond(record)}
+              size="small"
+              type="primary"
             >
               {t("reports.respond")}
             </Button>
@@ -234,11 +210,10 @@ export default function ViewReportsPage() {
     },
   ];
 
-  const filteredReports = getFilteredReports();
-
-  const pendingReports = filteredReports.filter(r => r.status === ReportStatus.PENDING);
-  const respondedReports = filteredReports.filter(r => r.status === ReportStatus.RESPONDED);
-  const archivedReports = filteredReports.filter(r => r.status === ReportStatus.ARCHIVED);
+  // Filter reports for tabs
+  const pendingReports = reports.filter(r => r.status === 'PENDING');
+  const respondedReports = reports.filter(r => r.status === 'RESPONDED');
+  const archivedReports = reports.filter(r => r.status === 'ARCHIVED');
 
   return (
     <div className="p-6">
@@ -248,94 +223,139 @@ export default function ViewReportsPage() {
             <FilterOutlined />
             {t("reports.viewReports")}
           </h2>
+          <p className="text-gray-600 mt-2">
+            {t("navigation.viewReports")}
+          </p>
         </div>
 
-        <Tabs defaultActiveKey="all">
-          <TabPane tab={`All Reports (${filteredReports.length})`} key="all">
-            <Table 
-              columns={columns} 
-              dataSource={filteredReports}
+        {/* Filters */}
+        <div className="mb-4">
+          <Space>
+            <Select
+              placeholder={t("reports.status")}
+              value={filterStatus}
+              onChange={setFilterStatus}
+              style={{ width: 120 }}
+              allowClear
+            >
+              <Select.Option value="PENDING">{t("reports.pending")}</Select.Option>
+              <Select.Option value="RESPONDED">{t("reports.responded")}</Select.Option>
+              <Select.Option value="ARCHIVED">{t("reports.archived")}</Select.Option>
+            </Select>
+            <Select
+              placeholder={t("reports.reportType")}
+              value={filterType}
+              onChange={setFilterType}
+              style={{ width: 200 }}
+              allowClear
+            >
+              {getReportTypes().map(type => (
+                <Select.Option key={type.key} value={type.key}>{type.label}</Select.Option>
+              ))}
+            </Select>
+            <Button 
+              icon={<ReloadOutlined />} 
+              onClick={() => loadReports(filterStatus, filterType, currentPage, pageSize)}
+              loading={loading}
+            >
+              {t("common.reload")}
+            </Button>
+          </Space>
+        </div>
+
+        <Tabs>
+          <TabPane tab={`${t("reports.allReportsTab")} (${reports.length})`} key="all">
+            <Table
+              columns={columns}
+              dataSource={reports}
               rowKey="id"
-              pagination={{ pageSize: 10 }}
+              loading={loading}
+              pagination={{
+                current: currentPage,
+                pageSize: pageSize,
+                total: totalReports,
+                onChange: (page, size) => {
+                  setCurrentPage(page);
+                  setPageSize(size || 10);
+                },
+              }}
             />
           </TabPane>
-          
-          {hasRole(UserRole.ADMIN) && (
-            <>
-              <TabPane tab={`Pending (${pendingReports.length})`} key="pending">
-                <Table 
-                  columns={columns} 
-                  dataSource={pendingReports}
-                  rowKey="id"
-                  pagination={{ pageSize: 10 }}
-                />
-              </TabPane>
-              
-              <TabPane tab={`Responded (${respondedReports.length})`} key="responded">
-                <Table 
-                  columns={columns} 
-                  dataSource={respondedReports}
-                  rowKey="id"
-                  pagination={{ pageSize: 10 }}
-                />
-              </TabPane>
-            </>
-          )}
-          
-          <TabPane tab={`Archived (${archivedReports.length})`} key="archived">
-            <Table 
-              columns={columns} 
+          <TabPane tab={`${t("reports.pendingTab")} (${pendingReports.length})`} key="pending">
+            <Table
+              columns={columns}
+              dataSource={pendingReports}
+              rowKey="id"
+              loading={loading}
+              pagination={false}
+            />
+          </TabPane>
+          <TabPane tab={`${t("reports.respondedTab")} (${respondedReports.length})`} key="responded">
+            <Table
+              columns={columns}
+              dataSource={respondedReports}
+              rowKey="id"
+              loading={loading}
+              pagination={false}
+            />
+          </TabPane>
+          <TabPane tab={`${t("reports.archivedTab")} (${archivedReports.length})`} key="archived">
+            <Table
+              columns={columns}
               dataSource={archivedReports}
               rowKey="id"
-              pagination={{ pageSize: 10 }}
+              loading={loading}
+              pagination={false}
             />
           </TabPane>
         </Tabs>
       </Card>
 
-      {/* Report Details Modal */}
+      {/* View Report Modal */}
       <Modal
         title={t("reports.reportDetails")}
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
-        width={700}
+        width={800}
       >
         {selectedReport && (
           <div>
             <div className="mb-4">
-              <h3 className="text-lg font-semibold">{selectedReport.title}</h3>
-              <p className="text-gray-600">{selectedReport.type}</p>
+              <strong>{t("reports.title")}:</strong> {selectedReport.title}
             </div>
-            
             <div className="mb-4">
-              <strong>Description:</strong>
-              <p className="mt-2">{selectedReport.description}</p>
+              <strong>{t("reports.reportType")}:</strong> {selectedReport.type}
             </div>
-            
             <div className="mb-4">
-              <strong>Submitted by:</strong> {selectedReport.submittedBy?.name || 'Unknown User'} ({selectedReport.submittedBy?.department || 'No Department'})
+              <strong>{t("reports.submittedBy")}:</strong> {selectedReport.submittedBy?.name || 'Unknown User'} ({selectedReport.submittedBy?.department?.name || 'No Department'})
             </div>
-            
             <div className="mb-4">
-              <strong>Submitted at:</strong> {selectedReport.submittedAt ? selectedReport.submittedAt.toLocaleString() : 'Unknown Date'}
+              <strong>{t("reports.submittedAt")}:</strong> {new Date(selectedReport.submittedAt).toLocaleString()}
             </div>
-            
             <div className="mb-4">
-              <strong>Status:</strong> <Tag color={getStatusColor(selectedReport.status)}>{selectedReport.status}</Tag>
+              <strong>{t("reports.status")}:</strong> <Tag color={getStatusColor(selectedReport.status)}>{getStatusText(selectedReport.status)}</Tag>
             </div>
-            
+            <div className="mb-4">
+              <strong>{t("reports.description")}:</strong>
+              <div className="mt-2 p-3 bg-gray-50 rounded">{selectedReport.description}</div>
+            </div>
             {selectedReport.response && (
               <div className="mb-4">
-                <strong>Response:</strong>
-                <div className="mt-2 p-3 bg-gray-50 rounded">
-                  {selectedReport.response}
+                <strong>{t("reports.response")}:</strong>
+                <div className="mt-2 p-3 bg-blue-50 rounded">{selectedReport.response}</div>
+              </div>
+            )}
+            {selectedReport.attachments && selectedReport.attachments.length > 0 && (
+              <div>
+                <strong>{t("reports.attachFiles")}:</strong>
+                <div className="mt-2">
+                  {selectedReport.attachments.map((attachment) => (
+                    <div key={attachment.id} className="p-2 border rounded mb-2">
+                      {attachment.file.originalName || attachment.file.name}
+                    </div>
+                  ))}
                 </div>
-                {selectedReport.respondedAt && (
-                  <p className="text-sm text-gray-500 mt-2">
-                    Responded at: {selectedReport.respondedAt.toLocaleString()}
-                  </p>
-                )}
               </div>
             )}
           </div>
@@ -344,32 +364,23 @@ export default function ViewReportsPage() {
 
       {/* Response Modal */}
       <Modal
-        title={t("reports.respond")}
+        title={t("reports.responseModalTitle")}
         open={isResponseModalVisible}
         onCancel={() => setIsResponseModalVisible(false)}
         footer={null}
-        width={600}
       >
-        <Form
-          form={form}
-          onFinish={handleSubmitResponse}
-          layout="vertical"
-        >
+        <Form form={form} onFinish={handleSubmitResponse} layout="vertical">
           <Form.Item
-            label={t("reports.response")}
+            label={t("reports.writeResponse")}
             name="response"
-            rules={[{ required: true, message: "Please enter your response" }]}
+            rules={[{ required: true, message: t("reports.writeResponse") }]}
           >
-            <TextArea
-              rows={6}
-              placeholder="Enter your response to this report..."
-            />
+            <TextArea rows={6} placeholder={t("reports.writeResponse")} />
           </Form.Item>
-          
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit" loading={loading}>
-                {t("common.submit")} {t("reports.response")}
+                {t("reports.submitResponse")}
               </Button>
               <Button onClick={() => setIsResponseModalVisible(false)}>
                 {t("common.cancel")}

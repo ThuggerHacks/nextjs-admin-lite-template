@@ -1,68 +1,329 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  name            String
-  password        String
-  role            Role      @default(USER)
-  isEmailVerified Boolean   @default(false)
-  lastLoginAt     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+// Note: SQLite doesn't support enums, so we use String with constraints
 
-  // Relations
-  files          File[]
-  passwordResets PasswordReset[]
+// Note: SQLite doesn't support enums, so we use String with constraints
+
+model Sucursal {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  location    String?
+  serverUrl   String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users       User[]
+  departments Department[]
+  libraries   Library[]
+  goals       Goal[]
+  reports     Report[]
+  generalReports GeneralReport[]
+  folders     Folder[]
+  files       File[]
+  notifications Notification[]
+  errorLogs   ErrorLog[]
+  scans       Scan[]
+  sourceConnections SucursalConnection[] @relation("SourceConnections")
+  targetConnections SucursalConnection[] @relation("TargetConnections")
+
+  @@map("sucursals")
+}
+
+model SucursalConnection {
+  id                String   @id @default(cuid())
+  sourceSucursalId  String
+  targetSucursalId  String
+  createdAt         DateTime @default(now())
+
+  sourceSucursal    Sucursal @relation("SourceConnections", fields: [sourceSucursalId], references: [id], onDelete: Cascade)
+  targetSucursal    Sucursal @relation("TargetConnections", fields: [targetSucursalId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceSucursalId, targetSucursalId])
+  @@map("sucursal_connections")
+}
+
+model Department {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  sucursalId  String
+  supervisorId String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  supervisor  User?    @relation("DepartmentSupervisor", fields: [supervisorId], references: [id])
+  users       User[]
+  supervisors User[]   @relation("DepartmentSupervisors")
+  goals       Goal[]
+
+  @@unique([name, sucursalId])
+  @@map("departments")
+}
+
+model User {
+  id              String     @id @default(cuid())
+  name            String
+  email           String     @unique
+  password        String
+  role            String     @default("USER")
+  status          String     @default("PENDING")
+  profilePicture  String?
+  sucursalId      String
+  departmentId    String?
+  supervisorId    String?
+  phone           String?
+  address         String?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  lastLogin       DateTime?
+
+  sucursal        Sucursal   @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  department      Department? @relation(fields: [departmentId], references: [id])
+  supervisor      User?      @relation("UserSupervisors", fields: [supervisorId], references: [id])
+  subordinates    User[]     @relation("UserSupervisors")
+  supervisedDepartments Department[] @relation("DepartmentSupervisor")
+  departmentSupervisors Department[] @relation("DepartmentSupervisors")
+
+  folders         Folder[]
+  files           File[]
+  libraries       Library[]
+  libraryMembers  LibraryMember[]
+  goals           GoalAssignment[]
+  reports         Report[]
+  notifications   Notification[]
+  scans           Scan[]
+  createdGoals    Goal[]     @relation("GoalCreator")
+  submittedReports GeneralReport[] @relation("SubmittedReports")
+  receivedReports GeneralReport[] @relation("ReceivedReports")
+  respondedReports GeneralReport[] @relation("RespondedReports")
 
   @@map("users")
 }
 
-model File {
-  id           String   @id @default(cuid())
-  originalName String
-  filename     String   @unique
-  mimetype     String
-  size         Int
-  path         String
-  category     String   @default("general")
-  description  String?
-  userId       String
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model Folder {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?
+  userId      String
+  sucursalId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  parent      Folder?  @relation("FolderHierarchy", fields: [parentId], references: [id])
+  children    Folder[] @relation("FolderHierarchy")
+  files       File[]
+
+  @@map("folders")
+}
+
+model File {
+  id          String   @id @default(cuid())
+  name        String
+  originalName String?
+  description String?
+  url         String
+  size        Int
+  type        String
+  mimeType    String?
+  isPublic    Boolean  @default(false)
+  folderId    String?
+  userId      String
+  sucursalId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  folder      Folder?  @relation(fields: [folderId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  reports     ReportFile[]
+  generalReports GeneralReportFile[]
 
   @@map("files")
 }
 
-model PasswordReset {
-  id        String   @id @default(cuid())
-  userId    String
-  token     String   @unique
-  expiresAt DateTime
-  used      Boolean  @default(false)
+model Library {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  userId      String
+  sucursalId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  members     LibraryMember[]
+
+  @@map("libraries")
+}
+
+model LibraryMember {
+  id         String   @id @default(cuid())
+  libraryId  String
+  userId     String
+  createdAt  DateTime @default(now())
+
+  library    Library  @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([libraryId, userId])
+  @@map("library_members")
+}
+
+model Goal {
+  id          String     @id @default(cuid())
+  name        String
+  description String?
+  timeline    DateTime
+  status      String     @default("DRAFT")
+  departmentId String
+  createdById String
+  sucursalId  String
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  department  Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  createdBy   User       @relation("GoalCreator", fields: [createdById], references: [id])
+  sucursal    Sucursal   @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  assignments GoalAssignment[]
+  reports     Report[]
+
+  @@map("goals")
+}
+
+model GoalAssignment {
+  id       String   @id @default(cuid())
+  goalId   String
+  userId   String
+  assignedAt DateTime @default(now())
+
+  goal     Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([goalId, userId])
+  @@map("goal_assignments")
+}
+
+model Report {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  goalId      String?
+  userId      String
+  sucursalId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  goal        Goal?    @relation(fields: [goalId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  files       ReportFile[]
+
+  @@map("reports")
+}
+
+model GeneralReport {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  type          String
+  status        String    @default("PENDING") // PENDING, RESPONDED, ARCHIVED
+  submittedById String
+  submittedToId String?
+  respondedById String?
+  response      String?
+  submittedAt   DateTime  @default(now())
+  respondedAt   DateTime?
+  sucursalId    String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  submittedBy   User      @relation("SubmittedReports", fields: [submittedById], references: [id], onDelete: Cascade)
+  submittedTo   User?     @relation("ReceivedReports", fields: [submittedToId], references: [id])
+  respondedBy   User?     @relation("RespondedReports", fields: [respondedById], references: [id])
+  sucursal      Sucursal  @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  attachments   GeneralReportFile[]
+
+  @@map("general_reports")
+}
+
+model GeneralReportFile {
+  id              String        @id @default(cuid())
+  generalReportId String
+  fileId          String
+
+  generalReport   GeneralReport @relation(fields: [generalReportId], references: [id], onDelete: Cascade)
+  file            File          @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([generalReportId, fileId])
+  @@map("general_report_files")
+}
+
+model ReportFile {
+  id       String @id @default(cuid())
+  reportId String
+  fileId   String
+
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade)
+  file     File   @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([reportId, fileId])
+  @@map("report_files")
+}
+
+model Scan {
+  id       String   @id @default(cuid())
+  title    String
+  userId   String
+  sucursalId String
+  images   String
+  pdfUrl   String?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  // Relations
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
 
-  @@map("password_resets")
+  @@map("scans")
 }
 
-enum Role {
-  USER
-  ADMIN
-  MANAGER
+model Notification {
+  id          String           @id @default(cuid())
+  type        String
+  title       String
+  description String
+  isRead      Boolean          @default(false)
+  userId      String
+  sucursalId  String
+  createdAt   DateTime         @default(now())
+
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal         @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
 }
+
+model ErrorLog {
+  id            String    @id @default(cuid())
+  sucursalId    String
+  errorType     String
+  description   String
+  errorDetails  String?
+  createdAt     DateTime  @default(now())
+
+  sucursal      Sucursal  @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+
+  @@map("error_logs")
+} 

@@ -198,7 +198,7 @@ export default function LibrariesPage() {
     
     // Check department permissions
     const deptPermission = library.permissions.find(p => 
-      p.type === 'department' && p.targetId === user.department
+      p.type === 'department' && p.targetId === user.department?.id
     );
     
     if (deptPermission) {

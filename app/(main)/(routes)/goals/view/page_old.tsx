@@ -95,7 +95,7 @@ export default function ViewGoalsPage() {
       return goals.filter(goal => 
         goal.assignedBy.id === user.id ||
         goal.assignedTo.some(assignee => assignee.id === user.id) ||
-        goal.department === user.department
+        goal.department === user.department?.name
       );
     } else {
       // Users see only goals they're assigned to
@@ -231,7 +231,7 @@ export default function ViewGoalsPage() {
     goal.assignedTo.some(assignee => assignee.id === user?.id)
   );
   const teamGoals = hasRole(UserRole.ADMIN) 
-    ? filteredGoals.filter(goal => goal.department === user?.department)
+    ? filteredGoals.filter(goal => goal.department === user?.department?.name)
     : [];
   const activeGoals = filteredGoals.filter(goal => goal.status === GoalStatus.ACTIVE);
   const completedGoals = filteredGoals.filter(goal => goal.status === GoalStatus.COMPLETED);
@@ -352,7 +352,7 @@ export default function ViewGoalsPage() {
                 <Space wrap>
                   {selectedGoal.assignedTo.map(user => (
                     <Tag key={user.id} icon={<UserOutlined />}>
-                      {user.name} - {user.department}
+                      {user.name} - {user.department?.name || 'No Department'}
                     </Tag>
                   ))}
                 </Space>

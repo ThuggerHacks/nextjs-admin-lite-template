@@ -10,15 +10,17 @@ export enum StorageEnum {
 }
 
 export enum UserRole {
-  USER = "user",
-  ADMIN = "admin",
-  SUPER_ADMIN = "super_admin",
+  USER = "USER",
+  SUPERVISOR = "SUPERVISOR", 
+  ADMIN = "ADMIN",
+  SUPER_ADMIN = "SUPER_ADMIN",
+  DEVELOPER = "DEVELOPER",
 }
 
 export enum UserStatus {
-  ACTIVE = "active",
-  INACTIVE = "inactive",
-  PENDING = "pending",
+  ACTIVE = "ACTIVE",
+  INACTIVE = "INACTIVE", 
+  PENDING = "PENDING",
 }
 
 export enum ReportStatus {
@@ -56,15 +58,25 @@ export interface User {
   name: string;
   email: string;
   role: UserRole;
-  department: string;
   status: UserStatus;
+  departmentId?: string;
+  department?: {
+    id: string;
+    name: string;
+    description?: string;
+  };
   avatar?: string;
   phone?: string;
   address?: string;
-  createdAt: Date;
-  lastLogin?: Date;
+  createdAt: string;
+  lastLogin?: string;
   isDepartmentAdmin?: boolean; // New field for department admin role
   managedDepartments?: string[]; // Departments this user can manage
+  sucursal?: {
+    id: string;
+    name: string;
+    serverUrl?: string;
+  };
 }
 
 export interface Department {

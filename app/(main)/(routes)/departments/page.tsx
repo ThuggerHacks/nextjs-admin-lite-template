@@ -1,271 +1,237 @@
 'use client';
 
-import React, { useState } from 'react';
-import { 
-  Card, 
-  Table, 
-  Button, 
-  Space, 
-  Modal, 
-  Form, 
-  Input, 
-  Select, 
-  message, 
-  Popconfirm,
-  Tag,
-  Avatar,
-  Typography,
-  Descriptions
-} from 'antd';
-import { 
-  PlusOutlined, 
-  EditOutlined, 
-  DeleteOutlined, 
-  UserOutlined,
-  TeamOutlined,
-  SettingOutlined
-} from '@ant-design/icons';
-import { Department, User, UserRole } from '../../../../types';
+import React, { useState, useEffect } from 'react';
+import { Button, Table, Modal, Form, Input, Select, message, Space, Popconfirm, Card, Typography } from 'antd';
+import { PlusOutlined, EditOutlined, DeleteOutlined, UsergroupAddOutlined } from '@ant-design/icons';
+import { departmentService, userService } from '@/lib/services';
+import { useTranslation } from '@/contexts/LanguageContext';
+import { useUser } from '@/contexts/UserContext';
+import { UserRole } from '@/types';
+import type { Department, CreateDepartmentRequest } from '@/lib/services/departmentService';
+import type { User } from '@/lib/services/userService';
+import { MdOutlineRefresh } from 'react-icons/md';
 
-const { Title } = Typography;
-const { TextArea } = Input;
-
-// Mock departments data
-const mockDepartments: Department[] = [
-  {
-    id: '1',
-    name: 'Human Resources',
-    description: 'Manages employee relations, recruitment, and company policies',
-    adminId: '1',
-    adminUser: {
-      id: '1',
-      name: 'Sarah Johnson',
-      email: 'sarah.johnson@company.com',
-      role: UserRole.ADMIN,
-      department: 'Human Resources',
-      status: 'active' as any,
-      createdAt: new Date('2024-01-15')
-    },
-    createdBy: {
-      id: '1',
-      name: 'System Admin',
-      email: 'admin@company.com',
-      role: UserRole.SUPER_ADMIN,
-      department: 'IT',
-      status: 'active' as any,
-      createdAt: new Date('2024-01-01')
-    },
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-07-20'),
-    isActive: true,
-    memberCount: 12
-  },
-  {
-    id: '2',
-    name: 'Information Technology',
-    description: 'Responsible for technology infrastructure and software development',
-    adminId: '2',
-    adminUser: {
-      id: '2',
-      name: 'Michael Chen',
-      email: 'michael.chen@company.com',
-      role: UserRole.ADMIN,
-      department: 'Information Technology',
-      status: 'active' as any,
-      createdAt: new Date('2024-02-01')
-    },
-    createdBy: {
-      id: '1',
-      name: 'System Admin',
-      email: 'admin@company.com',
-      role: UserRole.SUPER_ADMIN,
-      department: 'IT',
-      status: 'active' as any,
-      createdAt: new Date('2024-01-01')
-    },
-    createdAt: new Date('2024-02-01'),
-    updatedAt: new Date('2024-07-15'),
-    isActive: true,
-    memberCount: 18
-  },
-  {
-    id: '3',
-    name: 'Marketing',
-    description: 'Handles brand promotion, customer engagement, and market research',
-    adminId: '3',
-    adminUser: {
-      id: '3',
-      name: 'Emily Rodriguez',
-      email: 'emily.rodriguez@company.com',
-      role: UserRole.ADMIN,
-      department: 'Marketing',
-      status: 'active' as any,
-      createdAt: new Date('2024-03-10')
-    },
-    createdBy: {
-      id: '1',
-      name: 'System Admin',
-      email: 'admin@company.com',
-      role: UserRole.SUPER_ADMIN,
-      department: 'IT',
-      status: 'active' as any,
-      createdAt: new Date('2024-01-01')
-    },
-    createdAt: new Date('2024-03-10'),
-    updatedAt: new Date('2024-06-25'),
-    isActive: true,
-    memberCount: 8
-  },
-  {
-    id: '4',
-    name: 'Finance',
-    description: 'Manages financial planning, budgeting, and accounting operations',
-    createdBy: {
-      id: '1',
-      name: 'System Admin',
-      email: 'admin@company.com',
-      role: UserRole.SUPER_ADMIN,
-      department: 'IT',
-      status: 'active' as any,
-      createdAt: new Date('2024-01-01')
-    },
-    createdAt: new Date('2024-04-05'),
-    updatedAt: new Date('2024-07-30'),
-    isActive: true,
-    memberCount: 6
-  }
-];
-
-// Mock users for admin selection
-const mockUsers: User[] = [
-  {
-    id: '4',
-    name: 'David Wilson',
-    email: 'david.wilson@company.com',
-    role: UserRole.USER,
-    department: 'Finance',
-    status: 'active' as any,
-    createdAt: new Date('2024-04-01')
-  },
-  {
-    id: '5',
-    name: 'Lisa Thompson',
-    email: 'lisa.thompson@company.com',
-    role: UserRole.USER,
-    department: 'Marketing',
-    status: 'active' as any,
-    createdAt: new Date('2024-05-15')
-  },
-  {
-    id: '6',
-    name: 'James Brown',
-    email: 'james.brown@company.com',
-    role: UserRole.USER,
-    department: 'Human Resources',
-    status: 'active' as any,
-    createdAt: new Date('2024-06-01')
-  }
-];
+const { Title, Text } = Typography;
+const { Option } = Select;
 
 const DepartmentsPage: React.FC = () => {
-  const [departments, setDepartments] = useState<Department[]>(mockDepartments);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [usersLoading, setUsersLoading] = useState(false);
+  const [isModalVisible, setIsModalVisible] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [form] = Form.useForm();
+  const [searchText, setSearchText] = useState('');
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState<string | null>(null);
+
+  const { user, canAccess, hasRole } = useUser();
+  const { t } = useTranslation();
+
+  // Load departments
+  const loadDepartments = async () => {
+    try {
+      setLoading(true);
+      const departments = await departmentService.getAll();
+      setDepartments(departments || []);
+    } catch (error) {
+      console.error('Failed to load departments:', error);
+      message.error(t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Load users for supervisor selection
+  const loadUsers = async () => {
+    try {
+      setUsersLoading(true);
+      const response = await userService.getAll();
+      setUsers(response.users || []);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      message.error(t('common.error'));
+      setUsers([]);
+    } finally {
+      setUsersLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadDepartments();
+    loadUsers();
+  }, []);
+
+  const handleCreate = () => {
+    setEditingDepartment(null);
+    setIsModalVisible(true);
+    setSelectedSupervisorId(null);
+    form.resetFields();
+  };
+
+  const handleEdit = (department: Department) => {
+    setEditingDepartment(department);
+    setIsModalVisible(true);
+    const supervisorId = department.supervisorId || null;
+    setSelectedSupervisorId(supervisorId);
+    form.setFieldsValue({
+      name: department.name,
+      description: department.description,
+      supervisorId: supervisorId,
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await departmentService.delete(id);
+      message.success(t('common.success'));
+      loadDepartments();
+    } catch (error) {
+      console.error('Failed to delete department:', error);
+      message.error(t('common.error'));
+    }
+  };
+
+  const handleModalOk = async () => {
+    try {
+      const values = await form.validateFields();
+      
+      const departmentData: CreateDepartmentRequest = {
+        name: values.name,
+        description: values.description,
+        supervisorId: selectedSupervisorId || undefined,
+      };
+
+      if (editingDepartment) {
+        const result = await departmentService.update(editingDepartment.id, departmentData);
+        if (result) {
+          message.success(t('common.success'));
+          setIsModalVisible(false);
+          form.resetFields();
+          setSelectedSupervisorId(null);
+          loadDepartments();
+        } else {
+          message.error(t('common.error'));
+        }
+      } else {
+        const result = await departmentService.create(departmentData);
+        if (result) {
+          message.success(t('common.success'));
+          setIsModalVisible(false);
+          form.resetFields();
+          setSelectedSupervisorId(null);
+          loadDepartments();
+        } else {
+          message.error(t('common.error'));
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save department:', error);
+      message.error(t('common.error'));
+    }
+  };
+
+  const handleModalCancel = () => {
+    setIsModalVisible(false);
+    form.resetFields();
+    setSelectedSupervisorId(null);
+    setEditingDepartment(null);
+  };
+
+  // Get users for supervisor selection (for supervisor selection)
+  const getSupervisorUsers = () => {
+    return users.filter(user => 
+      user.status === 'ACTIVE' && 
+      (user.role === 'SUPERVISOR' || user.role === 'ADMIN')
+    );
+  };
+
+  // Filter departments based on search text
+  const filteredDepartments = departments.filter(dept =>
+    dept.name.toLowerCase().includes(searchText.toLowerCase()) ||
+    (dept.description && dept.description.toLowerCase().includes(searchText.toLowerCase()))
+  );
 
   const columns = [
     {
-      title: 'Department Name',
+      title: t('departments.name'),
       dataIndex: 'name',
       key: 'name',
-      render: (text: string, record: Department) => (
-        <Space direction="vertical" size={0}>
-          <Title level={5} style={{ margin: 0 }}>{text}</Title>
-          {record.description && (
-            <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-              {record.description.length > 50 
-                ? record.description.substring(0, 50) + '...'
-                : record.description
-              }
-            </Typography.Text>
-          )}
-        </Space>
-      ),
+      sorter: (a: Department, b: Department) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Admin',
-      dataIndex: 'adminUser',
-      key: 'admin',
-      render: (adminUser: User | undefined) => (
-        adminUser ? (
-          <Space>
-            <Avatar size="small" icon={<UserOutlined />} />
+      title: t('departments.description'),
+      dataIndex: 'description',
+      key: 'description',
+      render: (text: string) => text || '-',
+    },
+    {
+      title: t('departments.supervisor'),
+      key: 'supervisor',
+      render: (record: Department) => {
+        if (record.supervisor) {
+          return (
             <div>
-              <div>{adminUser.name}</div>
-              <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-                {adminUser.email}
-              </Typography.Text>
+              <div style={{ fontWeight: 500 }}>{record.supervisor.name}</div>
+              <div style={{ color: '#666', fontSize: '12px' }}>{record.supervisor.email}</div>
+              <div style={{ color: '#888', fontSize: '11px' }}>Role: {record.supervisor.role}</div>
             </div>
-          </Space>
-        ) : (
-          <Tag color="orange">No Admin Assigned</Tag>
-        )
-      ),
+          );
+        } else {
+          return (
+            <span style={{ color: '#999', fontStyle: 'italic' }}>{t('departments.noSupervisor')}</span>
+          );
+        }
+      },
     },
     {
-      title: 'Members',
-      dataIndex: 'memberCount',
-      key: 'memberCount',
-      render: (count: number) => (
-        <Space>
-          <TeamOutlined />
-          <span>{count}</span>
-        </Space>
-      ),
+      title: t('departments.usersCount'),
+      key: 'usersCount',
+      render: (record: Department) => {
+        const userCount = record.users?.length || 0;
+        return (
+          <span>
+            <UsergroupAddOutlined style={{ marginRight: 4 }} />
+            {userCount} {t('departments.users')}
+          </span>
+        );
+      },
     },
     {
-      title: 'Status',
-      dataIndex: 'isActive',
-      key: 'status',
-      render: (isActive: boolean) => (
-        <Tag color={isActive ? 'green' : 'red'}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Tag>
-      ),
-    },
-    {
-      title: 'Created',
+      title: t('departments.createdAt'),
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: Date) => date.toLocaleDateString(),
+      render: (date: string) => new Date(date).toLocaleDateString(),
+      sorter: (a: Department, b: Department) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     {
-      title: 'Actions',
+      title: t('departments.actions'),
       key: 'actions',
-      render: (_: any, record: Department) => (
+      render: (record: Department) => (
         <Space>
           <Button
-            type="text"
+            type="primary"
+            ghost
+            size="small"
             icon={<EditOutlined />}
             onClick={() => handleEdit(record)}
-            size="small"
           >
-            Edit
+            {t('departments.edit')}
           </Button>
           <Popconfirm
-            title="Delete Department"
-            description="Are you sure you want to delete this department?"
+            title={t('departments.confirmDelete')}
             onConfirm={() => handleDelete(record.id)}
-            okText="Yes"
-            cancelText="No"
+            okText={t('common.yes')}
+            cancelText={t('common.no')}
           >
             <Button
-              type="text"
+              type="primary"
               danger
-              icon={<DeleteOutlined />}
               size="small"
+              icon={<DeleteOutlined />}
             >
-              Delete
+              {t('departments.delete')}
             </Button>
           </Popconfirm>
         </Space>
@@ -273,118 +239,64 @@ const DepartmentsPage: React.FC = () => {
     },
   ];
 
-  const handleAdd = () => {
-    setEditingDepartment(null);
-    form.resetFields();
-    setIsModalOpen(true);
-  };
-
-  const handleEdit = (department: Department) => {
-    setEditingDepartment(department);
-    form.setFieldsValue({
-      name: department.name,
-      description: department.description,
-      adminId: department.adminId,
-      isActive: department.isActive,
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleDelete = (id: string) => {
-    setDepartments(departments.filter(dept => dept.id !== id));
-    message.success('Department deleted successfully');
-  };
-
-  const handleModalOk = async () => {
-    try {
-      const values = await form.validateFields();
-      
-      const selectedAdmin = mockUsers.find(user => user.id === values.adminId);
-      
-      if (editingDepartment) {
-        // Update existing department
-        const updatedDepartments = departments.map(dept =>
-          dept.id === editingDepartment.id
-            ? {
-                ...dept,
-                ...values,
-                adminUser: selectedAdmin,
-                updatedAt: new Date(),
-              }
-            : dept
-        );
-        setDepartments(updatedDepartments);
-        message.success('Department updated successfully');
-      } else {
-        // Add new department
-        const newDepartment: Department = {
-          id: String(Date.now()),
-          ...values,
-          adminUser: selectedAdmin,
-          createdBy: {
-            id: '1',
-            name: 'Current User',
-            email: 'current@company.com',
-            role: UserRole.SUPER_ADMIN,
-            department: 'IT',
-            status: 'active' as any,
-            createdAt: new Date()
-          },
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          memberCount: 0,
-        };
-        setDepartments([...departments, newDepartment]);
-        message.success('Department created successfully');
-      }
-      
-      setIsModalOpen(false);
-      form.resetFields();
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
-
-  const handleModalCancel = () => {
-    setIsModalOpen(false);
-    form.resetFields();
-    setEditingDepartment(null);
-  };
-
   return (
     <div style={{ padding: '24px' }}>
       <Card>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-          <Title level={3} style={{ margin: 0 }}>
-            <TeamOutlined style={{ marginRight: '8px' }} />
-            Department Management
-          </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={handleAdd}
-          >
-            Add Department
-          </Button>
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <Title level={2} style={{ margin: 0 }}>
+              {t("departments.departmentManagement")}
+            </Title>
+            <Text type="secondary">
+              {t("departments.manageDepartments")}
+            </Text>
+          </div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <Button
+              icon={<MdOutlineRefresh />}
+              onClick={loadDepartments}
+              loading={loading}
+            >
+              {t("common.refresh")}
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={handleCreate}
+            >
+              {t("departments.addDepartment")}
+            </Button>
+          </div>
+        </div>
+
+        <div style={{ marginBottom: '16px' }}>
+          <Input.Search
+            placeholder={t('common.search')}
+            allowClear
+            value={searchText}
+            onChange={(e) => setSearchText(e.target.value)}
+            style={{ width: 300 }}
+          />
         </div>
 
         <Table
           columns={columns}
-          dataSource={departments}
+          dataSource={filteredDepartments}
           rowKey="id"
+          loading={loading}
           pagination={{
-            total: departments.length,
             pageSize: 10,
             showSizeChanger: true,
-            showTotal: (total, range) =>
+            showQuickJumper: true,
+            showTotal: (total, range) => 
               `${range[0]}-${range[1]} of ${total} departments`,
           }}
         />
       </Card>
 
       <Modal
-        title={editingDepartment ? 'Edit Department' : 'Add New Department'}
-        open={isModalOpen}
+        title={editingDepartment ? t('departments.editDepartment') : t('departments.createDepartment')}
+        open={isModalVisible}
         onOk={handleModalOk}
         onCancel={handleModalCancel}
         width={600}
@@ -392,64 +304,63 @@ const DepartmentsPage: React.FC = () => {
         <Form
           form={form}
           layout="vertical"
-          requiredMark={false}
         >
           <Form.Item
             name="name"
-            label="Department Name"
+            label={t('departments.departmentName')}
             rules={[
-              { required: true, message: 'Please input department name!' },
-              { min: 2, message: 'Department name must be at least 2 characters!' }
+              { required: true, message: t('common.required') },
+              { min: 2, message: 'Name must be at least 2 characters' },
             ]}
           >
-            <Input placeholder="Enter department name" />
+            <Input placeholder={t('departments.departmentName')} />
           </Form.Item>
 
           <Form.Item
             name="description"
-            label="Description"
+            label={t('departments.departmentDescription')}
+            rules={[
+              { max: 500, message: 'Description must be less than 500 characters' },
+            ]}
           >
-            <TextArea 
-              rows={3} 
-              placeholder="Enter department description"
+            <Input.TextArea
+              placeholder={t('departments.departmentDescription')}
+              rows={4}
             />
           </Form.Item>
 
           <Form.Item
-            name="adminId"
-            label="Department Admin"
+            name="supervisorId"
+            label={t('departments.supervisor')}
           >
             <Select
-              placeholder="Select department admin"
+              placeholder={t('departments.selectSupervisor')}
+              loading={usersLoading}
               allowClear
               showSearch
-              optionFilterProp="children"
+              value={selectedSupervisorId}
+              onChange={(value) => {
+                setSelectedSupervisorId(value);
+                form.setFieldValue('supervisorId', value);
+              }}
+              filterOption={(input, option) =>
+                option?.children?.toString().toLowerCase().includes(input.toLowerCase()) ?? false
+              }
             >
-              {mockUsers.map(user => (
-                <Select.Option key={user.id} value={user.id}>
-                  <Space>
-                    <Avatar size="small" icon={<UserOutlined />} />
-                    <div>
-                      <div>{user.name}</div>
-                      <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-                        {user.email}
-                      </Typography.Text>
-                    </div>
-                  </Space>
-                </Select.Option>
+              {getSupervisorUsers().map(user => (
+                <Option key={user.id} value={user.id}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>{user.name}</span>
+                    <span style={{ fontSize: '12px', color: '#666' }}>
+                      {user.role} - {user.email}
+                    </span>
+                  </div>
+                </Option>
               ))}
             </Select>
-          </Form.Item>
-
-          <Form.Item
-            name="isActive"
-            label="Status"
-            initialValue={true}
-          >
-            <Select>
-              <Select.Option value={true}>Active</Select.Option>
-              <Select.Option value={false}>Inactive</Select.Option>
-            </Select>
+            <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
+              {t('departments.supervisorNote')}
+            </div>
           </Form.Item>
         </Form>
       </Modal>

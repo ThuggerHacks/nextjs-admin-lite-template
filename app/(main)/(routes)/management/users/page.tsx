@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Table,
@@ -22,6 +22,7 @@ import {
   Dropdown,
   MenuProps,
   Typography,
+
 } from 'antd';
 import {
   UserOutlined,
@@ -33,113 +34,105 @@ import {
   PhoneOutlined,
   CrownOutlined,
   DownOutlined,
-  FolderOutlined,
-  FileOutlined,
+  CheckOutlined,
+  CloseOutlined,
   ExportOutlined,
   TeamOutlined,
   UserSwitchOutlined,
   FolderOpenOutlined,
+  UploadOutlined,
+  MoreOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
-import { User, UserRole, UserStatus } from '@/types';
+import { UserRole, UserStatus } from '@/types';
 import FileManager from '@/components/FileManager/FileManager';
 import EnhancedFileManager from '@/components/EnhancedFileManager';
+import { userService } from '@/lib/services/userService';
+import { departmentService } from '@/lib/services/departmentService';
+import type { User as UserType } from '@/lib/services/userService';
+import type { Department } from '@/lib/services/departmentService';
 
 const { TextArea } = Input;
 const { Title } = Typography;
 
-// Department options
-const departmentOptions = [
-  'IT',
-  'HR',
-  'Finance',
-  'Marketing',
-  'Operations',
-  'Legal',
-  'Sales',
-  'Support',
-  'Engineering',
-  'Product',
-  'Customer Success',
-  'Business Development',
-];
-
-// Mock users data (enhanced with more users)
-const mockUsers: User[] = [
-  {
-    id: '1',
-    name: 'João Silva',
-    email: 'joao@empresa.com',
-    role: UserRole.SUPER_ADMIN,
-    department: 'IT',
-    phone: '+55 11 99999-9999',
-    status: UserStatus.ACTIVE,
-    createdAt: new Date('2024-01-15'),
-  },
-  {
-    id: '2',
-    name: 'Maria Santos',
-    email: 'maria@empresa.com',
-    role: UserRole.ADMIN,
-    department: 'HR',
-    phone: '+55 11 88888-8888',
-    status: UserStatus.ACTIVE,
-    createdAt: new Date('2024-02-10'),
-  },
-  {
-    id: '3',
-    name: 'Pedro Costa',
-    email: 'pedro@empresa.com',
-    role: UserRole.USER,
-    department: 'Finance',
-    phone: '+55 11 77777-7777',
-    status: UserStatus.ACTIVE,
-    createdAt: new Date('2024-03-05'),
-  },
-  {
-    id: '4',
-    name: 'Ana Oliveira',
-    email: 'ana.oliveira@company.com',
-    role: UserRole.ADMIN,
-    department: 'Marketing',
-    phone: '+55 11 66666-6666',
-    status: UserStatus.ACTIVE,
-    createdAt: new Date('2024-01-20'),
-  },
-  {
-    id: '5',
-    name: 'Carlos Silva',
-    email: 'carlos@empresa.com',
-    role: UserRole.USER,
-    department: 'Operations',
-    phone: '+55 11 55555-5555',
-    status: UserStatus.ACTIVE,
-    createdAt: new Date('2024-04-12'),
-  },
-  {
-    id: '6',
-    name: 'Lucia Fernandes',
-    email: 'lucia@empresa.com',
-    role: UserRole.USER,
-    department: 'Legal',
-    phone: '+55 11 44444-4444',
-    status: UserStatus.INACTIVE,
-    createdAt: new Date('2024-03-30'),
-  },
-];
-
 export default function UserManagementPage() {
-  const [users, setUsers] = useState<User[]>(mockUsers);
+  const [users, setUsers] = useState<UserType[]>([]);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
-  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [editingUser, setEditingUser] = useState<UserType | null>(null);
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [userFilesDrawerVisible, setUserFilesDrawerVisible] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('');
+  const [departmentFilter, setDepartmentFilter] = useState<string>('');
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+  });
+  const [screenSize, setScreenSize] = useState('lg');
   
   const { user, hasRole, canAccess } = useUser();
   const { t } = useTranslation();
+
+  // Handle screen size changes for responsive design
+  useEffect(() => {
+    const handleResize = () => {
+      const width = window.innerWidth;
+      if (width < 576) setScreenSize('xs');
+      else if (width < 768) setScreenSize('sm');
+      else if (width < 992) setScreenSize('md');
+      else if (width < 1200) setScreenSize('lg');
+      else setScreenSize('xl');
+    };
+
+    handleResize(); // Set initial size
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Load users
+  const loadUsers = useCallback(async (page = 1, limit = 10) => {
+    try {
+      setLoading(true);
+      const response = await userService.getAll({ page, limit });
+      setUsers(response.users);
+      setPagination({
+        current: response.pagination.page,
+        pageSize: response.pagination.limit,
+        total: response.pagination.total,
+      });
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      message.error(t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  }, [t]);
+
+  // Load departments for dropdown
+  const loadDepartments = useCallback(async () => {
+    try {
+      setDepartmentsLoading(true);
+      const departments = await departmentService.getAllDepartments();
+      setDepartments(departments);
+    } catch (error) {
+      console.error('Failed to load departments:', error);
+      message.error(t('common.error'));
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  }, [t]);
+
+  useEffect(() => {
+    loadUsers();
+    loadDepartments();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount to avoid infinite loops
 
   // Calculate statistics
   const stats = {
@@ -151,16 +144,38 @@ export default function UserManagementPage() {
     inactiveUsers: users.filter(u => u.status === UserStatus.INACTIVE).length,
   };
 
-  // Filter users based on current user role
+  // Filter users based on current user role and filters
   const getFilteredUsers = () => {
+    let filteredUsers = [];
+    
     if (hasRole(UserRole.SUPER_ADMIN)) {
-      return users; // Super admins see all users
-    }
-    if (hasRole(UserRole.ADMIN)) {
+      filteredUsers = users; // Super admins see all users
+    } else if (hasRole(UserRole.ADMIN)) {
       // Admins see only normal users, not other admins or super admins
-      return users.filter(u => u.role === UserRole.USER);
+      filteredUsers = users.filter(u => u.role === UserRole.USER);
+    } else {
+      return []; // Normal users shouldn't access this page
     }
-    return []; // Normal users shouldn't access this page
+
+    // Apply search filter
+    if (searchText) {
+      filteredUsers = filteredUsers.filter(user =>
+        user.name.toLowerCase().includes(searchText.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchText.toLowerCase())
+      );
+    }
+
+    // Apply status filter
+    if (statusFilter) {
+      filteredUsers = filteredUsers.filter(user => user.status === statusFilter);
+    }
+
+    // Apply department filter
+    if (departmentFilter) {
+      filteredUsers = filteredUsers.filter(user => user.departmentId === departmentFilter);
+    }
+
+    return filteredUsers;
   };
 
   const filteredUsers = getFilteredUsers();
@@ -171,49 +186,65 @@ export default function UserManagementPage() {
     setIsModalVisible(true);
   };
 
-  const handleEditUser = (userData: User) => {
+  const handleEditUser = (userData: UserType) => {
     setEditingUser(userData);
     form.setFieldsValue({
       name: userData.name,
       email: userData.email,
       role: userData.role,
-      department: userData.department,
+      departmentId: userData.departmentId,
       phone: userData.phone,
       status: userData.status,
+      isDepartmentAdmin: userData.isDepartmentAdmin,
     });
     setIsModalVisible(true);
   };
 
   const handlePromoteToSuperAdmin = async (userId: string) => {
     try {
-      setUsers(prev => prev.map(u => 
-        u.id === userId ? { ...u, role: UserRole.SUPER_ADMIN } : u
-      ));
-      message.success('User promoted to Super Admin successfully!');
+      const updatedUser = await userService.promoteToSuperAdmin(userId);
+      setUsers(prev => prev.map(u => u.id === userId ? updatedUser : u));
+      message.success(t('common.success'));
     } catch (error) {
-      message.error('Failed to promote user');
+      console.error('Failed to promote user:', error);
+      message.error(t('common.error'));
     }
   };
 
   const handleRemoveUser = async (userId: string) => {
     try {
+      await userService.delete(userId);
       setUsers(prev => prev.filter(u => u.id !== userId));
-      message.success('User removed successfully!');
+      message.success(t('common.success'));
     } catch (error) {
-      message.error('Failed to remove user');
+      console.error('Failed to remove user:', error);
+      message.error(t('common.error'));
     }
   };
 
   const handleResetPassword = async (userId: string, userEmail: string) => {
     try {
-      // Mock password reset functionality
-      const newPassword = Math.random().toString(36).slice(-8);
+      const result = await userService.resetPassword(userId);
       
-      // In a real app, this would send an email to the user
-      message.success(`Password reset for ${userEmail}. New temporary password: ${newPassword}`);
-      message.info('User will receive an email with the new password');
+      // Show the temporary password in a modal
+      Modal.info({
+        title: t('users.passwordReset'),
+        content: (
+          <div>
+            <p><strong>{t('users.email')}:</strong> {userEmail}</p>
+            <p><strong>{t('users.temporaryPassword')}:</strong> 
+              <code style={{ background: '#f0f0f0', padding: '4px 8px', margin: '0 8px', borderRadius: '4px' }}>
+                {result.tempPassword}
+              </code>
+            </p>
+            {/* <p style={{ color: '#666' }}>{t('users.emailSent')}</p> */}
+          </div>
+        ),
+        width: 500,
+      });
     } catch (error) {
-      message.error('Failed to reset password');
+      console.error('Failed to reset password:', error);
+      message.error(t('common.error'));
     }
   };
 
@@ -222,78 +253,50 @@ export default function UserManagementPage() {
     setUserFilesDrawerVisible(true);
   };
 
-  const handleExportToPDF = () => {
-    // Mock PDF export functionality
-    message.info('Exporting users to PDF... (Mock functionality)');
-    
-    // In a real app, you would use a PDF library like jsPDF or similar
-    const csvContent = [
-      ['Name', 'Email', 'Role', 'Department', 'Phone', 'Status', 'Created At'],
-      ...filteredUsers.map(userData => [
-        userData.name,
-        userData.email,
-        userData.role,
-        userData.department,
-        userData.phone || '',
-        userData.status,
-        userData.createdAt.toLocaleDateString()
-      ])
-    ].map(row => row.join(',')).join('\n');
-    
-    const blob = new Blob([csvContent], { type: 'text/csv' });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'users_export.csv';
-    a.click();
-    window.URL.revokeObjectURL(url);
-    
-    message.success('Users exported to CSV successfully!');
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    setLoading(true);
+  const handleExportToPDF = async () => {
     try {
-      setUsers(prev => prev.filter(u => u.id !== userId));
-      message.success(t('common.success'));
+      setLoading(true);
+      const csvContent = await userService.exportToCSV();
+      
+      const encodedUri = encodeURI("data:text/csv;charset=utf-8," + csvContent);
+      const link = document.createElement("a");
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", "users.csv");
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      message.success('Users exported successfully');
     } catch (error) {
+      console.error('Failed to export users:', error);
       message.error(t('common.error'));
     } finally {
       setLoading(false);
     }
   };
 
+
+
   const handleSaveUser = async (values: any) => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const userData = {
+        name: values.name,
+        email: values.email,
+        role: values.role || UserRole.USER,
+        departmentId: values.departmentId,
+        phone: values.phone,
+        status: values.status,
+        isDepartmentAdmin: values.isDepartmentAdmin,
+      };
 
       if (editingUser) {
         // Update existing user
-        setUsers(prev => prev.map(u =>
-          u.id === editingUser.id
-            ? {
-                ...u,
-                name: values.name,
-                email: values.email,
-                department: values.department,
-                phone: values.phone,
-                status: values.status,
-              }
-            : u
-        ));
+        const updatedUser = await userService.update(editingUser.id, userData);
+        setUsers(prev => prev.map(u => u.id === editingUser.id ? updatedUser : u));
       } else {
-        // Create new user with default USER role
-        const newUser: User = {
-          id: Date.now().toString(),
-          name: values.name,
-          email: values.email,
-          role: UserRole.USER, // Default role for new users
-          department: values.department,
-          phone: values.phone,
-          status: values.status,
-          createdAt: new Date(),
-        };
+        // Create new user
+        const newUser = await userService.create(userData);
         setUsers(prev => [...prev, newUser]);
       }
 
@@ -301,6 +304,7 @@ export default function UserManagementPage() {
       form.resetFields();
       message.success(t('common.success'));
     } catch (error) {
+      console.error('Failed to save user:', error);
       message.error(t('common.error'));
     } finally {
       setLoading(false);
@@ -308,21 +312,23 @@ export default function UserManagementPage() {
   };
 
   const getRoleTag = (role: UserRole) => {
-    const roleColors = {
+    const roleColors: Record<string, string> = {
       [UserRole.SUPER_ADMIN]: 'red',
       [UserRole.ADMIN]: 'orange',
       [UserRole.USER]: 'blue',
+      [UserRole.SUPERVISOR]: 'green',
     };
-    
-    const roleLabels = {
-      [UserRole.SUPER_ADMIN]: 'Super Admin',
-      [UserRole.ADMIN]: 'Admin',
-      [UserRole.USER]: 'User',
+
+    const roleLabels: Record<string, string> = {
+      [UserRole.SUPER_ADMIN]: t('users.superAdmins'),
+      [UserRole.ADMIN]: t('users.admins'),
+      [UserRole.USER]: t('users.normalUsers'),
+      [UserRole.SUPERVISOR]: t('users.supervisors'),
     };
 
     return (
-      <Tag color={roleColors[role]} icon={role === UserRole.SUPER_ADMIN ? <CrownOutlined /> : undefined}>
-        {roleLabels[role]}
+      <Tag color={roleColors[role] || 'default'} icon={role === UserRole.SUPER_ADMIN ? <CrownOutlined /> : undefined}>
+        {roleLabels[role] || role}
       </Tag>
     );
   };
@@ -330,22 +336,22 @@ export default function UserManagementPage() {
   const getStatusTag = (status: UserStatus) => {
     return (
       <Tag color={status === UserStatus.ACTIVE ? 'green' : 'red'}>
-        {status === UserStatus.ACTIVE ? 'Active' : 'Inactive'}
+        {status === UserStatus.ACTIVE ? t('common.active') : t('common.inactive')}
       </Tag>
     );
   };
 
-  const getUserActions = (userData: User): MenuProps['items'] => {
+  const getUserActions = (userData: UserType): MenuProps['items'] => {
     const items: MenuProps['items'] = [
       {
         key: 'edit',
-        label: 'Edit User',
+        label: t('users.editUser'),
         icon: <EditOutlined />,
         onClick: () => handleEditUser(userData),
       },
       {
         key: 'files',
-        label: 'View Files',
+        label: t('users.viewFiles'),
         icon: <FolderOpenOutlined />,
         onClick: () => handleViewUserFiles(userData.id),
       },
@@ -356,7 +362,7 @@ export default function UserManagementPage() {
       if (userData.role !== UserRole.SUPER_ADMIN) {
         items.push({
           key: 'promote',
-          label: 'Promote to Super Admin',
+          label: t('users.promoteToSuperAdmin'),
           icon: <CrownOutlined />,
           onClick: () => handlePromoteToSuperAdmin(userData.id),
         });
@@ -364,18 +370,32 @@ export default function UserManagementPage() {
       
       items.push({
         key: 'reset-password',
-        label: 'Reset Password',
+        label: t('users.resetPassword'),
         icon: <LockOutlined />,
         onClick: () => handleResetPassword(userData.id, userData.email),
       });
       
+      // Only show remove option if target user is not a super admin
+      if (userData.role !== UserRole.SUPER_ADMIN) {
       items.push({
         key: 'remove',
-        label: 'Remove User',
+        label: (
+          <Popconfirm
+            title={t('users.removeUserConfirm')}
+            description={t('users.removeUserWarning')}
+            onConfirm={() => handleRemoveUser(userData.id)}
+            okText={t('common.yes')}
+            cancelText={t('common.no')}
+            okType="danger"
+          >
+            <span>{t('users.removeUser')}</span>
+          </Popconfirm>
+        ),
         icon: <DeleteOutlined />,
         danger: true,
-        onClick: () => handleRemoveUser(userData.id),
+        onClick: () => {}, // Empty onClick since Popconfirm handles the action
       });
+      }
     }
 
     return items;
@@ -383,54 +403,90 @@ export default function UserManagementPage() {
 
   const columns = [
     {
-      title: 'User',
+      title: t('users.user'),
       key: 'user',
-      render: (record: User) => (
-        <Space>
-          <Avatar icon={<UserOutlined />} />
-          <div>
-            <div className="font-medium">{record.name}</div>
-            <div className="text-gray-500 text-sm">{record.email}</div>
+      width: screenSize === 'xs' || screenSize === 'sm' ? 200 : screenSize === 'md' ? 220 : 250,
+      fixed: screenSize !== 'xs' && screenSize !== 'sm' ? 'left' as const : false,
+      render: (record: UserType) => (
+        <Space size="small" direction="vertical" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Avatar size={screenSize === 'xs' || screenSize === 'sm' ? "small" : "default"} icon={<UserOutlined />} />
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <div className="font-medium truncate" style={{ 
+                maxWidth: screenSize === 'xs' || screenSize === 'sm' ? 120 : screenSize === 'md' ? 150 : 180 
+              }}>
+                {record.name}
+              </div>
+              <div className="text-gray-500 text-sm truncate" style={{ 
+                maxWidth: screenSize === 'xs' || screenSize === 'sm' ? 120 : screenSize === 'md' ? 150 : 180 
+              }}>
+                {record.email}
+              </div>
+            </div>
           </div>
         </Space>
       ),
     },
     {
-      title: 'Role',
+      title: t('users.role'),
       dataIndex: 'role',
       key: 'role',
+      width: screenSize === 'xs' || screenSize === 'sm' ? 80 : screenSize === 'md' ? 100 : 120,
       render: (role: UserRole) => getRoleTag(role),
+      responsive: screenSize === 'xs' ? ['md' as const] : undefined,
     },
     {
-      title: 'Department',
-      dataIndex: 'department',
+      title: t('users.department'),
+      dataIndex: 'departmentId',
       key: 'department',
+      width: screenSize === 'xs' || screenSize === 'sm' ? 120 : screenSize === 'md' ? 135 : 150,
+      render: (departmentId: string, record: UserType) => {
+        const department = departments.find(d => d.id === departmentId);
+        const deptName = department?.name || record.department?.name || 'N/A';
+        const maxWidth = screenSize === 'xs' || screenSize === 'sm' ? 100 : screenSize === 'md' ? 120 : 140;
+        return (
+          <div className="truncate" style={{ maxWidth }} title={deptName}>
+            {deptName}
+          </div>
+        );
+      },
+      responsive: screenSize === 'xs' ? ['sm' as const] : undefined,
     },
     {
-      title: 'Phone',
+      title: t('users.phone'),
       dataIndex: 'phone',
       key: 'phone',
+      width: screenSize === 'xs' || screenSize === 'sm' ? 110 : 130,
       render: (phone: string) => phone || 'N/A',
+      responsive: screenSize === 'xs' || screenSize === 'sm' ? ['lg' as const] : undefined,
     },
     {
-      title: 'Status',
+      title: t('common.status'),
       dataIndex: 'status',
       key: 'status',
+      width: screenSize === 'xs' || screenSize === 'sm' ? 80 : 100,
       render: (status: UserStatus) => getStatusTag(status),
     },
     {
-      title: 'Created',
+      title: t('users.createdAt'),
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: Date) => date.toLocaleDateString(),
+      width: screenSize === 'xs' || screenSize === 'sm' ? 100 : 120,
+      render: (date: string) => date ? new Date(date).toLocaleDateString() : 'N/A',
+      responsive: screenSize === 'xs' || screenSize === 'sm' ? ['xl' as const] : undefined,
     },
     {
-      title: 'Actions',
+      title: t('users.actions'),
       key: 'actions',
-      render: (record: User) => (
+      width: screenSize === 'xs' || screenSize === 'sm' ? 60 : 120,
+      fixed: screenSize !== 'xs' && screenSize !== 'sm' ? 'right' as const : false,
+      render: (record: UserType) => (
         <Dropdown menu={{ items: getUserActions(record) }} trigger={['click']}>
-          <Button icon={<DownOutlined />}>
-            Actions
+          <Button 
+            size={screenSize === 'xs' || screenSize === 'sm' ? "small" : "middle"} 
+            icon={<MoreOutlined />}
+          >
+            {screenSize !== 'xs' && screenSize !== 'sm' ? t('users.actions') : ''}
           </Button>
         </Dropdown>
       ),
@@ -440,118 +496,482 @@ export default function UserManagementPage() {
   const selectedUser = users.find(u => u.id === selectedUserId);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6 max-w-full overflow-x-hidden">
+      <style jsx>{`
+        .users-table-responsive {
+          width: 100%;
+          overflow-x: auto;
+          overflow-y: visible;
+          -webkit-overflow-scrolling: touch;
+          margin: 0;
+          padding: 0;
+          border-radius: 8px;
+        }
+        
+        .users-table-responsive .ant-table {
+          min-width: 800px;
+          width: 100%;
+        }
+        
+        .users-table-responsive .ant-table-container {
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+          overflow: hidden;
+        }
+        
+        .users-table-responsive .ant-table-thead > tr > th {
+          background: #fafafa !important;
+          font-weight: 600;
+          border-bottom: 2px solid #f0f0f0;
+          white-space: nowrap;
+          padding: 12px 8px;
+          position: sticky;
+          top: 0;
+          z-index: 10;
+        }
+        
+        .users-table-responsive .ant-table-tbody > tr:hover > td {
+          background: #f8f9fa !important;
+        }
+        
+        .users-table-responsive .ant-table-tbody > tr > td {
+          white-space: nowrap;
+          padding: 12px 8px;
+          vertical-align: top;
+        }
+        
+        .users-table-responsive .ant-table-tbody > tr > td:first-child {
+          position: sticky;
+          left: 0;
+          background: white;
+          z-index: 5;
+        }
+        
+        .users-table-responsive .ant-table-tbody > tr > td:last-child {
+          position: sticky;
+          right: 0;
+          background: white;
+          z-index: 5;
+        }
+        
+        .truncate {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          display: block;
+        }
+        
+        /* Mobile optimizations */
+        @media (max-width: 768px) {
+          .users-table-responsive .ant-table {
+            min-width: 700px;
+            font-size: 12px;
+          }
+          
+          .users-table-responsive .ant-table-thead > tr > th,
+          .users-table-responsive .ant-table-tbody > tr > td {
+            padding: 8px 4px;
+            font-size: 12px;
+          }
+          
+          .users-table-responsive .ant-table-tbody > tr > td:first-child,
+          .users-table-responsive .ant-table-tbody > tr > td:last-child {
+            background: #fafafa;
+          }
+        }
+        
+        /* Tablet optimizations */
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .users-table-responsive .ant-table {
+            min-width: 800px;
+          }
+        }
+        
+        /* Desktop and larger screens */
+        @media (min-width: 1025px) {
+          .users-table-responsive .ant-table {
+            min-width: 100%;
+          }
+        }
+        
+        /* Ultra-wide screens */
+        @media (min-width: 1440px) {
+          .space-y-6 {
+            max-width: 1400px;
+            margin: 0 auto;
+          }
+        }
+        
+        /* Improved card responsiveness */
+        .ant-card .ant-card-head {
+          padding: 12px 16px;
+        }
+        
+        .ant-card .ant-card-body {
+          padding: 16px;
+        }
+        
+        @media (max-width: 768px) {
+          .ant-card .ant-card-head {
+            padding: 8px 12px;
+          }
+          .ant-card .ant-card-body {
+            padding: 12px;
+          }
+        }
+        
+        /* Table scrollbar styling */
+        .users-table-responsive::-webkit-scrollbar {
+          height: 8px;
+        }
+        
+        .users-table-responsive::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 4px;
+        }
+        
+        .users-table-responsive::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 4px;
+        }
+        
+        .users-table-responsive::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
+        }
+        
+        /* Ensure proper spacing in table cells */
+        .users-table-responsive .ant-table-cell {
+          word-break: keep-all;
+          white-space: nowrap;
+        }
+        
+        /* Responsive table wrapper */
+        .table-wrapper {
+          width: 100%;
+          overflow-x: auto;
+          border-radius: 8px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        /* Responsive File Drawer */
+        .responsive-file-drawer .ant-drawer-body {
+          padding: 12px;
+        }
+        
+        .responsive-file-drawer .ant-drawer-header {
+          padding: 12px 16px;
+        }
+        
+        .responsive-file-drawer .ant-drawer-header-title {
+          font-size: 16px;
+          font-weight: 600;
+        }
+        
+        .responsive-file-drawer .ant-drawer-close {
+          font-size: 16px;
+        }
+        
+        .file-manager-container {
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+          min-height: 0;
+        }
+        
+        /* Mobile optimizations for drawer */
+        @media (max-width: 768px) {
+          .responsive-file-drawer .ant-drawer-body {
+            padding: 12px;
+          }
+          
+          .responsive-file-drawer .ant-drawer-header {
+            padding: 12px 16px;
+          }
+          
+          .responsive-file-drawer .ant-drawer-header-title {
+            font-size: 14px;
+          }
+          
+          .responsive-file-drawer .ant-drawer-close {
+            font-size: 14px;
+          }
+          
+          /* Ensure drawer takes full height on mobile */
+          .responsive-file-drawer.ant-drawer-bottom {
+            height: 100vh !important;
+            max-height: 100vh !important;
+          }
+          
+          /* Optimize file manager for mobile */
+          .file-manager-container {
+            height: calc(100vh - 120px);
+            overflow: hidden;
+          }
+        }
+        
+        /* Tablet optimizations */
+        @media (min-width: 769px) and (max-width: 1024px) {
+          .responsive-file-drawer .ant-drawer-body {
+            padding: 16px;
+          }
+          
+          .responsive-file-drawer .ant-drawer-header {
+            padding: 16px 20px;
+          }
+          
+          .file-manager-container {
+            height: calc(100vh - 140px);
+          }
+        }
+        
+        /* Desktop optimizations */
+        @media (min-width: 1025px) {
+          .responsive-file-drawer .ant-drawer-body {
+            padding: 24px;
+          }
+          
+          .responsive-file-drawer .ant-drawer-header {
+            padding: 16px 24px;
+          }
+          
+          .file-manager-container {
+            height: calc(100vh - 160px);
+          }
+        }
+        
+        /* Ensure proper drawer positioning on different screen sizes */
+        .responsive-file-drawer.ant-drawer-right {
+          width: 100% !important;
+          max-width: 800px;
+        }
+        
+        @media (max-width: 768px) {
+          .responsive-file-drawer.ant-drawer-right {
+            width: 100% !important;
+            max-width: 100%;
+          }
+        }
+        
+        /* File manager specific responsive styles */
+        .file-manager-container .ant-upload-drag {
+          border-radius: 8px;
+          padding: 16px;
+        }
+        
+        .file-manager-container .ant-table {
+          font-size: 12px;
+        }
+        
+        .file-manager-container .ant-table-thead > tr > th,
+        .file-manager-container .ant-table-tbody > tr > td {
+          padding: 8px 4px;
+        }
+        
+        @media (max-width: 768px) {
+          .file-manager-container .ant-upload-drag {
+            padding: 12px;
+          }
+          
+          .file-manager-container .ant-table {
+            font-size: 11px;
+          }
+          
+          .file-manager-container .ant-table-thead > tr > th,
+          .file-manager-container .ant-table-tbody > tr > td {
+            padding: 6px 2px;
+          }
+          
+          .file-manager-container .ant-btn {
+            font-size: 12px;
+            padding: 4px 8px;
+            height: auto;
+          }
+          
+          .file-manager-container .ant-input {
+            font-size: 12px;
+            padding: 4px 8px;
+          }
+        }
+        
+        /* Ensure proper scrolling in file manager */
+        .file-manager-container {
+          overflow-y: auto;
+          overflow-x: hidden;
+        }
+        
+        /* Optimize file manager toolbar for mobile */
+        @media (max-width: 768px) {
+          .file-manager-container .ant-space {
+            gap: 8px !important;
+          }
+          
+          .file-manager-container .ant-space-item {
+            margin-bottom: 8px;
+          }
+        }
+      `}</style>
       {/* Header */}
-      <Card>
-        <div className="flex justify-between items-center">
-          <div>
-            <Title level={3} className="mb-2">
-              👥 {t("navigation.users")}
+      <Card className="w-full">
+        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4">
+          <div className="flex-1 min-w-0">
+            <Title level={3} className="mb-2 text-lg md:text-xl lg:text-2xl">
+              👥 {t("users.userManagement")}
             </Title>
-            <p className="text-gray-600">
-              Manage users, roles, and permissions
+            <p className="text-gray-600 text-sm md:text-base">
+              {t("users.manageUsers")}
             </p>
           </div>
-          <Space>
-            <Button 
+          <div className="flex flex-col sm:flex-row gap-2">
+            {/* <Button 
               icon={<ExportOutlined />} 
               onClick={handleExportToPDF}
+              className="w-full sm:w-auto"
             >
-              Export to PDF
-            </Button>
+              {t("users.exportUsers")}
+            </Button> */}
             {canAccess([UserRole.ADMIN, UserRole.SUPER_ADMIN]) && (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
                 onClick={handleCreateUser}
+                className="w-full sm:w-auto"
               >
-                {t("common.create")} User
+                {t("users.createUser")}
               </Button>
             )}
-          </Space>
+          </div>
         </div>
       </Card>
 
       {/* Statistics Cards */}
-      <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={4}>
-          <Card>
+      <Row gutter={[16, 16]} className="w-full">
+        <Col xs={12} sm={8} md={6} lg={4}>
+          <Card size="small">
             <Statistic
-              title="Total Users"
+              title={t("users.totalUsers")}
               value={stats.total}
               prefix={<TeamOutlined />}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: '#3f8600', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <Card>
+        <Col xs={12} sm={8} md={6} lg={4}>
+          <Card size="small">
             <Statistic
-              title="Super Admins"
+              title={t("users.superAdmins")}
               value={stats.superAdmins}
               prefix={<CrownOutlined />}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: '#cf1322', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <Card>
+        <Col xs={12} sm={8} md={6} lg={4}>
+          <Card size="small">
             <Statistic
-              title="Admins"
+              title={t("users.admins")}
               value={stats.admins}
               prefix={<UserSwitchOutlined />}
-              valueStyle={{ color: '#fa8c16' }}
+              valueStyle={{ color: '#fa8c16', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <Card>
+        <Col xs={12} sm={8} md={6} lg={4}>
+          <Card size="small">
             <Statistic
-              title="Normal Users"
+              title={t("users.normalUsers")}
               value={stats.normalUsers}
               prefix={<UserOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#1890ff', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <Card>
+        <Col xs={12} sm={8} md={6} lg={4}>
+          <Card size="small">
             <Statistic
-              title="Active"
+              title={t("common.active")}
               value={stats.activeUsers}
-              valueStyle={{ color: '#3f8600' }}
+              valueStyle={{ color: '#3f8600', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>
-        <Col xs={24} sm={12} lg={4}>
-          <Card>
+        <Col xs={12} sm={8} md={6} lg={4}>
+          <Card size="small">
             <Statistic
-              title="Inactive"
+              title={t("common.inactive")}
               value={stats.inactiveUsers}
-              valueStyle={{ color: '#cf1322' }}
+              valueStyle={{ color: '#cf1322', fontSize: '1.25rem' }}
             />
           </Card>
         </Col>
       </Row>
 
+      {/* Filters */}
+      <Card title={t("common.filter")} className="w-full">
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Input
+              placeholder={t("users.searchByName")}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              prefix={<UserOutlined />}
+              allowClear
+              className="w-full"
+            />
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Select
+              placeholder={t("users.filterByStatus")}
+              value={statusFilter}
+              onChange={setStatusFilter}
+              allowClear
+              className="w-full"
+            >
+              <Select.Option value="ACTIVE">{t('common.active')}</Select.Option>
+              <Select.Option value="INACTIVE">{t('common.inactive')}</Select.Option>
+              <Select.Option value="PENDING">{t('common.pending')}</Select.Option>
+            </Select>
+          </Col>
+          <Col xs={24} sm={12} md={8} lg={6}>
+            <Select
+              placeholder={t("users.filterByDepartment")}
+              value={departmentFilter}
+              onChange={setDepartmentFilter}
+              allowClear
+              className="w-full"
+              loading={departmentsLoading}
+            >
+              {departments.map(dept => (
+                <Select.Option key={dept.id} value={dept.id}>{dept.name}</Select.Option>
+              ))}
+            </Select>
+          </Col>
+        </Row>
+      </Card>
+
       {/* Users Table */}
-      <Card title="Users List">
-        <Table
-          columns={columns}
-          dataSource={filteredUsers}
-          rowKey="id"
-          loading={loading}
-          pagination={{
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-          }}
-        />
+      <Card title={t("users.usersList")}>
+        <div className="table-wrapper">
+          <Table
+            columns={columns}
+            dataSource={filteredUsers}
+            rowKey="id"
+            loading={loading}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} users`,
+            }}
+            className="users-table-responsive"
+            size="middle"
+            scroll={{ x: 'max-content' }}
+          />
+        </div>
       </Card>
 
       {/* User Form Modal */}
       <Modal
-        title={editingUser ? "Edit User" : "Create User"}
+        title={editingUser ? t('users.editUser') : t('users.createUser')}
         open={isModalVisible}
         onCancel={() => setIsModalVisible(false)}
         footer={null}
@@ -562,46 +982,61 @@ export default function UserManagementPage() {
           layout="vertical"
         >
           <Form.Item
-            label="Name"
+            label={t("users.name")}
             name="name"
-            rules={[{ required: true, message: 'Please enter user name' }]}
+            rules={[{ required: true, message: t('common.required') }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="Enter user name" />
+            <Input prefix={<UserOutlined />} placeholder={t("users.enterUserName")} />
           </Form.Item>
 
           <Form.Item
-            label="Email"
+            label={t("users.email")}
             name="email"
             rules={[
-              { required: true, message: 'Please enter email' },
-              { type: 'email', message: 'Please enter valid email' }
+              { required: true, message: t('common.required') },
+              { type: 'email', message: t('auth.invalidEmailFormat') }
             ]}
           >
-            <Input prefix={<MailOutlined />} placeholder="Enter email address" />
+            <Input prefix={<MailOutlined />} placeholder={t("users.enterEmailAddress")} />
           </Form.Item>
 
           <Form.Item
-            label="Department"
-            name="department"
-            rules={[{ required: true, message: 'Please select department' }]}
+            label={t("users.role")}
+            name="role"
+            rules={[{ required: true, message: t('common.required') }]}
+          >
+            <Select placeholder={t("users.selectRole")}>
+              <Select.Option value={UserRole.USER}>{t("users.normalUsers")}</Select.Option>
+              <Select.Option value={UserRole.ADMIN}>{t("users.admins")}</Select.Option>
+              {hasRole(UserRole.SUPER_ADMIN) && (
+                <Select.Option value={UserRole.SUPER_ADMIN}>{t("users.superAdmins")}</Select.Option>
+              )}
+            </Select>
+          </Form.Item>
+
+          <Form.Item
+            label={t("users.department")}
+            name="departmentId"
+            rules={[{ required: true, message: t('common.required') }]}
           >
             <Select 
-              placeholder="Select department"
+              placeholder={t("users.selectDepartment")}
+              loading={departmentsLoading}
               showSearch
               filterOption={(input, option) =>
                 (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
               }
             >
-              {departmentOptions.map(dept => (
-                <Select.Option key={dept} value={dept}>
-                  {dept}
+              {departments.map(dept => (
+                <Select.Option key={dept.id} value={dept.id}>
+                  {dept.name}
                 </Select.Option>
               ))}
             </Select>
           </Form.Item>
 
           <Form.Item
-            label="Department Admin Role"
+            label={t("users.promoteToSupervisor")}
             name="isDepartmentAdmin"
             valuePropName="checked"
           >
@@ -613,64 +1048,44 @@ export default function UserManagementPage() {
                     form.setFieldValue('isDepartmentAdmin', e.target.checked);
                   }}
                 />
-                <span>Set as Department Admin</span>
-                <Tooltip title="Department admins can manage users and goals within their department">
+                <span>{t("users.promoteToSupervisor")}</span>
+                <Tooltip title={t("users.departmentAdminDescription")}>
                   <UserSwitchOutlined style={{ color: '#1890ff' }} />
                 </Tooltip>
               </div>
               <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-                Department admins have additional permissions to manage department members and goals
+                {t("users.departmentAdminDescription")}
               </Typography.Text>
             </div>
           </Form.Item>
 
-          <Form.Item
-            label="Managed Departments"
-            name="managedDepartments"
-            dependencies={['isDepartmentAdmin']}
-          >
-            <Select
-              mode="multiple"
-              placeholder="Select departments to manage (optional)"
-              disabled={!form.getFieldValue('isDepartmentAdmin')}
-              showSearch
-              filterOption={(input, option) =>
-                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
-              }
-            >
-              {departmentOptions.map(dept => (
-                <Select.Option key={dept} value={dept}>
-                  {dept}
-                </Select.Option>
-              ))}
-            </Select>
-          </Form.Item>
+
 
           <Form.Item
-            label="Phone"
+            label={t("users.phone")}
             name="phone"
           >
-            <Input prefix={<PhoneOutlined />} placeholder="Enter phone number" />
+            <Input prefix={<PhoneOutlined />} placeholder={t("users.enterPhoneNumber")} />
           </Form.Item>
 
           <Form.Item
-            label="Status"
+            label={t("common.status")}
             name="status"
-            rules={[{ required: true, message: 'Please select status' }]}
+            rules={[{ required: true, message: t('common.required') }]}
           >
-            <Select placeholder="Select user status">
-              <Select.Option value={UserStatus.ACTIVE}>Active</Select.Option>
-              <Select.Option value={UserStatus.INACTIVE}>Inactive</Select.Option>
+            <Select placeholder={t("users.selectStatus")}>
+              <Select.Option value={UserStatus.ACTIVE}>{t('common.active')}</Select.Option>
+              <Select.Option value={UserStatus.INACTIVE}>{t('common.inactive')}</Select.Option>
             </Select>
           </Form.Item>
 
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit" loading={loading}>
-                {editingUser ? "Update" : "Create"}
+                {editingUser ? t('common.save') : t('common.create')}
               </Button>
               <Button onClick={() => setIsModalVisible(false)}>
-                Cancel
+                {t('common.cancel')}
               </Button>
             </Space>
           </Form.Item>
@@ -679,25 +1094,40 @@ export default function UserManagementPage() {
 
       {/* User Files Drawer */}
       <Drawer
-        title={selectedUser ? `${selectedUser.name}'s Files` : 'User Files'}
-        placement="right"
-        size="large"
+        title={selectedUser ? `${selectedUser.name} - ${t('users.files')}` : t('users.files')}
+        placement={screenSize === 'xs' || screenSize === 'sm' ? 'bottom' : 'right'}
+        size={screenSize === 'xs' || screenSize === 'sm' ? 'default' : 'large'}
         onClose={() => setUserFilesDrawerVisible(false)}
         open={userFilesDrawerVisible}
+        className="responsive-file-drawer"
+        styles={{
+          body: {
+            padding: screenSize === 'xs' || screenSize === 'sm' ? '12px' : '24px',
+          },
+          header: {
+            padding: screenSize === 'xs' || screenSize === 'sm' ? '12px 16px' : '16px 24px',
+          },
+          wrapper: {
+            width: screenSize === 'xs' ? '100%' : screenSize === 'sm' ? '90%' : undefined,
+          },
+        }}
       >
         {selectedUserId && (
-          <EnhancedFileManager
-            mode="user-files"
-            libraryId={`user-${selectedUserId}`}
-            libraryName={`${selectedUser?.name || 'User'} Files`}
-            canWrite={hasRole(UserRole.SUPER_ADMIN)}
-            canDelete={hasRole(UserRole.SUPER_ADMIN)}
-            title={`${selectedUser?.name || 'User'} Personal Files`}
-            rootPath={`/Users/${selectedUser?.name || 'User'}`}
-            userId={selectedUserId}
-          />
+          <div className="file-manager-container">
+            <EnhancedFileManager
+              mode="user-files"
+              libraryName={`${selectedUser?.name || 'User'} Files`}
+              canWrite={hasRole(UserRole.SUPER_ADMIN)}
+              canDelete={hasRole(UserRole.SUPER_ADMIN)}
+              title={`${selectedUser?.name || 'User'} Personal Files`}
+              rootPath={`/Users/${selectedUser?.name || 'User'}`}
+              userId={selectedUserId}
+            />
+          </div>
         )}
       </Drawer>
+
+
     </div>
   );
 }

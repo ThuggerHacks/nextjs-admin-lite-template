@@ -13,12 +13,12 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   GlobalOutlined,
-  BellOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Dropdown, Badge, Button, Select } from "antd";
+import { Avatar, Dropdown, Button, Select } from "antd";
 
 import SettingButton from "./setting-button";
+import NotificationDropdown from "@/components/NotificationDropdown";
 
 const HeaderPage: React.FC = () => {
   const router = useRouter();
@@ -67,7 +67,7 @@ const HeaderPage: React.FC = () => {
         <div className="flex items-center">
           <span className="text-[28px] pr-2">📊</span>
           <span className="hidden md:block transition-all">
-            Totalizer Platform
+            {t("common.platformName")}
           </span>
         </div>
       </div>
@@ -101,14 +101,7 @@ const HeaderPage: React.FC = () => {
         />
 
         {/* Notifications */}
-        <Badge count={5} size="small">
-          <Button
-            type="text"
-            icon={<BellOutlined />}
-            style={{ color: 'white' }}
-            onClick={() => router.push('/notifications')}
-          />
-        </Badge>
+        <NotificationDropdown />
 
         {/* Settings */}
         <div className="flex items-center text-2xl animate-spin-slow cursor-pointer">

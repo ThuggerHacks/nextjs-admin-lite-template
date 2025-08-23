@@ -138,7 +138,7 @@ export default function GoalDetailPage() {
     }
     
     // Department admin can edit department goals
-    if (user.role === UserRole.ADMIN && user.department === goal.department) {
+    if (user.role === UserRole.ADMIN && user.department?.name === goal.department) {
       return true;
     }
     
@@ -154,7 +154,7 @@ export default function GoalDetailPage() {
     }
     
     // Department members can add reports to department-wide goals
-    if (!goal.assignedTo && user.department === goal.department) {
+    if (!goal.assignedTo && user.department?.name === goal.department) {
       return true;
     }
     

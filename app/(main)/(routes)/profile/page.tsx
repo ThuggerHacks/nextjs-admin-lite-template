@@ -98,7 +98,7 @@ export default function ProfilePage() {
       email: user.email,
       phone: user.phone,
       address: user.address,
-      department: user.department,
+      department: user.department?.name || '',
     });
     setIsEditing(false);
   };
@@ -240,7 +240,7 @@ export default function ProfilePage() {
               <Space direction="vertical" align="start" className="w-full">
                 <div className="flex items-center gap-2">
                   <BankOutlined className="text-gray-500" />
-                  <span>{user.department}</span>
+                  <span>{user.department?.name || 'No Department'}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <MailOutlined className="text-gray-500" />
@@ -320,7 +320,7 @@ export default function ProfilePage() {
                 email: user.email,
                 phone: user.phone || '',
                 address: user.address || '',
-                department: user.department,
+                department: user.department?.name || '',
               }}
               onFinish={handleSave}
             >

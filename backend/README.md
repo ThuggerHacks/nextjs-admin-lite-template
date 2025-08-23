@@ -1,214 +1,252 @@
 # Tonelizer Backend
 
-A comprehensive Node.js backend API built with Express, TypeScript, Prisma, and PostgreSQL.
+A comprehensive backend API for the Tonelizer platform built with Node.js, Express, and Prisma.
 
 ## Features
 
-- **Authentication & Authorization**: JWT-based auth with role-based access control
-- **File Management**: Upload, download, and manage files with Multer
-- **Email Service**: Nodemailer integration for password resets and notifications
-- **Database**: PostgreSQL with Prisma ORM
-- **TypeScript**: Full TypeScript support with strict typing
-- **Validation**: Express-validator for request validation
-- **Security**: Helmet, CORS, rate limiting, and password hashing
-- **Development**: Nodemon for hot reloading, Sucrase for fast compilation
+- **User Management**: Complete user registration, authentication, and role-based access control
+- **Department Management**: Hierarchical department structure with supervisors
+- **File Management**: Tree-structured folder system with file uploads
+- **Goal Management**: Goal creation, assignment, and tracking
+- **Report System**: Comprehensive reporting system with file attachments
+- **Library System**: Collaborative libraries with member management
+- **Scan System**: Image to PDF conversion and management
+- **Notification System**: Real-time notifications for system events
+- **Multi-Sucursal Support**: Inter-sucursal communication and data sync
+- **Error Logging**: Comprehensive error tracking and monitoring
+- **Dashboard**: Analytics and statistics for supervisors and admins
 
-## Tech Stack
+## Prerequisites
 
-- **Runtime**: Node.js with TypeScript
-- **Framework**: Express.js
-- **Database**: PostgreSQL with Prisma ORM
-- **Authentication**: JWT with bcryptjs
-- **File Upload**: Multer
-- **Email**: Nodemailer
-- **HTTP Client**: Axios
-- **Validation**: Express-validator
-- **Security**: Helmet, CORS, express-rate-limit
-- **Development**: Nodemon, Sucrase, ts-node
+- Node.js (v16 or higher)
+- npm or yarn
+- SQLite database
 
-## Project Structure
+## Installation
 
-```
-src/
-├── controllers/     # Route controllers
-├── services/        # Business logic services
-├── routes/          # Express route definitions
-├── middlewares/     # Custom middleware functions
-├── utils/           # Utility functions and helpers
-├── types/           # TypeScript type definitions
-└── index.ts         # Application entry point
-
-prisma/
-└── schema.prisma    # Database schema definition
-
-uploads/             # File upload directory
+1. Clone the repository and navigate to the backend directory:
+```bash
+cd backend
 ```
 
-## Getting Started
+2. Install dependencies:
+```bash
+npm install
+```
 
-### Prerequisites
+3. Create a `.env` file in the backend directory:
+```env
+DATABASE_URL="file:./dev.db"
+JWT_SECRET="your-super-secret-jwt-key-change-in-production"
+PORT=3001
+NODE_ENV=development
+```
 
-- Node.js (v18 or higher)
-- PostgreSQL database
-- npm or yarn package manager
+4. Generate Prisma client and run migrations:
+```bash
+npx prisma generate
+npx prisma migrate dev
+```
 
-### Installation
-
-1. **Clone the repository and navigate to backend folder**
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Environment Setup**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Update the `.env` file with your configuration:
-   ```env
-   DATABASE_URL="postgresql://username:password@localhost:5432/tonelizer?schema=public"
-   JWT_SECRET=your-super-secret-jwt-key
-   SMTP_USER=your-email@gmail.com
-   SMTP_PASS=your-app-password
-   ```
-
-4. **Database Setup**
-   ```bash
-   # Generate Prisma client
-   npm run generate
-   
-   # Run database migrations
-   npm run migrate
-   ```
-
-5. **Start Development Server**
-   ```bash
-   npm run dev
-   ```
-
-The server will start on `http://localhost:3001`
-
-## Available Scripts
-
-- `npm run dev` - Start development server with nodemon
-- `npm run dev:sucrase` - Start development server with sucrase
-- `npm start` - Start production server
-- `npm run build` - Build for production
-- `npm run build:sucrase` - Build with sucrase
-- `npm test` - Run tests
-- `npm run lint` - Run ESLint
-- `npm run migrate` - Run Prisma migrations
-- `npm run generate` - Generate Prisma client
-- `npm run studio` - Open Prisma Studio
+5. Start the development server:
+```bash
+npm run dev
+```
 
 ## API Endpoints
 
 ### Authentication
-- `POST /api/auth/register` - Register new user
-- `POST /api/auth/login` - Login user
-- `POST /api/auth/forgot-password` - Request password reset
-- `POST /api/auth/reset-password` - Reset password
-- `POST /api/auth/refresh-token` - Refresh JWT token
-- `GET /api/auth/profile` - Get user profile
+- `POST /api/auth/register` - Register a new user
+- `POST /api/auth/login` - User login
+- `GET /api/auth/me` - Get current user info
+- `PATCH /api/auth/approve/:userId` - Approve user (Supervisor/Admin)
+- `PATCH /api/auth/change-password` - Change password
 
-### Users (Admin only)
-- `GET /api/users` - Get all users
-- `GET /api/users/stats` - Get user statistics
-- `GET /api/users/:id` - Get user by ID
-- `PUT /api/users/:id` - Update user
-- `DELETE /api/users/:id` - Delete user
-- `PATCH /api/users/:id/password` - Change user password
+### Users
+- `GET /api/users` - Get all users (Admin/Supervisor)
+- `GET /api/users/:userId` - Get user by ID
+- `PUT /api/users/:userId` - Update user
+- `DELETE /api/users/:userId` - Delete user (Admin)
+- `GET /api/users/department/:departmentId` - Get users by department
 
-### User Profile
-- `GET /api/users/me` - Get current user profile
-- `PUT /api/users/me` - Update current user profile
+### Departments
+- `GET /api/departments` - Get all departments
+- `GET /api/departments/:departmentId` - Get department by ID
+- `POST /api/departments` - Create department (Admin/Developer)
+- `PUT /api/departments/:departmentId` - Update department (Admin/Developer)
+- `DELETE /api/departments/:departmentId` - Delete department (Admin/Developer)
+
+### Folders
+- `GET /api/folders` - Get user folders
+- `GET /api/folders/:folderId` - Get folder by ID
+- `POST /api/folders` - Create folder
+- `PUT /api/folders/:folderId` - Update folder
+- `DELETE /api/folders/:folderId` - Delete folder
+- `GET /api/folders/tree/:folderId?` - Get folder tree
 
 ### Files
-- `POST /api/files/upload` - Upload single file
-- `POST /api/files/upload-multiple` - Upload multiple files
-- `GET /api/files/my-files` - Get current user's files
-- `GET /api/files/stats` - Get file statistics
-- `GET /api/files/:id` - Get file details
-- `GET /api/files/:id/download` - Download file
-- `PUT /api/files/:id` - Update file metadata
-- `DELETE /api/files/:id` - Delete file
-- `GET /api/files` - Get all files (Admin only)
+- `GET /api/files` - Get files
+- `GET /api/files/:fileId` - Get file by ID
+- `POST /api/files` - Upload file
+- `PUT /api/files/:fileId` - Update file
+- `DELETE /api/files/:fileId` - Delete file
+- `GET /api/files/public/files` - Get public files
+
+### Libraries
+- `GET /api/libraries` - Get libraries
+- `GET /api/libraries/:libraryId` - Get library by ID
+- `POST /api/libraries` - Create library
+- `PUT /api/libraries/:libraryId` - Update library
+- `DELETE /api/libraries/:libraryId` - Delete library
+- `POST /api/libraries/:libraryId/members` - Add member
+- `DELETE /api/libraries/:libraryId/members/:userId` - Remove member
+
+### Goals
+- `GET /api/goals` - Get goals
+- `GET /api/goals/:goalId` - Get goal by ID
+- `POST /api/goals` - Create goal (Supervisor/Admin)
+- `PUT /api/goals/:goalId` - Update goal (Supervisor/Admin)
+- `DELETE /api/goals/:goalId` - Delete goal (Supervisor/Admin)
+- `POST /api/goals/:goalId/assign` - Assign users to goal
+
+### Reports
+- `GET /api/reports` - Get reports
+- `GET /api/reports/:reportId` - Get report by ID
+- `POST /api/reports` - Create report
+- `PUT /api/reports/:reportId` - Update report
+- `DELETE /api/reports/:reportId` - Delete report
+
+### Scans
+- `GET /api/scans` - Get scans
+- `GET /api/scans/:scanId` - Get scan by ID
+- `POST /api/scans` - Create scan (upload images)
+- `DELETE /api/scans/:scanId` - Delete scan
+- `GET /api/scans/:scanId/download` - Download PDF
+
+### Notifications
+- `GET /api/notifications` - Get notifications
+- `GET /api/notifications/:notificationId` - Get notification by ID
+- `PATCH /api/notifications/:notificationId/read` - Mark as read
+- `PATCH /api/notifications/read-all` - Mark all as read
+- `DELETE /api/notifications/:notificationId` - Delete notification
+- `GET /api/notifications/count/unread` - Get unread count
+
+### Sucursals
+- `GET /api/sucursals` - Get all sucursals (Developer)
+- `GET /api/sucursals/:sucursalId` - Get sucursal by ID (Developer)
+- `POST /api/sucursals` - Create sucursal (Developer)
+- `PUT /api/sucursals/:sucursalId` - Update sucursal (Developer)
+- `DELETE /api/sucursals/:sucursalId` - Delete sucursal (Developer)
+- `GET /api/sucursals/:sucursalId/connections` - Get connections
+- `POST /api/sucursals/:sucursalId/connect` - Connect sucursals
+- `DELETE /api/sucursals/:sucursalId/disconnect/:targetSucursalId` - Disconnect
+- `GET /api/sucursals/current/info` - Get current sucursal info
+
+### Error Logs
+- `GET /api/error-logs` - Get error logs (Developer)
+- `GET /api/error-logs/:errorLogId` - Get error log by ID (Developer)
+- `GET /api/error-logs/stats/summary` - Get error statistics (Developer)
+- `DELETE /api/error-logs/:errorLogId` - Delete error log (Developer)
+- `DELETE /api/error-logs/clear/all` - Clear error logs (Developer)
+
+### Dashboard
+- `GET /api/dashboard/stats` - Get dashboard statistics
+- `GET /api/dashboard/goals/progress` - Get goal progress
+- `GET /api/dashboard/users/activity` - Get user activity
+- `GET /api/dashboard/files/stats` - Get file statistics
 
 ## Database Schema
 
-The application uses the following main models:
+The application uses Prisma with SQLite. The schema includes:
 
-- **User**: User accounts with authentication
-- **File**: Uploaded files with metadata
-- **PasswordReset**: Password reset tokens
-
-## Security Features
-
-- Password hashing with bcryptjs
-- JWT token authentication
-- Rate limiting on API endpoints
-- CORS protection
-- Helmet security headers
-- Input validation and sanitization
-- File type restrictions for uploads
-
-## File Upload
-
-- Supports images and documents
-- 10MB file size limit
-- Automatic file naming with timestamps
-- Category-based organization
-- Secure file storage in uploads directory
-
-## Email Features
-
-- Welcome emails for new users
-- Password reset emails with secure tokens
-- Configurable SMTP settings
-- HTML email templates
-
-## Development
-
-### Code Structure
-
-- **Controllers**: Handle HTTP requests and responses
-- **Services**: Contain business logic and database operations
-- **Middlewares**: Handle authentication, validation, and file uploads
-- **Utils**: Helper functions for common operations
-- **Types**: TypeScript type definitions
-
-### Adding New Features
-
-1. Define types in `src/types/`
-2. Create service in `src/services/`
-3. Create controller in `src/controllers/`
-4. Add routes in `src/routes/`
-5. Add middleware if needed in `src/middlewares/`
+- **Users**: User accounts with roles and permissions
+- **Departments**: Department structure with supervisors
+- **Folders**: Tree-structured folder system
+- **Files**: File storage with metadata
+- **Libraries**: Collaborative libraries
+- **Goals**: Goal management and tracking
+- **Reports**: Report system with attachments
+- **Scans**: Image to PDF conversion
+- **Notifications**: System notifications
+- **Sucursals**: Multi-sucursal support
+- **Error Logs**: Error tracking and monitoring
 
 ## Environment Variables
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `NODE_ENV` | Environment mode | `development` |
-| `PORT` | Server port | `3001` |
-| `DATABASE_URL` | PostgreSQL connection string | - |
-| `JWT_SECRET` | JWT signing secret | - |
-| `FRONTEND_URL` | Frontend application URL | `http://localhost:3000` |
-| `SMTP_HOST` | SMTP server host | `smtp.gmail.com` |
-| `SMTP_PORT` | SMTP server port | `587` |
-| `SMTP_USER` | SMTP username | - |
-| `SMTP_PASS` | SMTP password | - |
+- `DATABASE_URL`: SQLite database URL
+- `JWT_SECRET`: JWT secret key for authentication
+- `PORT`: Server port (default: 3001)
+- `NODE_ENV`: Environment (development/production)
+
+## Development
+
+### Running in Development
+```bash
+npm run dev
+```
+
+### Running in Production
+```bash
+npm start
+```
+
+### Database Commands
+```bash
+# Generate Prisma client
+npx prisma generate
+
+# Run migrations
+npx prisma migrate dev
+
+# Reset database
+npx prisma migrate reset
+
+# Open Prisma Studio
+npx prisma studio
+```
+
+## Architecture
+
+The backend follows a modular architecture:
+
+- **Routes**: Express routes for API endpoints
+- **Middleware**: Authentication and validation middleware
+- **Services**: Business logic services
+- **Utils**: Utility functions and helpers
+- **Lib**: Database and external service connections
+
+## Security
+
+- JWT-based authentication
+- Role-based access control
+- Input validation and sanitization
+- Rate limiting
+- CORS configuration
+- Helmet security headers
+
+## Error Handling
+
+Comprehensive error handling with:
+- Custom error logging
+- Structured error responses
+- Error categorization
+- Error monitoring and tracking
+
+## Monitoring
+
+- Error logging system
+- Request logging with Morgan
+- Performance monitoring
+- Health check endpoints
 
 ## Contributing
 
 1. Fork the repository
-2. Create your feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
 
 ## License
 
-This project is licensed under the MIT License.
+MIT License 

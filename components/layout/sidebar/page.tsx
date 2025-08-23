@@ -77,95 +77,45 @@ const SiderPage = () => {
 
     const menuItems: MenuProps["items"] = [];
 
+    // Super Admin and Developer can access everything
+    const isSuperAdminOrDeveloper = hasRole(UserRole.SUPER_ADMIN) || hasRole(UserRole.DEVELOPER);
+    const isAdminOrHigher = hasRole(UserRole.ADMIN) || isSuperAdminOrDeveloper;
+    const isSupervisorOrHigher = hasRole(UserRole.SUPERVISOR) || isAdminOrHigher;
+
     // Dashboard/Homepage - All users
-    menuItems.push(
-      getItem(t("navigation.homepage"), "/homepage", <HomeOutlined />)
-    );
-
-    // Reports section
-    const reportsChildren: MenuItem[] = [];
-    
-    // Users can submit reports
-    if (hasRole(UserRole.USER)) {
-      reportsChildren.push(
-        getItem(t("navigation.submitReports"), "/reports/submit")
-      );
-    }
-    
-    // Admins and Super Admins can view reports
-    if (hasRole(UserRole.ADMIN)) {
-      reportsChildren.push(
-        getItem(t("navigation.viewReports"), "/reports/view")
-      );
-    }
-
-    if (reportsChildren.length > 0) {
+    if (isAdminOrHigher) {
       menuItems.push(
-        getItem(
-          t("navigation.reports"),
-          "/reports",
-          <FileTextOutlined />,
-          reportsChildren
-        )
+        getItem(t("navigation.dashboard"), "/management/dashboard", <DashboardOutlined />)
+      );
+    } else {
+      menuItems.push(
+        getItem(t("navigation.homepage"), "/homepage", <HomeOutlined />)
       );
     }
 
-    // Goals section
-    const goalsChildren: MenuItem[] = [];
-    
-    // All users can view goals
-    goalsChildren.push(
-      getItem(t("navigation.viewGoals"), "/goals/view")
-    );
-    
-    // Admins can create and edit goals
-    if (hasRole(UserRole.ADMIN)) {
-      goalsChildren.push(
-        getItem(t("navigation.createGoals"), "/goals/create"),
-        getItem(t("navigation.editGoals"), "/goals/edit")
+    // Management section - Admin and above
+    if (isAdminOrHigher) {
+      const managementChildren: MenuItem[] = [];
+
+      // Users management - Admin and above
+      managementChildren.push(
+        getItem(t("navigation.users"), "/management/users", <TeamOutlined />)
       );
-    }
 
-    menuItems.push(
-      getItem(
-        t("navigation.goals"),
-        "/goals",
-        <AimOutlined />,
-        goalsChildren
-      )
-    );
+      // Departments - Supervisor and above
+      managementChildren.push(
+        getItem(t("navigation.departments"), "/departments", <TeamOutlined />)
+      );
 
-    // Scanner - All users
-    menuItems.push(
-      getItem(t("navigation.scan"), "/scanner", <ScanOutlined />)
-    );
-    // Libraries/Files - All users
-    menuItems.push(
-      getItem(t("navigation.libraries"), "/libraries", <FolderOutlined />)
-    );
+      // Requests - Admin and above (for approving users)
+      managementChildren.push(
+        getItem(t("navigation.requests"), "/management/requests", <UserOutlined />)
+      );
 
-    // Public Documents - All users
-    menuItems.push(
-      getItem(t("navigation.documents"), "/documents", <FileOutlined />)
-    );
-
-    // Management section - Admins and Super Admins
-    if (hasRole(UserRole.ADMIN)) {
-      const managementChildren: MenuItem[] = [
-        getItem(t("navigation.users"), "/management/users", <TeamOutlined />),
-        getItem("Departments", "/departments", <TeamOutlined />)
-      ];
-
-      // Super Admin specific items
-      if (hasRole(UserRole.SUPER_ADMIN)) {
-        managementChildren.unshift(
-          getItem(t("navigation.generalPanel"), "/management/dashboard", <DashboardOutlined />)
-        );
+      // Super Admin and Developer specific items
+      if (isSuperAdminOrDeveloper) {
         managementChildren.push(
-          getItem(t("navigation.requests"), "/management/requests", <UserOutlined />)
-        );
-        managementChildren.push(
-          getItem("Sucursals", "/sucursals", <GlobalOutlined />)
+          getItem(t("navigation.sucursals"), "/sucursals", <GlobalOutlined />)
         );
       }
 
@@ -178,6 +128,75 @@ const SiderPage = () => {
         )
       );
     }
+
+    // Goals section - All users can view, Supervisors and above can manage
+    const goalsChildren: MenuItem[] = [];
+
+    // All users can view assigned goals
+    goalsChildren.push(
+      getItem(t("navigation.viewGoals"), "/goals/view", <AimOutlined />)
+    );
+
+    // Supervisors and above can create and edit goals
+    if (isSupervisorOrHigher) {
+      goalsChildren.push(
+        getItem(t("navigation.createGoals"), "/goals/create", <EditOutlined />),
+        getItem(t("navigation.editGoals"), "/goals/edit", <EditOutlined />)
+      );
+    }
+
+    menuItems.push(
+      getItem(
+        t("navigation.goals"),
+        "/goals",
+        <AimOutlined />,
+        goalsChildren
+      )
+    );
+
+    // Reports section - All users
+    const reportsChildren: MenuItem[] = [];
+
+    // All users can submit reports
+    reportsChildren.push(
+      getItem(t("navigation.submitReports"), "/reports/submit", <UploadOutlined />)
+    );
+
+    // Supervisors and above can view reports
+    if (isSupervisorOrHigher) {
+      reportsChildren.push(
+        getItem(t("navigation.viewReports"), "/reports/view", <FileTextOutlined />)
+      );
+    }
+
+    menuItems.push(
+      getItem(
+        t("navigation.reports"),
+        "/reports",
+        <FileTextOutlined />,
+        reportsChildren
+      )
+    );
+
+    // Documents and Files - All users
+    menuItems.push(
+      getItem(t("navigation.documents"), "/documents", <FileOutlined />)
+    );
+
+    // Libraries - All users
+    menuItems.push(
+      getItem(t("navigation.libraries"), "/libraries", <FolderOutlined />)
+    );
+
+    // Scanner - All users can scan documents
+    menuItems.push(
+      getItem(t("navigation.scan"), "/scanner", <ScanOutlined />)
+    );
+
+    // Digitalize - All users
+    menuItems.push(
+      getItem(t("navigation.digitalize"), "/digitalize", <FileTextOutlined />)
+    );
 
     // Notifications - All users
     menuItems.push(

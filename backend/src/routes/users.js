@@ -1,0 +1,663 @@
+const express = require('express');
+const { body, validationResult } = require('express-validator');
+const prisma = require('../lib/prisma');
+const { authenticateToken, requireRole } = require('../middleware/auth');
+const { createNotification } = require('../utils/notifications');
+const { logError } = require('../utils/errorLogger');
+const currentSucursal = require('../lib/currentSucursal');
+
+const router = express.Router();
+
+// Get all users (Admin/Supervisor only)
+router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+  try {
+    const { page = 1, limit = 10, role, status, departmentId } = req.query;
+    const offset = (page - 1) * limit;
+
+    const where = {
+      sucursalId: req.user.sucursalId
+    };
+
+    if (role) where.role = role;
+    if (status) where.status = status;
+    if (departmentId) where.departmentId = departmentId;
+
+    const users = await prisma.user.findMany({
+      where,
+      include: {
+        department: true,
+        supervisor: true
+      },
+      skip: parseInt(offset),
+      take: parseInt(limit),
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const total = await prisma.user.count({ where });
+
+    res.json({
+      users,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get users failed', error);
+    res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
+// Get user by ID
+router.get('/:userId', authenticateToken, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        department: true,
+        supervisor: true,
+        subordinates: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.id !== req.user.id && !['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get user failed', error);
+    res.status(500).json({ error: 'Failed to get user' });
+  }
+});
+
+// Create user (Admin/Supervisor only)
+router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), [
+  body('name').notEmpty().withMessage('Name is required'),
+  body('email').isEmail().withMessage('Valid email is required'),
+  body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
+  body('role').optional().isIn(['USER', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN']).withMessage('Invalid role'),
+  body('status').optional().isIn(['ACTIVE', 'INACTIVE', 'PENDING']).withMessage('Invalid status'),
+  body('departmentId').notEmpty().withMessage('Department is required'),
+  body('phone').optional().custom((value) => {
+    if (value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Phone must be a string or null'),
+  body('isDepartmentAdmin').optional().isBoolean().withMessage('isDepartmentAdmin must be a boolean')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, email, password, role, status, departmentId, phone, isDepartmentAdmin } = req.body;
+    const bcrypt = require('bcryptjs');
+
+    // Check if email already exists
+    const existingUser = await prisma.user.findUnique({
+      where: { email }
+    });
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
+
+    // Hash password if provided, otherwise generate random one
+    const userPassword = password || Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(userPassword, 10);
+
+    const userData = {
+      name,
+      email,
+      password: hashedPassword,
+      role: role || 'USER',
+      status: status || 'ACTIVE',
+      departmentId,
+      phone,
+      sucursalId: req.user.sucursalId
+    };
+
+    const newUser = await prisma.user.create({
+      data: userData,
+      include: {
+        department: true,
+        supervisor: true
+      }
+    });
+
+    // Handle department admin assignment
+    if (isDepartmentAdmin && departmentId) {
+      await prisma.department.update({
+        where: { id: departmentId },
+        data: { supervisorId: newUser.id }
+      });
+    }
+
+    // Create root folder for user
+    await prisma.folder.create({
+      data: {
+        name: `${name}'s Files`,
+        userId: newUser.id,
+        sucursalId: req.user.sucursalId,
+        parentId: null
+      }
+    });
+
+    await createNotification(
+      newUser.id,
+      'USER_CREATION',
+      'Account Created',
+      `Your account has been created by ${req.user.name}. Welcome to the platform!`
+    );
+
+    res.status(201).json({
+      message: 'User created successfully',
+      user: newUser,
+      tempPassword: password ? undefined : userPassword
+    });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Create user failed', error);
+    res.status(500).json({ error: 'Failed to create user' });
+  }
+});
+
+// Update user
+router.put('/:userId', authenticateToken, [
+  body('name').optional().notEmpty().withMessage('Name cannot be empty'),
+  body('email').optional().isEmail().withMessage('Valid email is required'),
+  body('role').optional().isIn(['USER', 'SUPERVISOR', 'ADMIN', 'SUPER_ADMIN']).withMessage('Invalid role'),
+  body('status').optional().isIn(['ACTIVE', 'INACTIVE', 'PENDING']).withMessage('Invalid status'),
+  body('departmentId').optional().isString().withMessage('Department ID must be a string'),
+  body('supervisorId').optional().isString().withMessage('Supervisor ID must be a string'),
+  body('phone').optional().custom((value) => {
+    if (value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Phone must be a string or null'),
+  body('isDepartmentAdmin').optional().isBoolean().withMessage('isDepartmentAdmin must be a boolean')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { userId } = req.params;
+    const { name, email, role, status, departmentId, supervisorId, phone, isDepartmentAdmin } = req.body;
+
+    if (userId !== req.user.id && !['ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role)) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) {
+      if (email !== existingUser.email) {
+        const emailExists = await prisma.user.findUnique({
+          where: { email }
+        });
+        if (emailExists) {
+          return res.status(400).json({ error: 'Email already exists' });
+        }
+      }
+      updateData.email = email;
+    }
+    if (role !== undefined) updateData.role = role;
+    if (status !== undefined) updateData.status = status;
+    if (departmentId !== undefined) updateData.departmentId = departmentId;
+    if (supervisorId !== undefined) updateData.supervisorId = supervisorId;
+    if (phone !== undefined) updateData.phone = phone;
+
+    // Handle department admin assignment
+    if (isDepartmentAdmin !== undefined) {
+      const userDepartmentId = departmentId || existingUser.departmentId;
+      
+      if (isDepartmentAdmin && userDepartmentId) {
+        // Verify department exists
+        const department = await prisma.department.findUnique({
+          where: { id: userDepartmentId }
+        });
+        
+        if (!department) {
+          return res.status(400).json({ error: 'Department not found' });
+        }
+        
+        // Make user supervisor of their department
+        await prisma.department.update({
+          where: { id: userDepartmentId },
+          data: { 
+            supervisors: {
+              connect: { id: userId }
+            }
+          }
+        });
+        
+        // Also update user role to SUPERVISOR if not already ADMIN or SUPER_ADMIN
+        if (!['ADMIN', 'SUPER_ADMIN'].includes(existingUser.role)) {
+          updateData.role = 'SUPERVISOR';
+        }
+      } else if (!isDepartmentAdmin) {
+        // Remove as supervisor if they were one
+        const department = await prisma.department.findFirst({
+          where: { 
+            supervisors: {
+              some: { id: userId }
+            }
+          }
+        });
+        if (department) {
+          await prisma.department.update({
+            where: { id: department.id },
+            data: { 
+              supervisors: {
+                disconnect: { id: userId }
+              }
+            }
+          });
+        }
+        
+        // If user was only a supervisor (not admin), demote to USER
+        if (existingUser.role === 'SUPERVISOR') {
+          updateData.role = 'USER';
+        }
+      }
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        department: true,
+        supervisor: true
+      }
+    });
+
+    await createNotification(
+      userId,
+      'SYSTEM_UPDATE',
+      'Perfil Atualizado',
+      'Seu perfil foi atualizado.'
+    );
+
+    res.json({
+      message: 'User updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('User update error details:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.params.userId,
+      body: req.body,
+      user: req.user?.id
+    });
+    await logError('DATABASE_ERROR', 'Update user failed', error);
+    res.status(500).json({ error: 'Failed to update user', details: error.message });
+  }
+});
+
+// Delete user (Admin/Supervisor only)
+router.delete('/:userId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    if (userId === req.user.id) {
+      return res.status(400).json({ error: 'Cannot delete your own account' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Prevent deleting super admins unless requester is also super admin
+    if (user.role === 'SUPER_ADMIN' && req.user.role !== 'SUPER_ADMIN') {
+      return res.status(403).json({ error: 'Cannot delete super admin user' });
+    }
+
+    await prisma.user.delete({
+      where: { id: userId }
+    });
+
+    res.json({ message: 'User deleted successfully' });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Delete user failed', error);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
+});
+
+// Get users by department
+router.get('/department/:departmentId', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    const users = await prisma.user.findMany({
+      where: {
+        departmentId,
+        sucursalId: req.user.sucursalId
+      },
+      include: {
+        department: true,
+        supervisor: true
+      }
+    });
+
+    res.json({ users });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get department users failed', error);
+    res.status(500).json({ error: 'Failed to get department users' });
+  }
+});
+
+// Promote user to super admin
+router.post('/:userId/promote-to-superadmin', authenticateToken, requireRole(['SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (user.role === 'SUPER_ADMIN') {
+      return res.status(400).json({ error: 'User is already a super admin' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { role: 'SUPER_ADMIN' },
+      include: {
+        department: true,
+        supervisor: true
+      }
+    });
+
+    await createNotification(
+      userId,
+      'SYSTEM_UPDATE',
+      'Promoted to Super Admin',
+      'You have been promoted to Super Admin role.'
+    );
+
+    res.json({
+      message: 'User promoted to super admin successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    console.error('Super admin promotion error details:', {
+      error: error.message,
+      stack: error.stack,
+      userId: req.params.userId,
+      user: req.user?.id
+    });
+    await logError('DATABASE_ERROR', 'Promote to super admin failed', error);
+    res.status(500).json({ error: 'Failed to promote user to super admin', details: error.message });
+  }
+});
+
+// Reset user password
+router.post('/:userId/reset-password', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const bcrypt = require('bcryptjs');
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Generate temporary password
+    const tempPassword = Math.random().toString(36).slice(-8);
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword }
+    });
+
+    await createNotification(
+      userId,
+      'SYSTEM_UPDATE',
+      'Password Reset',
+      `Your password has been reset. New temporary password: ${tempPassword}`
+    );
+
+    res.json({
+      message: 'Password reset successfully',
+      tempPassword
+    });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Reset password failed', error);
+    res.status(500).json({ error: 'Failed to reset password' });
+  }
+});
+
+// Get user files
+router.get('/:userId/files', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get user's root folder
+    const rootFolder = await prisma.folder.findFirst({
+      where: {
+        userId: userId,
+        parentId: null
+      }
+    });
+
+    if (!rootFolder) {
+      // Create root folder for user if it doesn't exist
+      const newRootFolder = await prisma.folder.create({
+        data: {
+          name: `${user.name}'s Files`,
+          description: `Root folder for ${user.name}`,
+          userId: userId,
+          sucursalId: user.sucursalId,
+          parentId: null
+        }
+      });
+      
+      return res.json({ files: [], folders: [newRootFolder], rootFolder: newRootFolder });
+    }
+
+    // Get all folders for the user first
+    const folders = await prisma.folder.findMany({
+      where: { userId: userId },
+      include: {
+        parent: true,
+        _count: {
+          select: {
+            children: true,
+            files: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Get all files that belong to any of the user's folders OR are directly associated with the user
+    const folderIds = folders.map(folder => folder.id);
+    console.log('🔍 User folders:', folderIds);
+    
+    // First, let's check all files for this user to see what's in the database
+    const allUserFiles = await prisma.file.findMany({
+      where: { userId: userId },
+      select: { id: true, name: true, folderId: true, createdAt: true }
+    });
+    console.log('🔍 All files for user:', allUserFiles);
+    
+    const files = await prisma.file.findMany({
+      where: {
+        OR: [
+          {
+            folderId: {
+              in: folderIds
+            }
+          },
+          {
+            userId: userId,
+            folderId: null // Root-level files
+          }
+        ]
+      },
+      include: {
+        folder: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    console.log('🔍 Found files:', files.length);
+    console.log('🔍 Files data:', files);
+
+    res.json({ files, folders, rootFolder });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get user files failed', error);
+    res.status(500).json({ error: 'Failed to get user files' });
+  }
+});
+
+// Export users to CSV
+router.get('/export-csv', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { sucursalId: req.user.sucursalId },
+      include: {
+        department: true,
+        supervisor: true
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Convert to CSV format
+    const csvData = users.map(user => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      department: user.department?.name || 'N/A',
+      supervisor: user.supervisor?.name || 'N/A',
+      phone: user.phone || 'N/A',
+      createdAt: user.createdAt.toISOString(),
+      lastLogin: user.lastLogin ? user.lastLogin.toISOString() : 'Never'
+    }));
+
+    res.json({ users: csvData });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Export users failed', error);
+    res.status(500).json({ error: 'Failed to export users' });
+  }
+});
+
+// Create folder for user (admin/super admin only)
+router.post('/:userId/folders', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), [
+  body('name').notEmpty().withMessage('Folder name is required'),
+  body('description').optional().isString().withMessage('Description must be a string'),
+  body('parentId').optional().isString().withMessage('Parent ID must be a string')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { userId } = req.params;
+    const { name, description, parentId } = req.body;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    if (parentId) {
+      const parentFolder = await prisma.folder.findUnique({
+        where: { id: parentId }
+      });
+
+      if (!parentFolder) {
+        return res.status(404).json({ error: 'Parent folder not found' });
+      }
+
+      if (parentFolder.userId !== userId) {
+        return res.status(403).json({ error: 'Parent folder does not belong to target user' });
+      }
+    }
+
+    const existingFolder = await prisma.folder.findFirst({
+      where: {
+        name,
+        userId: userId,
+        parentId: parentId || null
+      }
+    });
+
+    if (existingFolder) {
+      return res.status(400).json({ error: 'Folder with this name already exists in this location' });
+    }
+
+    const folder = await prisma.folder.create({
+      data: {
+        name,
+        description,
+        parentId,
+        userId: userId,
+        sucursalId: user.sucursalId
+      },
+      include: {
+        parent: true,
+        children: true
+      }
+    });
+
+    await createNotification(
+      userId,
+      'FILE_OPERATION',
+      'Nova Pasta',
+      `Pasta "${name}" foi criada por ${req.user.name}.`
+    );
+
+    res.status(201).json({
+      message: 'Folder created successfully',
+      folder
+    });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Create user folder failed', error);
+    res.status(500).json({ error: 'Failed to create folder' });
+  }
+});
+
+module.exports = router; 

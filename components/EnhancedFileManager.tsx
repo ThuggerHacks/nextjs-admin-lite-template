@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Card,
   Row,
@@ -56,6 +56,8 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
 import { FileItem, FolderItem, FileManagerState } from '@/types';
+import { fileService, Folder, File as FileType } from '@/lib/services/fileService';
+import { userService } from '@/lib/services/userService';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -298,13 +300,16 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
   rootPath = '/',
   title,
 }) => {
+
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [sortBy, setSortBy] = useState<SortBy>('name');
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
-  const [currentPath, setCurrentPath] = useState(rootPath);
-  const [selectedItems, setSelectedItems] = useState<string[]>([]);
-  const [fileSystem, setFileSystem] = useState(createMockFileSystem(mode));
-  const [expandedKeys, setExpandedKeys] = useState<string[]>(['folder-1', 'folder-2']);
+     const [currentPath, setCurrentPath] = useState('/');
+   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>();
+   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+   const [fileSystem, setFileSystem] = useState<(FileItem | FolderItem)[]>([]);
+   const [expandedKeys, setExpandedKeys] = useState<string[]>([]);
+   const [loading, setLoading] = useState(false);
   
   // Modals
   const [createFolderModalVisible, setCreateFolderModalVisible] = useState(false);
@@ -319,48 +324,266 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
   const { user } = useUser();
   const { t } = useTranslation();
 
+    // Helper function to convert backend data to frontend format
+  const convertToFileSystem = (folders: Folder[], files: FileType[]): (FileItem | FolderItem)[] => {
+    const result: (FileItem | FolderItem)[] = [];
+    
+    // Build complete folder hierarchy
+    const buildFolderTree = (parentId: string | null): (FileItem | FolderItem)[] => {
+      const children: (FileItem | FolderItem)[] = [];
+      
+      // Find all folders with this parentId
+      const childFolders = folders.filter(folder => folder.parentId === parentId);
+      
+      childFolders.forEach(folder => {
+        const folderItem: FolderItem = {
+          id: folder.id,
+          name: folder.name,
+          description: folder.description,
+          parentId: folder.parentId,
+          libraryId: libraryId || 'default',
+          createdBy: user as any,
+          createdAt: new Date(folder.createdAt),
+          path: parentId ? `/${folder.name}` : `/${folder.name}`, // Will be updated with full path
+          children: buildFolderTree(folder.id), // Recursively build children
+          permissions: [],
+        };
+        children.push(folderItem);
+      });
+      
+      // Find all files with this parentId
+      const childFiles = files.filter(file => file.folderId === parentId);
+      
+      childFiles.forEach(file => {
+        const fileItem: FileItem = {
+          id: file.id,
+          name: file.name,
+          description: file.description,
+          size: file.size,
+          type: file.mimeType || file.type || 'application/octet-stream',
+          url: file.url,
+          libraryId: libraryId || 'default',
+          uploadedBy: user as any,
+          uploadedAt: new Date(file.updatedAt),
+          parentFolderId: file.folderId,
+          path: `/${file.name}`, // Will be updated with full path
+          isFolder: false,
+          permissions: [],
+        };
+        children.push(fileItem);
+      });
+      
+      return children;
+    };
+    
+    // Build the complete tree starting from root (parentId: null)
+    const rootItems = buildFolderTree(null);
+    
+    // Update paths to be full paths
+    const updatePaths = (items: (FileItem | FolderItem)[], parentPath: string = '') => {
+      items.forEach(item => {
+        item.path = parentPath + `/${item.name}`;
+        if ('children' in item && item.children) {
+          updatePaths(item.children, item.path);
+        }
+      });
+    };
+    
+    updatePaths(rootItems);
+    
+    return rootItems;
+  };
+
+  // Load data from backend
+  const loadData = useCallback(async () => {
+    try {
+      setLoading(true);
+      
+      // For user files mode, get user-specific data
+      if (mode === 'user-files' && userId) {
+        // Get user's folders and files from dedicated endpoint
+        const userFilesData = await userService.getUserFiles(userId);
+        
+        // Convert the response to our expected format
+        const userFolders = userFilesData?.folders || [];
+        const userFiles = userFilesData?.files || [];
+        
+        const convertedData = convertToFileSystem(userFolders, userFiles);
+        setFileSystem(convertedData);
+      } else {
+        // For other modes, get all public or library data
+        const foldersResponse = await fileService.getAllFolders();
+        const filesResponse = await fileService.getAllFiles();
+        
+        // Handle different response formats
+        const folders = Array.isArray(foldersResponse) ? foldersResponse : foldersResponse.folders || [];
+        const files = Array.isArray(filesResponse) ? filesResponse : filesResponse.files || [];
+        
+        const convertedData = convertToFileSystem(folders, files);
+        setFileSystem(convertedData);
+      }
+    } catch (error) {
+      console.error('Error loading file data:', error);
+      message.error('Failed to load files and folders');
+    } finally {
+      setLoading(false);
+    }
+  }, [mode, userId]);
+
+           // Load data on component mount and when key dependencies change
+    useEffect(() => {
+      loadData();
+      // Reset folder context when mode or user changes
+      setCurrentPath('/');
+      setCurrentFolderId(undefined);
+    }, [mode, userId, libraryId, loadData]); // Include loadData back since it's wrapped in useCallback
+
+    // Monitor path changes for debugging
+    useEffect(() => {
+      console.log('🔍 Path changed to:', currentPath);
+      console.log('🔍 Current folder ID:', currentFolderId);
+    }, [currentPath, currentFolderId]);
+
   // Helper functions
   const findItemByPath = (path: string, items: (FileItem | FolderItem)[] = fileSystem): FileItem | FolderItem | null => {
-    for (const item of items) {
-      if (item.path === path) return item;
-      if ('children' in item && item.children) {
-        const found = findItemByPath(path, item.children);
-        if (found) return found;
+    // Handle root path
+    if (path === '/' || path === '') {
+      return null; // Root doesn't have a specific item
+    }
+    
+    const pathParts = path.split('/').filter(Boolean);
+    
+    // Navigate through the path parts to find the target item
+    let currentItems = items;
+    let targetItem: FileItem | FolderItem | null = null;
+    
+    for (let i = 0; i < pathParts.length; i++) {
+      const partName = pathParts[i];
+      targetItem = currentItems.find(item => item.name === partName) || null;
+      
+      if (!targetItem) {
+        console.log('🔍 findItemByPath: Could not find part:', partName, 'in current items');
+        return null;
+      }
+      
+      if (i < pathParts.length - 1) {
+        // Not the last part, so we need to go deeper
+        if ('children' in targetItem && targetItem.children) {
+          currentItems = targetItem.children;
+        } else {
+          console.log('🔍 findItemByPath: Part is not a folder:', partName);
+          return null;
+        }
       }
     }
-    return null;
-  };
-
-  const getCurrentFolderContents = (): (FileItem | FolderItem)[] => {
-    if (currentPath === '/') return fileSystem;
     
-    const currentFolder = findItemByPath(currentPath);
-    if (currentFolder && 'children' in currentFolder) {
-      return currentFolder.children || [];
-    }
-    return [];
+    console.log('🔍 findItemByPath: Found item for path:', path, 'Item:', targetItem?.name);
+    return targetItem;
   };
 
-  const getBreadcrumbItems = () => {
-    const pathParts = currentPath.split('/').filter(Boolean);
-    const items = [
-      {
-        title: <HomeOutlined />,
-        onClick: () => setCurrentPath('/'),
-      },
-    ];
+     const getCurrentFolderContents = (): (FileItem | FolderItem)[] => {
+     if (currentPath === '/') {
+       console.log('🔍 getCurrentFolderContents: Root path, returning fileSystem:', fileSystem.length, 'items');
+       return fileSystem;
+     }
+     
+     const currentFolder = findItemByPath(currentPath);
+     console.log('🔍 getCurrentFolderContents: Current path:', currentPath, 'Found folder:', currentFolder ? currentFolder.name : 'Not found');
+     
+     if (currentFolder && 'children' in currentFolder) {
+       const children = currentFolder.children || [];
+       console.log('🔍 getCurrentFolderContents: Returning', children.length, 'children from folder:', currentFolder.name);
+       return children;
+     }
+     
+     console.log('🔍 getCurrentFolderContents: No children found, returning empty array');
+     return [];
+   };
 
-    let accumulatedPath = '';
-    pathParts.forEach((part, index) => {
-      accumulatedPath += `/${part}`;
-      items.push({
-        title: <span>{part}</span>,
-        onClick: () => setCurrentPath(accumulatedPath),
-      });
-    });
+                                   const getBreadcrumbItems = () => {
+       const pathParts = currentPath.split('/').filter(Boolean);
+       const items = [
+         {
+           title: (
+             <HomeOutlined 
+               style={{ 
+                 cursor: 'pointer', 
+                 color: '#1890ff', 
+                 fontSize: '16px',
+                 transition: 'all 0.2s ease',
+                 padding: '4px 8px',
+                 borderRadius: '4px'
+               }}
+               onMouseEnter={(e) => {
+                 e.currentTarget.style.backgroundColor = '#f0f8ff';
+                 e.currentTarget.style.color = '#096dd9';
+               }}
+               onMouseLeave={(e) => {
+                 e.currentTarget.style.backgroundColor = 'transparent';
+                 e.currentTarget.style.color = '#1890ff';
+               }}
+             />
+           ),
+           onClick: () => {
+             console.log('🔍 Breadcrumb: Going to root');
+             setCurrentPath('/');
+             setCurrentFolderId(undefined);
+           },
+         },
+       ];
 
-    return items;
-  };
+       let accumulatedPath = '';
+       pathParts.forEach((part, index) => {
+         accumulatedPath += `/${part}`;
+         
+         // Simplified folder finding - just navigate to the path
+         items.push({
+           title: (
+             <span 
+               style={{ 
+                 cursor: 'pointer', 
+                 color: '#1890ff',
+                 fontSize: '14px',
+                 fontWeight: '500',
+                 transition: 'all 0.2s ease',
+                 padding: '4px 8px',
+                 borderRadius: '4px'
+               }}
+               onMouseEnter={(e) => {
+                 e.currentTarget.style.backgroundColor = '#f0f8ff';
+                 e.currentTarget.style.color = '#096dd9';
+               }}
+               onMouseLeave={(e) => {
+                 e.currentTarget.style.backgroundColor = 'transparent';
+                 e.currentTarget.style.color = '#1890ff';
+               }}
+             >
+               {part}
+             </span>
+           ),
+           onClick: () => {
+             console.log('🔍 Breadcrumb clicked:', accumulatedPath);
+             console.log('🔍 Current path before change:', currentPath);
+             console.log('🔍 Setting new path to:', accumulatedPath);
+             
+             // Update the current path and folder ID
+             setCurrentPath(accumulatedPath);
+             
+             // Find the folder ID for this path
+             const targetFolder = findItemByPath(accumulatedPath);
+             if (targetFolder && 'children' in targetFolder) {
+               setCurrentFolderId(targetFolder.id);
+               console.log('🔍 Found folder ID:', targetFolder.id);
+             } else {
+               setCurrentFolderId(undefined);
+               console.log('🔍 No folder ID found, setting to undefined');
+             }
+           },
+         });
+       });
+
+       return items;
+     };
 
   const sortItems = (items: (FileItem | FolderItem)[]): (FileItem | FolderItem)[] => {
     const sorted = [...items].sort((a, b) => {
@@ -407,24 +630,43 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  const getFileIcon = (item: FileItem | FolderItem) => {
-    if ('children' in item) {
-      return <FolderOutlined style={{ color: '#1890ff', fontSize: '16px' }} />;
-    }
+     const getFileIcon = (item: FileItem | FolderItem) => {
+     if ('children' in item) {
+       return <FolderOutlined style={{ color: '#1890ff', fontSize: '16px' }} />;
+     }
 
-    const fileItem = item as FileItem;
-    if (fileItem.type.includes('pdf')) {
-      return <FileOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />;
-    } else if (fileItem.type.includes('image')) {
-      return <FileOutlined style={{ color: '#52c41a', fontSize: '16px' }} />;
-    } else if (fileItem.type.includes('spreadsheet') || fileItem.type.includes('excel')) {
-      return <FileOutlined style={{ color: '#389e0d', fontSize: '16px' }} />;
-    } else if (fileItem.type.includes('document') || fileItem.type.includes('word')) {
-      return <FileOutlined style={{ color: '#1890ff', fontSize: '16px' }} />;
-    } else {
-      return <FileOutlined style={{ color: '#8c8c8c', fontSize: '16px' }} />;
-    }
-  };
+     const fileItem = item as FileItem;
+     if (fileItem.type.includes('pdf')) {
+       return <FileOutlined style={{ color: '#ff4d4f', fontSize: '16px' }} />;
+     } else if (fileItem.type.includes('image')) {
+       return <FileOutlined style={{ color: '#52c41a', fontSize: '16px' }} />;
+     } else if (fileItem.type.includes('spreadsheet') || fileItem.type.includes('excel')) {
+       return <FileOutlined style={{ color: '#389e0d', fontSize: '16px' }} />;
+     } else if (fileItem.type.includes('document') || fileItem.type.includes('word')) {
+       return <FileOutlined style={{ color: '#1890ff', fontSize: '16px' }} />;
+     } else {
+       return <FileOutlined style={{ color: '#8c8c8c', fontSize: '16px' }} />;
+     }
+   };
+
+   const getFileIconLarge = (item: FileItem | FolderItem) => {
+     if ('children' in item) {
+       return <FolderOutlined style={{ color: '#1890ff' }} />;
+     }
+
+     const fileItem = item as FileItem;
+     if (fileItem.type.includes('pdf')) {
+       return <FileOutlined style={{ color: '#ff4d4f' }} />;
+     } else if (fileItem.type.includes('image')) {
+       return <FileOutlined style={{ color: '#52c41a' }} />;
+     } else if (fileItem.type.includes('spreadsheet') || fileItem.type.includes('excel')) {
+       return <FileOutlined style={{ color: '#389e0d' }} />;
+     } else if (fileItem.type.includes('document') || fileItem.type.includes('word')) {
+       return <FileOutlined style={{ color: '#1890ff' }} />;
+     } else {
+       return <FileOutlined style={{ color: '#8c8c8c' }} />;
+     }
+   };
 
   // Tree view data preparation
   const prepareTreeData = (items: (FileItem | FolderItem)[]): any[] => {
@@ -445,20 +687,55 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
   };
 
   // Event handlers
-  const handleFolderDoubleClick = (folderPath: string) => {
-    setCurrentPath(folderPath);
-  };
+     const handleFolderDoubleClick = (folderPath: string) => {
+     console.log('📁 Double-clicked folder path:', folderPath);
+     console.log('📁 Current path before change:', currentPath);
+     setCurrentPath(folderPath);
+     // Find the folder by path to get its ID
+     const folder = findItemByPath(folderPath);
+     if (folder && 'children' in folder) {
+       setCurrentFolderId(folder.id);
+       console.log('📁 Entered folder:', folder.name, 'ID:', folder.id);
+     } else {
+       console.log('📁 Folder not found or not a folder:', folder);
+     }
+   };
 
   const handleCreateFolder = async (values: any) => {
     try {
-      // Simulate folder creation
-      await new Promise(resolve => setTimeout(resolve, 500));
+      setLoading(true);
       
-      message.success('Folder created successfully');
+             const folderData: any = {
+         name: values.name,
+         description: values.description,
+       };
+       
+       // Add parentId based on current folder context
+       if (currentFolderId) {
+         folderData.parentId = currentFolderId;
+         console.log('📁 Creating folder inside folder ID:', currentFolderId);
+       }
+      
+      let response;
+      if (mode === 'user-files' && userId) {
+        // Create folder for specific user
+        response = await userService.createFolderForUser(userId, folderData);
+      } else {
+        // Create folder for current user
+        response = await fileService.createFolder(folderData);
+      }
+      
+      message.success(response.message || 'Folder created successfully');
       setCreateFolderModalVisible(false);
       createFolderForm.resetFields();
+      
+      // Reload data to show new folder
+      await loadData();
     } catch (error) {
+      console.error('Error creating folder:', error);
       message.error('Failed to create folder');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -472,93 +749,301 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
 
     setUploadProgress(uploadItems);
 
-    // Simulate upload progress
-    for (const item of uploadItems) {
-      for (let progress = 0; progress <= 100; progress += 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
+    try {
+      // Upload files one by one with progress
+      for (const fileItem of fileList) {
+        const file = fileItem.originFileObj || fileItem;
+        
+        if (!file || !(file instanceof File)) {
+          console.error('Invalid file object:', file);
+          continue;
+        }
+        
+        // Update progress to show uploading
         setUploadProgress(prev => 
-          prev.map(p => p.id === item.id ? { ...p, progress } : p)
+          prev.map(p => p.id === fileItem.uid ? { ...p, progress: 50 } : p)
+        );
+        
+                 // Get parent folder ID if we're in a specific folder
+         let folderId: string | undefined;
+         console.log('🔍 Current path:', currentPath);
+         console.log('🔍 Current folder ID:', currentFolderId);
+         if (currentFolderId) {
+           folderId = currentFolderId;
+           console.log('📁 Uploading to folder ID:', folderId);
+         } else {
+           console.log('📁 Uploading to root folder');
+         }
+         
+         // Upload to backend with folder context
+         console.log('🚀 Frontend: Uploading file with folderId:', folderId);
+         const response = await fileService.uploadFile(file, folderId);
+         console.log('🚀 Frontend: Upload response:', response);
+        
+        // Update progress to complete
+        setUploadProgress(prev => 
+          prev.map(p => p.id === fileItem.uid ? { ...p, progress: 100, status: 'success' } : p)
         );
       }
+
+      // Clear progress and close modal after short delay
+      setTimeout(async () => {
+        setUploadProgress([]);
+        setUploadModalVisible(false);
+        message.success('Files uploaded successfully');
+        
+        // Reload data to show new files
+        await loadData();
+      }, 1000);
       
+    } catch (error) {
+      console.error('Error uploading files:', error);
+      message.error('Failed to upload files');
+      
+      // Mark all as failed
       setUploadProgress(prev => 
-        prev.map(p => p.id === item.id ? { ...p, status: 'success' } : p)
+        prev.map(p => ({ ...p, status: 'error' as const }))
       );
     }
+  };
 
-    setTimeout(() => {
-      setUploadProgress([]);
-      setUploadModalVisible(false);
-      message.success('Files uploaded successfully');
-    }, 1000);
+     const handleDeleteItem = async (itemId: string) => {
+     try {
+       setLoading(true);
+       
+       // Find the item in current folder contents or globally
+       let item = getCurrentFolderContents().find(item => item.id === itemId);
+       if (!item) {
+         // If not found in current folder, search globally
+         item = fileSystem.find(item => item.id === itemId);
+       }
+       
+       if (!item) {
+         message.error('Item not found');
+         return;
+       }
+       
+       if ('children' in item) {
+         await fileService.deleteFolder(itemId);
+       } else {
+         await fileService.deleteFile(itemId);
+       }
+       
+       message.success('Item deleted successfully');
+       
+       // Reload data to reflect changes
+       await loadData();
+     } catch (error) {
+       console.error('Error deleting item:', error);
+       message.error('Failed to delete item');
+     } finally {
+       setLoading(false);
+     }
+   };
+
+           const handleRenameItem = async (values: any) => {
+      try {
+        setLoading(true);
+        
+        const itemId = renameForm.getFieldValue('itemId');
+        const newName = values.name;
+        
+        console.log('🔍 Rename: Looking for item ID:', itemId);
+        console.log('🔍 Rename: Current path:', currentPath);
+        console.log('🔍 Rename: Current folder ID:', currentFolderId);
+        
+        // Search for the item in the entire fileSystem recursively
+        const findItemRecursively = (items: (FileItem | FolderItem)[], targetId: string): FileItem | FolderItem | null => {
+          for (const item of items) {
+            if (item.id === targetId) {
+              return item;
+            }
+            if ('children' in item && item.children) {
+              const found = findItemRecursively(item.children, targetId);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        const item = findItemRecursively(fileSystem, itemId);
+        
+        if (!item) {
+          console.log('🔍 Rename: Item not found anywhere in fileSystem');
+          message.error('Item not found');
+          return;
+        }
+        
+        console.log('🔍 Rename: Found item:', { id: item.id, name: item.name, isFolder: 'children' in item });
+        
+        if ('children' in item) {
+          await fileService.renameFolder(itemId, { name: newName });
+        } else {
+          await fileService.renameFile(itemId, { name: newName });
+        }
+        
+        message.success('Item renamed successfully');
+        setRenameModalVisible(false);
+        renameForm.resetFields();
+        
+        // Reload data to reflect changes
+        await loadData();
+      } catch (error) {
+        console.error('Error renaming item:', error);
+        message.error('Failed to rename item');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+  const showRenameModal = (item: FileItem | FolderItem) => {
+    console.log('🔍 ShowRenameModal: Item to rename:', { id: item.id, name: item.name, isFolder: 'children' in item });
+    renameForm.setFieldsValue({
+      itemId: item.id,
+      name: item.name
+    });
+    setRenameModalVisible(true);
   };
 
   // View mode components
   const renderListView = () => {
     const items = sortItems(getCurrentFolderContents());
     
-    const columns = [
-      {
-        title: 'Name',
-        dataIndex: 'name',
-        key: 'name',
-        render: (text: string, record: FileItem | FolderItem) => (
-          <Space>
-            {getFileIcon(record)}
-            <span
-              style={{ cursor: 'pointer' }}
-              onDoubleClick={() => {
-                if ('children' in record) {
-                  handleFolderDoubleClick(record.path);
-                }
-              }}
-            >
-              {text}
-            </span>
-          </Space>
-        ),
+
+    
+         const columns = [
+       {
+                   title: t('files.name'),
+          dataIndex: 'name',
+          key: 'name',
+          render: (text: string, record: FileItem | FolderItem) => (
+            <Space>
+              {getFileIcon(record)}
+              <span
+                style={{ cursor: 'children' in record ? 'pointer' : 'default' }}
+                onClick={() => {
+                  if ('children' in record) {
+                    handleFolderDoubleClick(record.path);
+                  }
+                }}
+              >
+                {text}
+              </span>
+            </Space>
+          ),
       },
-      {
-        title: 'Size',
-        dataIndex: 'size',
-        key: 'size',
-        render: (size: number, record: FileItem | FolderItem) => 
-          'size' in record ? formatFileSize(size) : '—',
-      },
-      {
-        title: 'Modified',
-        dataIndex: 'uploadedAt',
-        key: 'modified',
-        render: (date: Date, record: FileItem | FolderItem) => {
-          const modDate = 'uploadedAt' in record ? record.uploadedAt : record.createdAt;
-          return new Date(modDate).toLocaleDateString();
+                           {
+          title: t('files.size'),
+          dataIndex: 'size',
+          key: 'size',
+          render: (size: number, record: FileItem | FolderItem) => 
+            'size' in record ? formatFileSize(size) : '—',
         },
-      },
-      {
-        title: 'Actions',
-        key: 'actions',
+        {
+          title: t('files.modified'),
+          dataIndex: 'uploadedAt',
+          key: 'modified',
+          render: (date: Date, record: FileItem | FolderItem) => {
+            const modDate = 'uploadedAt' in record ? record.uploadedAt : record.createdAt;
+            return new Date(modDate).toLocaleDateString();
+          },
+        },
+        {
+          title: t('files.actions'),
+          key: 'actions',
         render: (record: FileItem | FolderItem) => (
           <Space>
-            <Tooltip title="View">
+            {/* <Tooltip title="View">
               <Button type="text" size="small" icon={<EyeOutlined />} />
-            </Tooltip>
-            <Tooltip title="Download">
-              <Button type="text" size="small" icon={<DownloadOutlined />} />
-            </Tooltip>
-            {canWrite && (
-              <Tooltip title="Rename">
-                <Button type="text" size="small" icon={<EditOutlined />} />
-              </Tooltip>
-            )}
-            {canDelete && (
-              <Tooltip title="Delete">
-                <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+            </Tooltip> */}
+                                                                                                       {!('children' in record) && (
+                 <>
+                   {/* <Tooltip title="View">
+                     <a
+                       href={(record as FileItem).url}
+                       target="_blank"
+                       rel="noopener noreferrer"
+                       onClick={(e) => {
+                         e.preventDefault();
+                         // Open in new tab for viewing
+                         window.open((record as FileItem).url, '_blank');
+                       }}
+                       style={{ 
+                         fontSize: '16px', 
+                         color: '#1890ff',
+                         cursor: 'pointer',
+                         transition: 'all 0.2s ease'
+                       }}
+                     >
+                       <EyeOutlined />
+                     </a>
+                   </Tooltip> */}
+                                       <Tooltip title={t('files.download')}>
+                      <a
+                        href={(record as FileItem).url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          // Open in new tab for downloading
+                          window.open((record as FileItem).url, '_blank');
+                        }}
+                        style={{ 
+                          fontSize: '16px', 
+                          color: '#52c41a',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <DownloadOutlined />
+                      </a>
+                    </Tooltip>
+                 </>
+               )}
+                         {canWrite && (
+               <Tooltip title={t('files.rename')}>
+                 <Button 
+                   type="text" 
+                   size="small" 
+                   icon={<EditOutlined />} 
+                   onClick={() => showRenameModal(record)}
+                 />
+               </Tooltip>
+             )}
+             {canDelete && (
+               <Tooltip title={t('files.delete')}>
+                               <Popconfirm
+                 title={t('files.deleteConfirm')}
+                 onConfirm={() => handleDeleteItem(record.id)}
+                 okText={t('common.yes')}
+                 cancelText={t('common.no')}
+               >
+                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                </Popconfirm>
               </Tooltip>
             )}
           </Space>
         ),
       },
     ];
+
+         if (items.length === 0) {
+       return (
+         <div style={{ textAlign: 'center', padding: '40px', color: '#999' }}>
+           <FolderOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+           <div>{t('files.noFilesFound')}</div>
+
+           {canWrite && (
+             <div style={{ marginTop: '16px' }}>
+               <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateFolderModalVisible(true)}>
+                 {t('files.createFolder')}
+               </Button>
+             </div>
+           )}
+         </div>
+       );
+     }
 
     return (
       <Table
@@ -579,33 +1064,141 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
     const items = sortItems(getCurrentFolderContents());
 
     return (
-      <Row gutter={[16, 16]}>
-        {items.map(item => (
-          <Col key={item.id} xs={12} sm={8} md={6} lg={4}>
-            <Card
-              hoverable
-              size="small"
-              style={{ textAlign: 'center' }}
-              bodyStyle={{ padding: '12px' }}
-              onDoubleClick={() => {
-                if ('children' in item) {
-                  handleFolderDoubleClick(item.path);
-                }
-              }}
+             <Row gutter={[16, 16]}>
+         {items.map(item => (
+           <Col key={item.id} xs={24} sm={12} md={8} lg={6}>
+             <Card
+               hoverable
+               size="default"
+               style={{ 
+                 textAlign: 'center', 
+                 minHeight: '160px',
+                 transition: 'all 0.3s ease',
+                 border: '1px solid #f0f0f0',
+                 boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                 borderRadius: '8px',
+                 cursor: 'pointer'
+               }}
+               onMouseEnter={(e) => {
+                 e.currentTarget.style.transform = 'translateY(-4px)';
+                 e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.15)';
+               }}
+               onMouseLeave={(e) => {
+                 e.currentTarget.style.transform = 'translateY(0)';
+                 e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)';
+               }}
+               bodyStyle={{ 
+                 padding: '20px', 
+                 height: '100%', 
+                 display: 'flex', 
+                 flexDirection: 'column', 
+                 justifyContent: 'space-between',
+                 transition: 'all 0.3s ease'
+               }}
+                             onClick={() => {
+                 if ('children' in item) {
+                   handleFolderDoubleClick(item.path);
+                 }
+               }}
+                                                           actions={[
+                                    // File actions for files only
+                   !('children' in item) && (
+                     <>
+                                               {/* <Tooltip title={t('files.view')}>
+                          <a
+                            href={(item as FileItem).url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              // Open in new tab for viewing
+                              window.open((item as FileItem).url, '_blank');
+                            }}
+                            style={{ 
+                              fontSize: '18px', 
+                              color: '#1890ff',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <EyeOutlined />
+                          </a>
+                        </Tooltip> */}
+                                               <Tooltip title={t('files.download')}>
+                          <a
+                            href={(item as FileItem).url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              // Open in new tab for downloading
+                              window.open((item as FileItem).url, '_blank');
+                            }}
+                            style={{ 
+                              fontSize: '18px', 
+                              color: '#52c41a',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            <DownloadOutlined />
+                          </a>
+                        </Tooltip>
+                     </>
+                   ),
+                                   canWrite && (
+                    <Tooltip title={t('files.rename')}>
+                      <EditOutlined 
+                        style={{ 
+                          fontSize: '18px', 
+                          color: '#1890ff',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          showRenameModal(item);
+                        }}
+                      />
+                    </Tooltip>
+                  ),
+                  canDelete && (
+                    <Tooltip title={t('files.delete')}>
+                                         <Popconfirm
+                      title={t('files.deleteConfirm')}
+                      onConfirm={() => handleDeleteItem(item.id)}
+                      okText={t('common.yes')}
+                      cancelText={t('common.no')}
+                    >
+                       <DeleteOutlined 
+                         style={{ 
+                           fontSize: '18px',
+                           color: '#ff4d4f',
+                           cursor: 'pointer',
+                           transition: 'all 0.2s ease'
+                         }}
+                         onClick={(e) => e.stopPropagation()}
+                       />
+                     </Popconfirm>
+                   </Tooltip>
+                 )
+               ].filter(Boolean)}
             >
-              <div style={{ fontSize: '32px', marginBottom: '8px' }}>
-                {getFileIcon(item)}
-              </div>
-              <Text ellipsis title={item.name}>
-                {item.name}
-              </Text>
-              {'size' in item && (
-                <div>
-                  <Text type="secondary" style={{ fontSize: '12px' }}>
-                    {formatFileSize(item.size)}
-                  </Text>
-                </div>
-              )}
+                             <div style={{ fontSize: '64px', marginBottom: '16px' }}>
+                 {getFileIconLarge(item)}
+               </div>
+               <Text ellipsis title={item.name} style={{ fontSize: '16px', fontWeight: '600', marginBottom: '8px' }}>
+                 {item.name}
+               </Text>
+               {'size' in item && (
+                 <div style={{ marginTop: '12px' }}>
+                   <Text type="secondary" style={{ fontSize: '14px' }}>
+                     {formatFileSize(item.size)}
+                   </Text>
+                 </div>
+               )}
             </Card>
           </Col>
         ))}
@@ -623,20 +1216,114 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
         onExpand={(expandedKeys: React.Key[]) => setExpandedKeys(expandedKeys.map(key => String(key)))}
         treeData={treeData}
         onSelect={(selectedKeys, { node }) => {
-          if (selectedKeys.length > 0 && node.item && 'children' in node.item) {
-            setCurrentPath(node.item.path);
+          if (selectedKeys.length > 0 && node.item) {
+            if ('children' in node.item) {
+              // It's a folder - navigate to it
+              setCurrentPath(node.item.path);
+            } else {
+              // It's a file - could show preview or download
+              console.log('File selected:', node.item.name);
+            }
           }
         }}
+        titleRender={(node) => (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <span>{node.title}</span>
+            {node.item && (
+              <Space size="small">
+                {/* File actions for files only */}
+                {!('children' in node.item) && (
+                  <>
+                                         {/* <Tooltip title={t('files.view')}>
+                       <a
+                         href={(node.item as FileItem).url}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           e.preventDefault();
+                           // Open in new tab for viewing
+                           window.open((node.item as FileItem).url, '_blank');
+                         }}
+                         style={{ 
+                           fontSize: '14px', 
+                           color: '#1890ff',
+                           cursor: 'pointer',
+                           transition: 'all 0.2s ease'
+                         }}
+                       >
+                         <EyeOutlined />
+                       </a>
+                     </Tooltip> */}
+                     <Tooltip title={t('files.download')}>
+                       <a
+                         href={(node.item as FileItem).url}
+                         target="_blank"
+                         rel="noopener noreferrer"
+                         onClick={(e) => {
+                           e.preventDefault();
+                           e.stopPropagation();
+                           // Open in new tab for downloading
+                           window.open((node.item as FileItem).url, '_blank');
+                         }}
+                         style={{ 
+                           fontSize: '14px', 
+                           color: '#52c41a',
+                           cursor: 'pointer',
+                           transition: 'all 0.2s ease'
+                         }}
+                       >
+                         <DownloadOutlined />
+                       </a>
+                     </Tooltip>
+                  </>
+                )}
+                                 {canWrite && (
+                   <Tooltip title={t('files.rename')}>
+                     <Button 
+                       type="text" 
+                       size="small" 
+                       icon={<EditOutlined />} 
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         showRenameModal(node.item);
+                       }}
+                     />
+                   </Tooltip>
+                 )}
+                 {canDelete && (
+                                     <Popconfirm
+                     title={t('files.deleteConfirm')}
+                     onConfirm={(e) => {
+                       e?.stopPropagation();
+                       handleDeleteItem(node.item.id);
+                     }}
+                     okText={t('common.yes')}
+                     cancelText={t('common.no')}
+                   >
+                    <Button 
+                      type="text" 
+                      size="small" 
+                      danger 
+                      icon={<DeleteOutlined />}
+                      onClick={(e) => e.stopPropagation()}
+                    />
+                  </Popconfirm>
+                )}
+              </Space>
+            )}
+          </div>
+        )}
       />
     );
   };
 
   const renderContent = () => {
     switch (viewMode) {
-      case 'tree':
-        return renderTreeView();
       case 'grid':
         return renderGridView();
+      case 'tree':
+        return renderTreeView();
       default:
         return renderListView();
     }
@@ -647,32 +1334,32 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
       <Card>
         <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
           <Col>
-            <Title level={4} style={{ margin: 0 }}>
-              {title || `${mode === 'documents' ? 'Documents' : mode === 'user-files' ? 'User Files' : libraryName}`}
-            </Title>
+                         <Title level={4} style={{ margin: 0 }}>
+               {title || `${mode === 'documents' ? t('files.documents') : mode === 'user-files' ? t('files.userFiles') : libraryName}`}
+             </Title>
           </Col>
           <Col>
             <Space>
-              {/* View Mode Selector */}
-              <Radio.Group value={viewMode} onChange={(e) => setViewMode(e.target.value)}>
-                <Radio.Button value="list">
-                  <UnorderedListOutlined /> List
-                </Radio.Button>
-                <Radio.Button value="grid">
-                  <AppstoreOutlined /> Grid
-                </Radio.Button>
-                <Radio.Button value="tree">
-                  <PartitionOutlined /> Tree
-                </Radio.Button>
-              </Radio.Group>
+                             {/* View Mode Selector */}
+                               <Radio.Group value={viewMode} onChange={(e) => setViewMode(e.target.value)}>
+                  <Radio.Button value="list">
+                    <UnorderedListOutlined /> {t('files.list')}
+                  </Radio.Button>
+                  <Radio.Button value="grid">
+                    <AppstoreOutlined /> {t('files.grid')}
+                  </Radio.Button>
+                  {/* <Radio.Button value="tree">
+                    <PartitionOutlined /> Tree
+                  </Radio.Button> */}
+                </Radio.Group>
 
               {/* Sort Controls */}
-              <Select value={sortBy} onChange={setSortBy} style={{ width: 100 }}>
-                <Select.Option value="name">Name</Select.Option>
-                <Select.Option value="date">Date</Select.Option>
-                <Select.Option value="size">Size</Select.Option>
-                <Select.Option value="type">Type</Select.Option>
-              </Select>
+                             <Select value={sortBy} onChange={setSortBy} style={{ width: 100 }}>
+                 <Select.Option value="name">{t('files.sortByName')}</Select.Option>
+                 <Select.Option value="date">{t('files.sortByDate')}</Select.Option>
+                 <Select.Option value="size">{t('files.sortBySize')}</Select.Option>
+                 <Select.Option value="type">{t('files.sortByType')}</Select.Option>
+               </Select>
 
               <Button
                 icon={sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
@@ -681,109 +1368,157 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
 
               {canWrite && (
                 <>
-                  <Button
-                    type="primary"
-                    icon={<FolderAddOutlined />}
-                    onClick={() => setCreateFolderModalVisible(true)}
-                  >
-                    New Folder
-                  </Button>
-                  <Button
-                    icon={<UploadOutlined />}
-                    onClick={() => setUploadModalVisible(true)}
-                  >
-                    Upload
-                  </Button>
+                                     <Button
+                     type="primary"
+                     icon={<FolderAddOutlined />}
+                     onClick={() => setCreateFolderModalVisible(true)}
+                   >
+                     {t('files.newFolder')}
+                   </Button>
+                   <Button
+                     icon={<UploadOutlined />}
+                     onClick={() => setUploadModalVisible(true)}
+                   >
+                     {t('files.upload')}
+                   </Button>
                 </>
               )}
             </Space>
           </Col>
         </Row>
 
-        {/* Breadcrumb for list and grid views */}
-        {viewMode !== 'tree' && (
-          <Breadcrumb items={getBreadcrumbItems()} style={{ marginBottom: 16 }} />
-        )}
+                 {/* Breadcrumb for navigation */}
+         <Breadcrumb 
+           items={getBreadcrumbItems()} 
+           style={{ 
+             marginBottom: 16,
+             padding: '12px 16px',
+             backgroundColor: '#fafafa',
+             borderRadius: '6px',
+             border: '1px solid #f0f0f0'
+           }} 
+         />
 
         {/* Main Content */}
         {renderContent()}
 
-        {/* Upload Progress */}
-        {uploadProgress.length > 0 && (
-          <Card title="Upload Progress" style={{ marginTop: 16 }}>
-            {uploadProgress.map(item => (
-              <div key={item.id} style={{ marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text>{item.name}</Text>
-                  <Text type="secondary">{item.progress}%</Text>
-                </div>
-                <Progress
-                  percent={item.progress}
-                  status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'}
-                  size="small"
-                />
-              </div>
-            ))}
-          </Card>
-        )}
+                 {/* Upload Progress */}
+         {uploadProgress.length > 0 && (
+           <Card title={t('files.uploadProgress')} style={{ marginTop: 16 }}>
+             {uploadProgress.map(item => (
+               <div key={item.id} style={{ marginBottom: 8 }}>
+                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                   <Text>{item.name}</Text>
+                   <Text type="secondary">{item.progress}%</Text>
+                 </div>
+                 <Progress
+                   percent={item.progress}
+                   status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'}
+                   size="small"
+                 />
+               </div>
+             ))}
+           </Card>
+         )}
       </Card>
 
-      {/* Create Folder Modal */}
-      <Modal
-        title="Create New Folder"
-        open={createFolderModalVisible}
-        onCancel={() => setCreateFolderModalVisible(false)}
-        footer={null}
-      >
-        <Form form={createFolderForm} onFinish={handleCreateFolder} layout="vertical">
-          <Form.Item
-            name="name"
-            label="Folder Name"
-            rules={[{ required: true, message: 'Please enter folder name' }]}
-          >
-            <Input placeholder="Enter folder name" />
-          </Form.Item>
-          <Form.Item name="description" label="Description">
-            <TextArea rows={3} placeholder="Optional description" />
-          </Form.Item>
-          <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit">
-                Create Folder
-              </Button>
-              <Button onClick={() => setCreateFolderModalVisible(false)}>
-                Cancel
-              </Button>
-            </Space>
-          </Form.Item>
-        </Form>
-      </Modal>
+             {/* Create Folder Modal */}
+               <Modal
+          title={currentPath !== '/' ? `${t('files.createFolderIn')} ${currentPath.split('/').pop()}` : t('files.createNewFolder')}
+          open={createFolderModalVisible}
+          onCancel={() => setCreateFolderModalVisible(false)}
+          footer={null}
+        >
+         <Form form={createFolderForm} onFinish={handleCreateFolder} layout="vertical">
+                       <Form.Item
+              name="name"
+              label={t('files.folderName')}
+              rules={[{ required: true, message: t('files.enterFolderName') }]}
+            >
+              <Input placeholder={t('files.enterFolderName')} />
+            </Form.Item>
+            <Form.Item name="description" label={t('files.description')}>
+              <TextArea rows={3} placeholder={t('files.optionalDescription')} />
+            </Form.Item>
+           {currentPath !== '/' && (
+             <Form.Item name="parentId" hidden>
+               <Input value={currentPath} />
+             </Form.Item>
+           )}
+                       <Form.Item>
+              <Space>
+                <Button type="primary" htmlType="submit">
+                  {t('files.createFolder')}
+                </Button>
+                <Button onClick={() => setCreateFolderModalVisible(false)}>
+                  {t('common.cancel')}
+                </Button>
+              </Space>
+            </Form.Item>
+         </Form>
+       </Modal>
 
       {/* Upload Modal */}
-      <Modal
-        title="Upload Files"
-        open={uploadModalVisible}
-        onCancel={() => setUploadModalVisible(false)}
-        footer={null}
-        width={600}
-      >
-        <Upload.Dragger
-          multiple
-          beforeUpload={() => false}
-          onChange={({ fileList }) => {
-            if (fileList.length > 0) {
-              handleFileUpload(fileList);
-            }
-          }}
+             <Modal
+         title={t('files.uploadFiles')}
+         open={uploadModalVisible}
+         onCancel={() => setUploadModalVisible(false)}
+         footer={null}
+         width={600}
+       >
+                 <Upload.Dragger
+           multiple
+           beforeUpload={() => false}
+           onChange={({ fileList }) => {
+             if (fileList.length > 0) {
+               handleFileUpload(fileList);
+             }
+           }}
+         >
+           <p className="ant-upload-drag-icon">
+             <UploadOutlined />
+           </p>
+           <p className="ant-upload-text">{t('files.uploadDragText')}</p>
+           <p className="ant-upload-hint">
+             {t('files.uploadHint')}
+           </p>
+         </Upload.Dragger>
+      </Modal>
+
+      {/* Rename Modal */}
+             <Modal
+         title={t('files.renameItem')}
+         open={renameModalVisible}
+         onCancel={() => setRenameModalVisible(false)}
+         footer={null}
+         width={400}
+       >
+        <Form
+          form={renameForm}
+          layout="vertical"
+          onFinish={handleRenameItem}
         >
-          <p className="ant-upload-drag-icon">
-            <UploadOutlined />
-          </p>
-          <p className="ant-upload-text">Click or drag files to this area to upload</p>
-          <p className="ant-upload-hint">
-            Support for single or bulk upload. Strictly prohibited from uploading company data or other banned files.
-          </p>
-        </Upload.Dragger>
+          <Form.Item name="itemId" hidden>
+            <Input />
+          </Form.Item>
+                     <Form.Item
+             name="name"
+             label={t('files.newName')}
+             rules={[{ required: true, message: t('files.enterName') }]}
+           >
+             <Input placeholder={t('files.enterNewName')} />
+           </Form.Item>
+           <Form.Item>
+             <Space>
+               <Button type="primary" htmlType="submit">
+                 {t('files.rename')}
+               </Button>
+               <Button onClick={() => setRenameModalVisible(false)}>
+                 {t('common.cancel')}
+               </Button>
+             </Space>
+           </Form.Item>
+        </Form>
       </Modal>
     </div>
   );

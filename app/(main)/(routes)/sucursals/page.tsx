@@ -38,7 +38,9 @@ import {
 } from '@ant-design/icons';
 import { useUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
-import { Sucursal, SucursalDiagnostics, SucursalLog, UserRole } from '@/types';
+import { UserRole } from '@/types';
+import { sucursalService } from '@/lib/services/sucursalService';
+import type { Sucursal } from '@/lib/services/sucursalService';
 
 const { Title, Text } = Typography;
 const { TextArea } = Input;
@@ -50,112 +52,28 @@ export default function SucursalManagementPage() {
   const [selectedSucursal, setSelectedSucursal] = useState<Sucursal | null>(null);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState<string | null>(null);
-  
+  const [sucursals, setSucursals] = useState<Sucursal[]>([]);
+
   const { user } = useUser();
   const { t } = useTranslation();
 
-  // Mock sucursal data
-  const [sucursals, setSucursals] = useState<Sucursal[]>([
-    {
-      id: '1',
-      name: 'São Paulo Branch',
-      serverUrl: 'https://sp.empresa.com',
-      description: 'Main branch server in São Paulo',
-      createdBy: user!,
-      createdAt: new Date('2024-01-15'),
-      isActive: true,
-      lastPing: new Date(),
-      diagnostics: {
-        isOnline: true,
-        responseTime: 120,
-        lastCheck: new Date(),
-        uptime: 99.5,
-        errorCount: 2,
-        logs: [
-          {
-            id: '1',
-            timestamp: new Date(),
-            level: 'info',
-            message: 'Server started successfully',
-            details: { port: 8080, environment: 'production' }
-          },
-          {
-            id: '2',
-            timestamp: new Date(Date.now() - 3600000),
-            level: 'warning',
-            message: 'High memory usage detected',
-            details: { usage: '85%', threshold: '80%' }
-          },
-          {
-            id: '3',
-            timestamp: new Date(Date.now() - 7200000),
-            level: 'error',
-            message: 'Database connection timeout',
-            details: { retries: 3, timeout: '30s' }
-          },
-        ]
-      }
-    },
-    {
-      id: '2',
-      name: 'Rio de Janeiro Branch',
-      serverUrl: 'https://rj.empresa.com',
-      description: 'Secondary branch server in Rio de Janeiro',
-      createdBy: user!,
-      createdAt: new Date('2024-02-01'),
-      isActive: true,
-      lastPing: new Date(Date.now() - 300000),
-      diagnostics: {
-        isOnline: false,
-        responseTime: undefined,
-        lastCheck: new Date(Date.now() - 300000),
-        uptime: 87.2,
-        errorCount: 8,
-        logs: [
-          {
-            id: '4',
-            timestamp: new Date(Date.now() - 300000),
-            level: 'error',
-            message: 'Server connection lost',
-            details: { lastResponse: '5 minutes ago' }
-          },
-          {
-            id: '5',
-            timestamp: new Date(Date.now() - 600000),
-            level: 'warning',
-            message: 'Disk space running low',
-            details: { available: '15%', threshold: '20%' }
-          },
-        ]
-      }
-    },
-    {
-      id: '3',
-      name: 'Belo Horizonte Branch',
-      serverUrl: 'https://bh.empresa.com',
-      description: 'Regional branch server in Belo Horizonte',
-      createdBy: user!,
-      createdAt: new Date('2024-03-01'),
-      isActive: true,
-      lastPing: new Date(Date.now() - 60000),
-      diagnostics: {
-        isOnline: true,
-        responseTime: 89,
-        lastCheck: new Date(),
-        uptime: 95.8,
-        errorCount: 1,
-        logs: [
-          {
-            id: '6',
-            timestamp: new Date(),
-            level: 'info',
-            message: 'Regular health check passed',
-            details: { status: 'healthy', services: 12 }
-          },
-        ]
-      }
-    },
-  ]);
+  // Load sucursals from API
+  const loadSucursals = async () => {
+    try {
+      setLoading(true);
+      const data = await sucursalService.getAll();
+      setSucursals(data);
+    } catch (error) {
+      console.error('Failed to load sucursals:', error);
+      message.error(t('common.error'));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadSucursals();
+  }, []);
 
   const canManageSucursals = () => {
     return user?.role === UserRole.SUPER_ADMIN;
@@ -164,39 +82,19 @@ export default function SucursalManagementPage() {
   const handleCreateSucursal = async (values: any) => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newSucursal: Sucursal = {
-        id: Date.now().toString(),
+      const newSucursal = await sucursalService.create({
         name: values.name,
-        serverUrl: values.serverUrl,
         description: values.description,
-        createdBy: user!,
-        createdAt: new Date(),
-        isActive: true,
-        diagnostics: {
-          isOnline: false,
-          lastCheck: new Date(),
-          uptime: 0,
-          errorCount: 0,
-          logs: [
-            {
-              id: Date.now().toString(),
-              timestamp: new Date(),
-              level: 'info',
-              message: 'Sucursal created - waiting for first health check',
-              details: {}
-            }
-          ]
-        }
-      };
-      
+        serverUrl: values.serverUrl,
+      });
+
       setSucursals(prev => [...prev, newSucursal]);
       setModalVisible(false);
       form.resetFields();
-      message.success('Sucursal created successfully!');
+      message.success(t('common.success'));
     } catch (error) {
-      message.error('Failed to create sucursal');
+      console.error('Failed to create sucursal:', error);
+      message.error(t('common.error'));
     } finally {
       setLoading(false);
     }
@@ -205,58 +103,46 @@ export default function SucursalManagementPage() {
   const refreshSucursalStatus = async (sucursalId: string) => {
     setRefreshing(sucursalId);
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setSucursals(prev => prev.map(s => {
-        if (s.id === sucursalId) {
-          const isOnline = Math.random() > 0.3; // 70% chance of being online
-          return {
-            ...s,
-            lastPing: new Date(),
-            diagnostics: {
-              ...s.diagnostics,
-              isOnline,
-              responseTime: isOnline ? Math.floor(Math.random() * 200) + 50 : undefined,
-              lastCheck: new Date(),
-            }
-          };
-        }
-        return s;
-      }));
-      
-      message.success('Status refreshed');
+      // Ping the sucursal to get fresh status
+      await sucursalService.ping(sucursalId);
+
+      // Reload sucursals to get updated data
+      await loadSucursals();
+
+      message.success(t('common.success'));
     } catch (error) {
-      message.error('Failed to refresh status');
+      console.error('Failed to refresh sucursal status:', error);
+      message.error(t('common.error'));
     } finally {
       setRefreshing(null);
     }
   };
 
   const getServerStatusBadge = (sucursal: Sucursal) => {
-    if (sucursal.diagnostics.isOnline) {
-      return <Badge status="success" text="Online" />;
+    if (sucursal.diagnostics?.isOnline) {
+      return <Badge status="success" text={t('common.active')} />;
     } else {
-      return <Badge status="error" text="Offline" />;
+      return <Badge status="error" text={t('common.inactive')} />;
     }
   };
 
   const getServerStatusColor = (sucursal: Sucursal) => {
-    if (sucursal.diagnostics.isOnline) {
-      return sucursal.diagnostics.responseTime! < 100 ? 'success' : 'normal';
+    if (sucursal.diagnostics?.isOnline) {
+      return (sucursal.diagnostics.responseTime! < 100) ? 'success' : 'normal';
     }
     return 'exception';
   };
 
   const logColumns = [
     {
-      title: 'Time',
+      title: t('common.time'),
       dataIndex: 'timestamp',
       key: 'timestamp',
       width: 150,
-      render: (timestamp: Date) => timestamp.toLocaleTimeString(),
+      render: (timestamp: string) => new Date(timestamp).toLocaleTimeString(),
     },
     {
-      title: 'Level',
+      title: t('common.status'),
       dataIndex: 'level',
       key: 'level',
       width: 80,
@@ -270,12 +156,12 @@ export default function SucursalManagementPage() {
       },
     },
     {
-      title: 'Message',
+      title: t('common.description'),
       dataIndex: 'message',
       key: 'message',
     },
     {
-      title: 'Details',
+      title: t('common.details'),
       dataIndex: 'details',
       key: 'details',
       render: (details: any) => (
@@ -290,8 +176,8 @@ export default function SucursalManagementPage() {
     return (
       <div className="flex items-center justify-center h-64">
         <Alert
-          message="Access Denied"
-          description="Only Super Administrators can access Sucursal Management"
+          message={t('common.error')}
+          description={t('common.accessDenied')}
           type="warning"
           icon={<WarningOutlined />}
         />
@@ -307,10 +193,10 @@ export default function SucursalManagementPage() {
           <div>
             <Title level={3} className="mb-2">
               <DatabaseOutlined className="mr-2" />
-              Sucursal Management
+              {t('sucursal.management')}
             </Title>
             <Text type="secondary">
-              Manage and monitor branch servers across all locations
+              {t('sucursal.manageSucursals')}
             </Text>
           </div>
           <Button
@@ -318,7 +204,7 @@ export default function SucursalManagementPage() {
             icon={<PlusOutlined />}
             onClick={() => setModalVisible(true)}
           >
-            Add New Sucursal
+            {t('sucursal.addSucursal')}
           </Button>
         </div>
       </Card>
@@ -329,7 +215,7 @@ export default function SucursalManagementPage() {
           <Card>
             <Statistic
               title="Total Sucursals"
-              value={sucursals.length}
+              value={sucursals?.length || 0}
               prefix={<DatabaseOutlined />}
             />
           </Card>
@@ -338,7 +224,7 @@ export default function SucursalManagementPage() {
           <Card>
             <Statistic
               title="Online"
-              value={sucursals.filter(s => s.diagnostics.isOnline).length}
+              value={sucursals?.filter(s => s.diagnostics?.isOnline)?.length || 0}
               valueStyle={{ color: '#3f8600' }}
               prefix={<CheckCircleOutlined />}
             />
@@ -348,7 +234,7 @@ export default function SucursalManagementPage() {
           <Card>
             <Statistic
               title="Offline"
-              value={sucursals.filter(s => !s.diagnostics.isOnline).length}
+              value={sucursals?.filter(s => !s.diagnostics?.isOnline)?.length || 0}
               valueStyle={{ color: '#cf1322' }}
               prefix={<CloseCircleOutlined />}
             />
@@ -358,7 +244,7 @@ export default function SucursalManagementPage() {
           <Card>
             <Statistic
               title="Avg Uptime"
-              value={sucursals.reduce((acc, s) => acc + s.diagnostics.uptime, 0) / sucursals.length}
+              value={sucursals?.length ? (sucursals.reduce((acc, s) => acc + (s.diagnostics?.uptime || 0), 0) / sucursals.length) : 0}
               precision={1}
               suffix="%"
               prefix={<GlobalOutlined />}
@@ -369,7 +255,7 @@ export default function SucursalManagementPage() {
 
       {/* Sucursals List */}
       <Row gutter={[16, 16]}>
-        {sucursals.map(sucursal => (
+        {sucursals?.map(sucursal => (
           <Col key={sucursal.id} xs={24} lg={12} xl={8}>
             <Card
               title={

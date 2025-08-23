@@ -304,7 +304,7 @@ export default function ViewGoalsPage() {
         filtered = filtered.filter(goal => goal.createdBy.id === user?.id);
         break;
       case 'department':
-        filtered = filtered.filter(goal => goal.department === user?.department);
+        filtered = filtered.filter(goal => goal.department === user?.department?.name);
         break;
       default:
         break;

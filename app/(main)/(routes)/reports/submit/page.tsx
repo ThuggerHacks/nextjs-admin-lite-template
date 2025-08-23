@@ -1,26 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Card, Form, Input, Select, Upload, Button, message, Row, Col, Progress, Typography } from "antd";
 import { UploadOutlined, FileTextOutlined, SendOutlined } from "@ant-design/icons";
 
 import { useUser } from "@/contexts/UserContext";
 import { useTranslation } from "@/contexts/LanguageContext";
 import { UserRole } from "@/types";
+import { reportService, Supervisor } from "@/lib/services/reportService";
 
 const { TextArea } = Input;
 const { Option } = Select;
 const { Text } = Typography;
 
-// Mock supervisors data
-const mockSupervisors = [
-  { id: '1', name: 'João Silva', role: UserRole.SUPER_ADMIN, department: 'Administração Geral' },
-  { id: '2', name: 'Maria Santos', role: UserRole.ADMIN, department: 'Recursos Humanos' },
-];
-
-const reportTypes = [
+// Static report types - translations will be applied when rendering
+const REPORT_TYPE_KEYS = [
   'Monthly Progress Report',
-  'Issue Report',
+  'Issue Report', 
   'Project Update',
   'Expense Report',
   'Performance Review',
@@ -34,9 +30,48 @@ export default function SubmitReportPage() {
   const [fileList, setFileList] = useState<any[]>([]);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const [isUploading, setIsUploading] = useState(false);
+  const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
+  const [loadingSupervisors, setLoadingSupervisors] = useState(false);
   
   const { user } = useUser();
   const { t } = useTranslation();
+
+  // Get report types with translations
+  const getReportTypes = () => [
+    { key: 'Monthly Progress Report', label: t("reports.monthlyProgressReport") },
+    { key: 'Issue Report', label: t("reports.issueReport") },
+    { key: 'Project Update', label: t("reports.projectUpdate") },
+    { key: 'Expense Report', label: t("reports.expenseReport") },
+    { key: 'Performance Review', label: t("reports.performanceReview") },
+    { key: 'Incident Report', label: t("reports.incidentReport") },
+    { key: 'Other', label: t("reports.other") },
+  ];
+
+  const loadSupervisors = useCallback(async () => {
+    setLoadingSupervisors(true);
+    try {
+      const result = await reportService.getSupervisors();
+      if (result.success && result.supervisors) {
+        setSupervisors(result.supervisors);
+        console.log('Loaded supervisors:', result.supervisors);
+      } else {
+        console.error('Failed to load supervisors:', result.error);
+        message.error(result.error || t("reports.failedToLoadSupervisors"));
+        setSupervisors([]); // Clear supervisors array
+      }
+    } catch (error) {
+      console.error('Error loading supervisors:', error);
+      message.error(t("reports.failedToLoadSupervisors"));
+      setSupervisors([]); // Clear supervisors array
+    } finally {
+      setLoadingSupervisors(false);
+    }
+  }, [t]);
+
+  // Load supervisors on component mount
+  useEffect(() => {
+    loadSupervisors();
+  }, [loadSupervisors]);
 
   const handleSubmit = async (values: any) => {
     setLoading(true);
@@ -73,12 +108,28 @@ export default function SubmitReportPage() {
       // Simulate report submission API call
       await new Promise(resolve => setTimeout(resolve, 500));
       
-      message.success(t("reports.reportSubmitted"));
-      form.resetFields();
-      setFileList([]);
-      setUploadProgress({});
+      // Convert file list to actual File objects
+      const files = fileList.map(file => file.originFileObj).filter(Boolean);
+
+      // Submit the report using the new service
+      const result = await reportService.submitGeneralReport({
+        title: values.title,
+        description: values.description,
+        type: values.type,
+        submittedToId: values.supervisorId,
+        files: files
+      });
+
+      if (result.success) {
+        message.success(t("reports.reportSubmitted"));
+        form.resetFields();
+        setFileList([]);
+        setUploadProgress({});
+      } else {
+        message.error(result.error || t("reports.failedToSubmitReport"));
+      }
     } catch (error) {
-      message.error("Failed to submit report");
+      message.error(t("reports.failedToSubmitReport"));
     } finally {
       setLoading(false);
       setIsUploading(false);
@@ -95,20 +146,11 @@ export default function SubmitReportPage() {
 
   // Filter supervisors based on user role and department
   const getAvailableSupervisors = () => {
-    if (!user) return mockSupervisors;
+    if (!user) return supervisors;
     
-    if (user.role === UserRole.USER) {
-      // Users submit to their department admin or super admin
-      return mockSupervisors.filter(s => 
-        s.role === UserRole.ADMIN && s.department === user.department ||
-        s.role === UserRole.SUPER_ADMIN
-      );
-    } else if (user.role === UserRole.ADMIN) {
-      // Admins submit to super admin
-      return mockSupervisors.filter(s => s.role === UserRole.SUPER_ADMIN);
-    }
-    
-    return [];
+    // The backend already filters supervisors based on user role,
+    // so we can return all supervisors from the API
+    return supervisors;
   };
 
   return (
@@ -120,7 +162,7 @@ export default function SubmitReportPage() {
             {t("reports.submitReport")}
           </h2>
           <p className="text-gray-600 mt-2">
-            Submit your report to your supervisor for review and feedback.
+            {t("reports.submitReportDescription")}
           </p>
         </div>
 
@@ -135,11 +177,11 @@ export default function SubmitReportPage() {
               <Form.Item
                 label={t("reports.reportType")}
                 name="type"
-                rules={[{ required: true, message: "Please select a report type" }]}
+                rules={[{ required: true, message: t("reports.pleaseSelectReportType") }]}
               >
-                <Select placeholder="Select report type">
-                  {reportTypes.map(type => (
-                    <Option key={type} value={type}>{type}</Option>
+                <Select placeholder={t("reports.selectReportType")}>
+                  {getReportTypes().map(type => (
+                    <Option key={type.key} value={type.key}>{type.label}</Option>
                   ))}
                 </Select>
               </Form.Item>
@@ -149,12 +191,12 @@ export default function SubmitReportPage() {
               <Form.Item
                 label={t("reports.selectSupervisor")}
                 name="supervisorId"
-                rules={[{ required: true, message: "Please select a supervisor" }]}
+                rules={[{ required: true, message: t("reports.pleaseSelectSupervisor") }]}
               >
-                <Select placeholder="Select supervisor">
+                <Select placeholder={t("reports.selectSupervisorPlaceholder")} loading={loadingSupervisors}>
                   {getAvailableSupervisors().map(supervisor => (
                     <Option key={supervisor.id} value={supervisor.id}>
-                      {supervisor.name} - {supervisor.department}
+                      {supervisor.name} - {supervisor.department?.name || supervisor.role}
                     </Option>
                   ))}
                 </Select>
@@ -165,19 +207,19 @@ export default function SubmitReportPage() {
           <Form.Item
             label={t("reports.title")}
             name="title"
-            rules={[{ required: true, message: "Please enter a title" }]}
+            rules={[{ required: true, message: t("reports.pleaseEnterTitle") }]}
           >
-            <Input placeholder="Enter report title" />
+            <Input placeholder={t("reports.reportTitlePlaceholder")} />
           </Form.Item>
 
           <Form.Item
             label={t("reports.description")}
             name="description"
-            rules={[{ required: true, message: "Please enter a description" }]}
+            rules={[{ required: true, message: t("reports.pleaseEnterDescription") }]}
           >
             <TextArea
               rows={6}
-              placeholder="Describe your report in detail..."
+              placeholder={t("reports.describeReportDetail")}
             />
           </Form.Item>
 
@@ -191,16 +233,16 @@ export default function SubmitReportPage() {
               accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg"
             >
               <Button icon={<UploadOutlined />}>
-                Click to Upload Files
+                {t("reports.clickToUploadFiles")}
               </Button>
             </Upload>
             <p className="text-gray-500 text-sm mt-2">
-              Supported formats: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG (Max 10MB each)
+              {t("reports.supportedFormats")}
             </p>
 
             {/* Upload Progress */}
             {isUploading && Object.keys(uploadProgress).length > 0 && (
-              <Card title="Upload Progress" style={{ marginTop: 16 }} size="small">
+              <Card title={t("reports.uploadProgress")} style={{ marginTop: 16 }} size="small">
                 <div style={{ maxHeight: 200, overflowY: 'auto' }}>
                   {Object.entries(uploadProgress).map(([fileKey, progress], index) => {
                     const file = fileList[parseInt(fileKey.split('-')[1])];

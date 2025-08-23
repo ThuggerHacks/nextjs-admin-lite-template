@@ -22,6 +22,8 @@ export interface Dictionary {
     documents: string;
     management: string;
     users: string;
+    departments: string;
+    sucursals: string;
     generalPanel: string;
     notifications: string;
     requests: string;
@@ -54,6 +56,15 @@ export interface Dictionary {
     open: string;
     yes: string;
     no: string;
+    reload: string;
+    refresh: string;
+    platformName: string;
+    approved: string;
+    rejected: string;
+    response: string;
+    all: string;
+    status: string;
+    required: string;
   };
   auth: {
     welcomeBack: string;
@@ -68,12 +79,22 @@ export interface Dictionary {
     confirmPassword: string;
     fullName: string;
     department: string;
+    selectDepartment: string;
     userType: string;
     requestAccess: string;
     accountRequested: string;
     waitingApproval: string;
     invalidCredentials: string;
     loginFailed: string;
+    checkFormFields: string;
+    passwordTooShort: string;
+    passwordsDoNotMatch: string;
+    registrationFailed: string;
+    emailRequired: string;
+    invalidEmailFormat: string;
+    passwordRequired: string;
+    confirmPasswordRequired: string;
+    departmentRequired: string;
   };
   dashboard: {
     welcomeTo: string;
@@ -88,6 +109,104 @@ export interface Dictionary {
     createLibrary: string;
     scanDocument: string;
     submitReport: string;
+    companyOverview: string;
+    newUsersThisMonth: string;
+    storageUsage: string;
+    reportsResponseRate: string;
+  };
+  departments: {
+    title: string;
+    name: string;
+    description: string;
+    supervisor: string;
+    usersCount: string;
+    createdAt: string;
+    actions: string;
+    create: string;
+    edit: string;
+    delete: string;
+    save: string;
+    cancel: string;
+    addDepartment: string;
+    editDepartment: string;
+    createDepartment: string;
+    departmentName: string;
+    departmentDescription: string;
+    selectSupervisor: string;
+    noSupervisor: string;
+    selectDepartmentFirst: string;
+    supervisorNote: string;
+    confirmDelete: string;
+    users: string;
+    manageDepartments: string;
+    departmentManagement: string;
+  };
+  users: {
+    title: string;
+    create: string;
+    edit: string;
+    delete: string;
+    passwordReset: string;
+    temporaryPassword: string;
+    emailSent: string;
+    promoteToSuperAdmin: string;
+    removeUser: string;
+    resetPassword: string;
+    userFiles: string;
+    exportUsers: string;
+    totalUsers: string;
+    superAdmins: string;
+    admins: string;
+    supervisors: string;
+    normalUsers: string;
+    active: string;
+    inactive: string;
+    pending: string;
+    userDetails: string;
+    role: string;
+    department: string;
+    phone: string;
+    createdAt: string;
+    actions: string;
+    usersList: string;
+    userManagement: string;
+    manageUsers: string;
+    selectDepartment: string;
+    selectRole: string;
+    selectStatus: string;
+    setAsDepartmentAdmin: string;
+    managedDepartments: string;
+    departmentAdminDescription: string;
+    userForm: string;
+    // Additional user management keys
+    editUser: string;
+    viewFiles: string;
+    promoteToSupervisor: string;
+    name: string;
+    email: string;
+    lastLogin: string;
+    user: string;
+    createUser: string;
+    enterUserName: string;
+    enterEmailAddress: string;
+    enterPhoneNumber: string;
+    selectDepartmentsToManage: string;
+    files: string;
+    folders: string;
+    createFolder: string;
+    uploadFile: string;
+    folderName: string;
+    enterFolderName: string;
+    fileSize: string;
+    lastModified: string;
+    noFiles: string;
+    noFolders: string;
+    rootFolder: string;
+    searchByName: string;
+    filterByStatus: string;
+    filterByDepartment: string;
+    removeUserConfirm: string;
+    removeUserWarning: string;
   };
   reports: {
     submitReport: string;
@@ -108,6 +227,26 @@ export interface Dictionary {
     submittedAt: string;
     respondedAt: string;
     viewReports: string;
+    // New translations
+    submitReportDescription: string;
+  };
+  requests: {
+    title: string;
+    type: string;
+    by: string;
+    priority: string;
+    viewDetails: string;
+    quickApprove: string;
+    quickReject: string;
+    requestDetails: string;
+    requestInformation: string;
+    reviewRequests: string;
+    allRequests: string;
+    myRequests: string;
+    userRequests: string;
+    pendingRequests: string;
+    approvedRequests: string;
+    rejectedRequests: string;
   };
   goals: {
     myGoals: string;
@@ -127,6 +266,9 @@ export interface Dictionary {
     deadline: string;
     assigned: string;
     completed: string;
+    title: string;
+    subtitle: string;
+    createNew: string;
   };
   files: {
     myFiles: string;
@@ -135,7 +277,6 @@ export interface Dictionary {
     libraryName: string;
     libraryDescription: string;
     permissions: string;
-    uploadFiles: string;
     selectLibrary: string;
     fileDescription: string;
     fileName: string;
@@ -160,6 +301,43 @@ export interface Dictionary {
     canDelete: string;
     owner: string;
     noMembers: string;
+    uploadProgress: string;
+    noFilesFound: string;
+    createFolder: string;
+    // New translations for file manager
+    name: string;
+    size: string;
+    modified: string;
+    actions: string;
+    list: string;
+    grid: string;
+    tree: string;
+    sortByName: string;
+    sortByDate: string;
+    sortBySize: string;
+    sortByType: string;
+    newFolder: string;
+    upload: string;
+    documents: string;
+    userFiles: string;
+    view: string;
+    download: string;
+    rename: string;
+    delete: string;
+    deleteConfirm: string;
+    createNewFolder: string;
+    createFolderIn: string;
+    renameItem: string;
+    folderName: string;
+    enterFolderName: string;
+    description: string;
+    optionalDescription: string;
+    newName: string;
+    enterName: string;
+    enterNewName: string;
+    uploadFiles: string;
+    uploadDragText: string;
+    uploadHint: string;
   };
   scanner: {
     scanDocument: string;
@@ -174,68 +352,6 @@ export interface Dictionary {
     avoidShadows: string;
     centerDocument: string;
     adjustBorders: string;
-  };
-  users: {
-    userManagement: string;
-    addUser: string;
-    removeUser: string;
-    promoteUser: string;
-    demoteUser: string;
-    activateUser: string;
-    deactivateUser: string;
-    userName: string;
-    userEmail: string;
-    userDepartment: string;
-    userRole: string;
-    userStatus: string;
-    lastLogin: string;
-    createdAt: string;
-    actions: string;
-    sendInvite: string;
-    userTypes: {
-      user: string;
-      admin: string;
-      superAdmin: string;
-    };
-  };
-  notifications: {
-    notifications: string;
-    markAsRead: string;
-    markAllAsRead: string;
-    noNotifications: string;
-    reportSubmitted: string;
-    goalUpdated: string;
-    userRequest: string;
-    systemAlert: string;
-    newFile: string;
-    responseReceived: string;
-  };
-  requests: {
-    userRequests: string;
-    pendingRequests: string;
-    approvedRequests: string;
-    rejectedRequests: string;
-    requestDetails: string;
-    approveRequest: string;
-    rejectRequest: string;
-    requestedBy: string;
-    requestedAt: string;
-    requestReason: string;
-  };
-  profile: {
-    myProfile: string;
-    editProfile: string;
-    personalInfo: string;
-    changePassword: string;
-    currentPassword: string;
-    newPassword: string;
-    confirmNewPassword: string;
-    updateProfile: string;
-    changesDepartment: string;
-    pendingApproval: string;
-    contactInfo: string;
-    phone: string;
-    address: string;
   };
 }
 
@@ -259,6 +375,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       documents: 'Documentos',
       management: 'Gestão',
       users: 'Usuários',
+      departments: 'Departamentos',
+      sucursals: 'Sucursais',
       generalPanel: 'Painel Geral',
       notifications: 'Notificações',
       requests: 'Solicitações',
@@ -291,6 +409,15 @@ const dictionaries: Record<Locale, Dictionary> = {
       open: 'Abrir',
       yes: 'Sim',
       no: 'Não',
+      reload: 'Recarregar',
+      refresh: 'Atualizar',
+      platformName: 'Totalizer Platform',
+      approved: 'Aprovado',
+      rejected: 'Rejeitado',
+      response: 'Resposta',
+      all: 'Todos',
+      status: 'Status',
+      required: 'Este campo é obrigatório',
     },
     auth: {
       welcomeBack: 'Bem-vindo de volta',
@@ -305,12 +432,22 @@ const dictionaries: Record<Locale, Dictionary> = {
       confirmPassword: 'Confirmar Senha',
       fullName: 'Nome Completo',
       department: 'Departamento',
+      selectDepartment: 'Selecione um departamento',
       userType: 'Tipo de Usuário',
       requestAccess: 'Solicitar Acesso',
       accountRequested: 'Conta Solicitada',
       waitingApproval: 'Aguardando aprovação do administrador',
       invalidCredentials: 'Credenciais inválidas',
       loginFailed: 'Falha no login',
+      checkFormFields: 'Por favor, verifique os campos do formulário e tente novamente.',
+      passwordTooShort: 'Senha deve ter pelo menos 6 caracteres',
+      passwordsDoNotMatch: 'Senhas não coincidem',
+      registrationFailed: 'Falha no registro',
+      emailRequired: 'E-mail é obrigatório',
+      invalidEmailFormat: 'Formato de e-mail inválido',
+      passwordRequired: 'Senha é obrigatória',
+      confirmPasswordRequired: 'Confirmação de senha é obrigatória',
+      departmentRequired: 'Departamento é obrigatório',
     },
     dashboard: {
       welcomeTo: 'Bem-vindo ao',
@@ -325,6 +462,150 @@ const dictionaries: Record<Locale, Dictionary> = {
       createLibrary: 'Criar Biblioteca',
       scanDocument: 'Digitalizar Documento',
       submitReport: 'Submeter Relatório',
+      companyOverview: 'Visão Geral da Empresa',
+      newUsersThisMonth: 'Novos Usuários Este Mês',
+      storageUsage: 'Uso de Armazenamento',
+      reportsResponseRate: 'Taxa de Resposta de Relatórios',
+    },
+    departments: {
+      title: 'Departamentos',
+      name: 'Nome',
+      description: 'Descrição',
+      supervisor: 'Supervisor',
+      usersCount: 'Contagem de Usuários',
+      createdAt: 'Criado em',
+      actions: 'Ações',
+      create: 'Criar',
+      edit: 'Editar',
+      delete: 'Excluir',
+      save: 'Salvar',
+      cancel: 'Cancelar',
+      addDepartment: 'Adicionar Departamento',
+      editDepartment: 'Editar Departamento',
+      createDepartment: 'Criar Departamento',
+      departmentName: 'Nome do Departamento',
+      departmentDescription: 'Descrição do Departamento',
+      selectSupervisor: 'Selecionar Supervisor',
+      noSupervisor: 'Sem supervisor',
+      selectDepartmentFirst: 'Selecione o Departamento Primeiro',
+      supervisorNote: 'Supervisores podem ser atribuídos de qualquer usuário ativo com papéis de Supervisor, Admin ou Super Admin',
+      confirmDelete: 'Tem certeza que deseja excluir este departamento?',
+      users: 'usuários',
+      manageDepartments: 'Gerenciar Departamentos',
+      departmentManagement: 'Gerenciamento de Departamentos',
+    },
+    users: {
+      title: 'Usuários',
+      create: 'Criar',
+      edit: 'Editar',
+      delete: 'Excluir',
+      passwordReset: 'Redefinição de Senha',
+      temporaryPassword: 'Senha Temporária',
+      emailSent: 'E-mail enviado com a nova senha',
+      promoteToSuperAdmin: 'Promover para Super Admin',
+      removeUser: 'Remover Usuário',
+      resetPassword: 'Redefinir Senha',
+      userFiles: 'Arquivos do Usuário',
+      exportUsers: 'Exportar Usuários',
+      totalUsers: 'Total de Usuários',
+      superAdmins: 'Super Admins',
+      admins: 'Admins',
+      supervisors: 'Supervisores',
+      normalUsers: 'Usuários Normais',
+      active: 'Ativo',
+      inactive: 'Inativo',
+      pending: 'Pendente',
+      userDetails: 'Detalhes do Usuário',
+      role: 'Função',
+      department: 'Departamento',
+      phone: 'Telefone',
+      createdAt: 'Criado em',
+      actions: 'Ações',
+      usersList: 'Lista de Usuários',
+      userManagement: 'Gerenciamento de Usuários',
+      manageUsers: 'Gerenciar Usuários',
+      selectDepartment: 'Selecionar Departamento',
+      selectRole: 'Selecionar Função',
+      selectStatus: 'Selecionar Status',
+      setAsDepartmentAdmin: 'Definir como Admin do Departamento',
+      managedDepartments: 'Departamentos Gerenciados',
+      departmentAdminDescription: 'Admins de departamento têm permissões adicionais para gerenciar membros e metas do departamento',
+      userForm: 'Formulário de Usuário',
+      editUser: 'Editar Usuário',
+      viewFiles: 'Ver Arquivos',
+      promoteToSupervisor: 'Promover a Supervisor do Departamento',
+      name: 'Nome',
+      email: 'E-mail',
+      lastLogin: 'Último Acesso',
+      user: 'Usuário',
+      createUser: 'Criar Usuário',
+      enterUserName: 'Digite o nome do usuário',
+      enterEmailAddress: 'Digite o endereço de e-mail',
+      selectRole: 'Selecionar Função',
+      selectDepartment: 'Selecionar Departamento',
+      selectStatus: 'Selecionar Status',
+      enterPhoneNumber: 'Digite o número de telefone',
+      selectDepartmentsToManage: 'Selecionar departamentos para gerenciar',
+      files: 'Arquivos',
+      folders: 'Pastas',
+      createFolder: 'Criar Pasta',
+      uploadFile: 'Enviar Arquivo',
+      folderName: 'Nome da Pasta',
+      enterFolderName: 'Digite o nome da pasta',
+      fileSize: 'Tamanho do Arquivo',
+      lastModified: 'Última Modificação',
+      noFiles: 'Nenhum arquivo encontrado',
+      noFolders: 'Nenhuma pasta encontrada',
+      rootFolder: 'Pasta Raiz',
+      searchByName: 'Pesquisar por nome',
+      filterByStatus: 'Filtrar por status',
+      filterByDepartment: 'Filtrar por departamento',
+      promoteToSupervisor: 'Promover a Supervisor do Departamento',
+      removeUserConfirm: 'Confirmar Remoção',
+      removeUserWarning: 'Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita.',
+    },
+    requests: {
+      title: 'Solicitações',
+      type: 'Tipo',
+      priority: 'Prioridade',
+      by: 'por',
+      viewDetails: 'Ver Detalhes',
+      quickApprove: 'Aprovar Rápido',
+      quickReject: 'Rejeitar Rápido',
+      requestDetails: 'Detalhes da Solicitação',
+      requestInformation: 'Informações da Solicitação',
+      reviewRequests: 'Revisar e gerenciar solicitações de usuários para contas, acesso e suporte',
+      allRequests: 'Todas as Solicitações',
+      myRequests: 'Minhas Solicitações',
+      userRequests: 'Solicitações de Usuários',
+      pendingRequests: 'Solicitações Pendentes',
+      approvedRequests: 'Solicitações Aprovadas',
+      rejectedRequests: 'Solicitações Rejeitadas',
+    },
+    sucursal: {
+      management: 'Gerenciamento de Sucursal',
+      manageSucursals: 'Gerenciar e monitorar servidores de filiais em todas as localizações',
+      addSucursal: 'Adicionar Nova Sucursal',
+      sucursalName: 'Nome da Sucursal',
+      serverUrl: 'URL do Servidor',
+      description: 'Descrição',
+      totalSucursals: 'Total de Sucursais',
+      online: 'Online',
+      offline: 'Offline',
+      avgUptime: 'Tempo Médio de Atividade',
+      responseTime: 'Tempo de Resposta',
+      uptime: 'Tempo de Atividade',
+      healthStatus: 'Status de Saúde',
+      serverLogs: 'Logs do Servidor',
+      actions: 'Ações',
+      refreshStatus: 'Atualizar Status',
+      configuration: 'Configuração',
+      viewInBrowser: 'Ver no Navegador',
+      basicInformation: 'Informações Básicas',
+      currentStatus: 'Status Atual',
+      createdBy: 'Criado Por',
+      createSucursal: 'Criar Sucursal',
+      cancel: 'Cancelar',
     },
     reports: {
       submitReport: 'Submeter Relatório',
@@ -345,6 +626,48 @@ const dictionaries: Record<Locale, Dictionary> = {
       submittedAt: 'Submetido em',
       respondedAt: 'Respondido em',
       viewReports: 'Ver Relatórios',
+      // New translations
+      submitReportDescription: 'Submeta seu relatório ao seu supervisor para revisão e feedback.',
+      selectReportType: 'Selecionar tipo de relatório',
+      selectSupervisorPlaceholder: 'Selecionar supervisor',
+      pleaseSelectReportType: 'Por favor, selecione um tipo de relatório',
+      pleaseSelectSupervisor: 'Por favor, selecione um supervisor',
+      reportTitlePlaceholder: 'Digite o título do relatório',
+      reportDescriptionPlaceholder: 'Digite a descrição do relatório',
+      failedToLoadSupervisors: 'Falha ao carregar supervisores',
+      failedToSubmitReport: 'Falha ao submeter relatório',
+      uploadProgress: 'Progresso do Upload',
+      pending: 'Pendente',
+      responded: 'Respondido',
+      archived: 'Arquivado',
+      allReportsTab: 'Todos',
+      pendingTab: 'Pendentes',
+      respondedTab: 'Respondidos',
+      archivedTab: 'Arquivados',
+      loadingUserData: 'Carregando dados do usuário...',
+      actions: 'Ações',
+      viewReport: 'Ver Relatório',
+      respondToReport: 'Responder ao Relatório',
+      submitResponse: 'Submeter Resposta',
+      responseModalTitle: 'Responder ao Relatório',
+      writeResponse: 'Escreva sua resposta',
+      reportResponseSubmitted: 'Resposta submetida com sucesso!',
+      failedToRespond: 'Falha ao responder ao relatório',
+      noReportsFound: 'Nenhum relatório encontrado',
+      clickToUploadFiles: 'Clique para fazer upload de arquivos',
+      supportedFormats: 'Formatos suportados: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG (Máx 10MB cada)',
+      pleaseEnterTitle: 'Por favor, digite um título',
+      pleaseEnterDescription: 'Por favor, digite uma descrição',
+      describeReportDetail: 'Descreva seu relatório em detalhes...',
+      failedToLoadReports: 'Falha ao carregar relatórios',
+      // Report types
+      monthlyProgressReport: 'Relatório de Progresso Mensal',
+      issueReport: 'Relatório de Problema',
+      projectUpdate: 'Atualização de Projeto',
+      expenseReport: 'Relatório de Despesas',
+      performanceReview: 'Avaliação de Desempenho',
+      incidentReport: 'Relatório de Incidente',
+      other: 'Outro',
     },
     goals: {
       myGoals: 'Minhas Metas',
@@ -364,6 +687,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       deadline: 'Prazo',
       assigned: 'Atribuído',
       completed: 'Concluída',
+      title: 'Gestão de Metas',
+      subtitle: 'Acompanhe e gerencie metas e objetivos organizacionais',
+      createNew: 'Criar Nova Meta',
     },
     files: {
       myFiles: 'Meus Arquivos',
@@ -397,6 +723,43 @@ const dictionaries: Record<Locale, Dictionary> = {
       canDelete: 'Pode Excluir',
       owner: 'Proprietário',
       noMembers: 'Sem membros',
+      uploadProgress: 'Progresso do Upload',
+      noFilesFound: 'Nenhum arquivo ou pasta encontrado',
+      createFolder: 'Criar Pasta',
+      // New translations for file manager
+      name: 'Nome',
+      size: 'Tamanho',
+      modified: 'Modificado',
+      actions: 'Ações',
+      list: 'Lista',
+      grid: 'Grade',
+      tree: 'Árvore',
+      sortByName: 'Nome',
+      sortByDate: 'Data',
+      sortBySize: 'Tamanho',
+      sortByType: 'Tipo',
+      newFolder: 'Nova Pasta',
+      upload: 'Carregar',
+      documents: 'Documentos',
+      userFiles: 'Arquivos do Usuário',
+      view: 'Ver',
+      download: 'Baixar',
+      rename: 'Renomear',
+      delete: 'Excluir',
+      deleteConfirm: 'Tem certeza que deseja excluir este item?',
+      createNewFolder: 'Criar Nova Pasta',
+      createFolderIn: 'Criar Pasta em',
+      renameItem: 'Renomear Item',
+      folderName: 'Nome da Pasta',
+      enterFolderName: 'Digite o nome da pasta',
+      description: 'Descrição',
+      optionalDescription: 'Descrição opcional',
+      newName: 'Novo Nome',
+      enterName: 'Digite um nome',
+      enterNewName: 'Digite o novo nome',
+      uploadFiles: 'Carregar Arquivos',
+      uploadDragText: 'Clique ou arraste arquivos para esta área para carregar',
+      uploadHint: 'Suporte para upload único ou em lote. É estritamente proibido carregar dados da empresa ou outros arquivos banidos.',
     },
     scanner: {
       scanDocument: 'Digitalizar Documento',
@@ -412,29 +775,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       centerDocument: 'Centralize o documento',
       adjustBorders: 'Ajuste as bordas',
     },
-    users: {
-      userManagement: 'Gestão de Usuários',
-      addUser: 'Adicionar Usuário',
-      removeUser: 'Remover Usuário',
-      promoteUser: 'Promover Usuário',
-      demoteUser: 'Despromover Usuário',
-      activateUser: 'Ativar Usuário',
-      deactivateUser: 'Desativar Usuário',
-      userName: 'Nome do Usuário',
-      userEmail: 'E-mail do Usuário',
-      userDepartment: 'Departamento',
-      userRole: 'Função',
-      userStatus: 'Status',
-      lastLogin: 'Último Acesso',
-      createdAt: 'Criado em',
-      actions: 'Ações',
-      sendInvite: 'Enviar Convite',
-      userTypes: {
-        user: 'Usuário',
-        admin: 'Administrador',
-        superAdmin: 'Super Administrador',
-      },
-    },
+
     notifications: {
       notifications: 'Notificações',
       markAsRead: 'Marcar como Lida',
@@ -446,6 +787,10 @@ const dictionaries: Record<Locale, Dictionary> = {
       systemAlert: 'Alerta do sistema',
       newFile: 'Novo arquivo',
       responseReceived: 'Resposta recebida',
+      fileUploaded: 'Arquivo enviado',
+      fileRenamed: 'Arquivo renomeado',
+      fileDeleted: 'Arquivo excluído',
+      userCreation: 'Conta criada',
     },
     requests: {
       userRequests: 'Solicitações de Usuários',
@@ -494,6 +839,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       documents: 'Documents',
       management: 'Management',
       users: 'Users',
+      departments: 'Departments',
+      sucursals: 'Sucursals',
       generalPanel: 'General Panel',
       notifications: 'Notifications',
       requests: 'Requests',
@@ -526,6 +873,15 @@ const dictionaries: Record<Locale, Dictionary> = {
       open: 'Open',
       yes: 'Yes',
       no: 'No',
+      reload: 'Reload',
+      refresh: 'Refresh',
+      platformName: 'Totalizer Platform',
+      approved: 'Approved',
+      rejected: 'Rejected',
+      response: 'Response',
+      all: 'All',
+      status: 'Status',
+      required: 'This field is required',
     },
     auth: {
       welcomeBack: 'Welcome Back',
@@ -540,12 +896,22 @@ const dictionaries: Record<Locale, Dictionary> = {
       confirmPassword: 'Confirm Password',
       fullName: 'Full Name',
       department: 'Department',
+      selectDepartment: 'Select a department',
       userType: 'User Type',
       requestAccess: 'Request Access',
       accountRequested: 'Account Requested',
       waitingApproval: 'Waiting for administrator approval',
       invalidCredentials: 'Invalid credentials',
       loginFailed: 'Login failed',
+      checkFormFields: 'Please check the form fields and try again.',
+      passwordTooShort: 'Password must be at least 6 characters',
+      passwordsDoNotMatch: 'Passwords do not match',
+      registrationFailed: 'Registration failed',
+      emailRequired: 'Email is required',
+      invalidEmailFormat: 'Invalid email format',
+      passwordRequired: 'Password is required',
+      confirmPasswordRequired: 'Password confirmation is required',
+      departmentRequired: 'Department is required',
     },
     dashboard: {
       welcomeTo: 'Welcome to',
@@ -560,6 +926,159 @@ const dictionaries: Record<Locale, Dictionary> = {
       createLibrary: 'Create Library',
       scanDocument: 'Scan Document',
       submitReport: 'Submit Report',
+      companyOverview: 'Company Overview',
+      newUsersThisMonth: 'New Users This Month',
+      storageUsage: 'Storage Usage',
+      reportsResponseRate: 'Reports Response Rate',
+    },
+    departments: {
+      title: 'Departments',
+      name: 'Name',
+      description: 'Description',
+      supervisor: 'Supervisor',
+      usersCount: 'Users Count',
+      createdAt: 'Created At',
+      actions: 'Actions',
+      create: 'Create',
+      edit: 'Edit',
+      delete: 'Delete',
+      save: 'Save',
+      cancel: 'Cancel',
+      addDepartment: 'Add Department',
+      editDepartment: 'Edit Department',
+      createDepartment: 'Create Department',
+      departmentName: 'Department Name',
+      departmentDescription: 'Department Description',
+      selectSupervisor: 'Select Supervisor',
+      noSupervisor: 'No supervisor',
+      selectDepartmentFirst: 'Select Department First',
+      supervisorNote: 'Supervisors can be assigned from any active users with Supervisor, Admin, or Super Admin roles',
+      confirmDelete: 'Are you sure you want to delete this department?',
+      users: 'users',
+      manageDepartments: 'Manage Departments',
+      departmentManagement: 'Department Management',
+    },
+    users: {
+      title: 'Users',
+      create: 'Create',
+      edit: 'Edit',
+      delete: 'Delete',
+      passwordReset: 'Password Reset',
+      temporaryPassword: 'Temporary Password',
+      emailSent: 'Email sent with new password',
+      promoteToSuperAdmin: 'Promote to Super Admin',
+      removeUser: 'Remove User',
+      resetPassword: 'Reset Password',
+      userFiles: 'User Files',
+      exportUsers: 'Export Users',
+      totalUsers: 'Total Users',
+      superAdmins: 'Super Admins',
+      admins: 'Admins',
+      supervisors: 'Supervisors',
+      normalUsers: 'Normal Users',
+      active: 'Active',
+      inactive: 'Inactive',
+      pending: 'Pending',
+      userDetails: 'User Details',
+      role: 'Role',
+      department: 'Department',
+      phone: 'Phone',
+      createdAt: 'Created At',
+      actions: 'Actions',
+      usersList: 'Users List',
+      userManagement: 'User Management',
+      manageUsers: 'Manage Users',
+      selectDepartment: 'Select Department',
+      selectRole: 'Select Role',
+      selectStatus: 'Select Status',
+      setAsDepartmentAdmin: 'Set as Department Admin',
+      managedDepartments: 'Managed Departments',
+      departmentAdminDescription: 'Department admins have additional permissions to manage department members and goals',
+      userForm: 'User Form',
+      editUser: 'Edit User',
+      viewFiles: 'View Files',
+      promoteToSupervisor: 'Promote to Department Supervisor',
+      name: 'Name',
+      email: 'Email',
+      lastLogin: 'Last Login',
+      user: 'User',
+      createUser: 'Create User',
+      enterUserName: 'Enter user name',
+      enterEmailAddress: 'Enter email address',
+      selectRole: 'Select Role',
+      selectDepartment: 'Select Department',
+      selectStatus: 'Select Status',
+      enterPhoneNumber: 'Enter phone number',
+      selectDepartmentsToManage: 'Select departments to manage',
+      files: 'Files',
+      folders: 'Folders',
+      createFolder: 'Create Folder',
+      uploadFile: 'Upload File',
+      folderName: 'Folder Name',
+      enterFolderName: 'Enter folder name',
+      fileSize: 'File Size',
+      lastModified: 'Last Modified',
+      noFiles: 'No files found',
+      noFolders: 'No folders found',
+      rootFolder: 'Root Folder',
+      searchByName: 'Search by name',
+      filterByStatus: 'Filter by status',
+      filterByDepartment: 'Filter by department',
+      removeUserConfirm: 'Confirm Removal',
+      removeUserWarning: 'Are you sure you want to remove this user? This action cannot be undone.',
+    },
+    requests: {
+      title: 'Request Details',
+      type: 'Type',
+      by: 'by',
+      priority: 'Priority',
+      viewDetails: 'View Details',
+      quickApprove: 'Quick Approve',
+      quickReject: 'Quick Reject',
+      requestDetails: 'Request Details',
+      updateRequest: 'Update Request',
+      requestInformation: 'Request Information',
+      reviewedAt: 'Reviewed At',
+      reviewedBy: 'Reviewed By',
+      userRequestsManagement: 'User Requests Management',
+      reviewRequests: 'Review and manage user requests for accounts, access, and support',
+      pending: 'Pending',
+      inReview: 'In Review',
+      approved: 'Approved',
+      rejected: 'Rejected',
+      allRequests: 'All Requests',
+      createRequest: 'Create Request',
+      myRequests: 'My Requests',
+      requestType: 'Request Type',
+      requestTitle: 'Request Title',
+      requestDescription: 'Request Description',
+      submitRequest: 'Submit Request',
+      requestSubmitted: 'Request submitted successfully',
+    },
+    sucursal: {
+      management: 'Sucursal Management',
+      manageSucursals: 'Manage and monitor branch servers across all locations',
+      addSucursal: 'Add New Sucursal',
+      sucursalName: 'Sucursal Name',
+      serverUrl: 'Server URL',
+      description: 'Description',
+      totalSucursals: 'Total Sucursals',
+      online: 'Online',
+      offline: 'Offline',
+      avgUptime: 'Avg Uptime',
+      responseTime: 'Response Time',
+      uptime: 'Uptime',
+      healthStatus: 'Health Status',
+      serverLogs: 'Server Logs',
+      actions: 'Actions',
+      refreshStatus: 'Refresh Status',
+      configuration: 'Configuration',
+      viewInBrowser: 'View in Browser',
+      basicInformation: 'Basic Information',
+      currentStatus: 'Current Status',
+      createdBy: 'Created By',
+      createSucursal: 'Create Sucursal',
+      cancel: 'Cancel',
     },
     reports: {
       submitReport: 'Submit Report',
@@ -580,6 +1099,48 @@ const dictionaries: Record<Locale, Dictionary> = {
       submittedAt: 'Submitted at',
       respondedAt: 'Responded at',
       viewReports: 'View Reports',
+      // New translations
+      submitReportDescription: 'Submit your report to your supervisor for review and feedback.',
+      selectReportType: 'Select report type',
+      selectSupervisorPlaceholder: 'Select supervisor',
+      pleaseSelectReportType: 'Please select a report type',
+      pleaseSelectSupervisor: 'Please select a supervisor',
+      reportTitlePlaceholder: 'Enter report title',
+      reportDescriptionPlaceholder: 'Enter report description',
+      failedToLoadSupervisors: 'Failed to load supervisors',
+      failedToSubmitReport: 'Failed to submit report',
+      uploadProgress: 'Upload Progress',
+      pending: 'Pending',
+      responded: 'Responded',
+      archived: 'Archived',
+      allReportsTab: 'All',
+      pendingTab: 'Pending',
+      respondedTab: 'Responded',
+      archivedTab: 'Archived',
+      loadingUserData: 'Loading user data...',
+      actions: 'Actions',
+      viewReport: 'View Report',
+      respondToReport: 'Respond to Report',
+      submitResponse: 'Submit Response',
+      responseModalTitle: 'Respond to Report',
+      writeResponse: 'Write your response',
+      reportResponseSubmitted: 'Response submitted successfully!',
+      failedToRespond: 'Failed to respond to report',
+      noReportsFound: 'No reports found',
+      clickToUploadFiles: 'Click to Upload Files',
+      supportedFormats: 'Supported formats: PDF, DOC, DOCX, XLS, XLSX, PNG, JPG (Max 10MB each)',
+      pleaseEnterTitle: 'Please enter a title',
+      pleaseEnterDescription: 'Please enter a description',
+      describeReportDetail: 'Describe your report in detail...',
+      failedToLoadReports: 'Failed to load reports',
+      // Report types
+      monthlyProgressReport: 'Monthly Progress Report',
+      issueReport: 'Issue Report',
+      projectUpdate: 'Project Update',
+      expenseReport: 'Expense Report',
+      performanceReview: 'Performance Review',
+      incidentReport: 'Incident Report',
+      other: 'Other',
     },
     goals: {
       myGoals: 'My Goals',
@@ -599,6 +1160,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       deadline: 'Deadline',
       assigned: 'Assigned',
       completed: 'Completed',
+      title: 'Goals Management',
+      subtitle: 'Track and manage organizational goals and objectives',
+      createNew: 'Create New Goal',
     },
     files: {
       myFiles: 'My Files',
@@ -632,6 +1196,43 @@ const dictionaries: Record<Locale, Dictionary> = {
       canDelete: 'Can Delete',
       owner: 'Owner',
       noMembers: 'No members',
+      uploadProgress: 'Upload Progress',
+      noFilesFound: 'No files or folders found',
+      createFolder: 'Create Folder',
+      // New translations for file manager
+      name: 'Name',
+      size: 'Size',
+      modified: 'Modified',
+      actions: 'Actions',
+      list: 'List',
+      grid: 'Grid',
+      tree: 'Tree',
+      sortByName: 'Name',
+      sortByDate: 'Date',
+      sortBySize: 'Size',
+      sortByType: 'Type',
+      newFolder: 'New Folder',
+      upload: 'Upload',
+      documents: 'Documents',
+      userFiles: 'User Files',
+      view: 'View',
+      download: 'Download',
+      rename: 'Rename',
+      delete: 'Delete',
+      deleteConfirm: 'Are you sure you want to delete this item?',
+      createNewFolder: 'Create New Folder',
+      createFolderIn: 'Create Folder in',
+      renameItem: 'Rename Item',
+      folderName: 'Folder Name',
+      enterFolderName: 'Enter folder name',
+      description: 'Description',
+      optionalDescription: 'Optional description',
+      newName: 'New Name',
+      enterName: 'Enter a name',
+      enterNewName: 'Enter new name',
+      uploadFiles: 'Upload Files',
+      uploadDragText: 'Click or drag files to this area to upload',
+      uploadHint: 'Support for single or bulk upload. Strictly prohibited from uploading company data or other banned files.',
     },
     scanner: {
       scanDocument: 'Scan Document',
@@ -681,6 +1282,10 @@ const dictionaries: Record<Locale, Dictionary> = {
       systemAlert: 'System alert',
       newFile: 'New file',
       responseReceived: 'Response received',
+      fileUploaded: 'File uploaded',
+      fileRenamed: 'File renamed',
+      fileDeleted: 'File deleted',
+      userCreation: 'Account created',
     },
     requests: {
       userRequests: 'User Requests',
