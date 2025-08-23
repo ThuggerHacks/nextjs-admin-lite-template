@@ -1,0 +1,226 @@
+// datasource and generator
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Enums
+
+enum UserRole {
+  DEVELOPER
+  SUPER_ADMIN
+  ADMIN
+  SUPERVISOR
+  USER
+}
+
+enum GoalStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum NotificationType {
+  USER_CREATED
+  USER_ACTIVATED
+  FILE_UPLOADED
+  FOLDER_CREATED
+  GOAL_CREATED
+  GOAL_UPDATED
+  REPORT_SUBMITTED
+  ERROR
+}
+
+// Models
+
+model Sucursal {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  description String?
+  location    String?
+  serverUrl   String       @unique
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  departments Department[]
+  users       User[]
+  folders     Folder[]
+  files       File[]
+  libraries   Library[]
+  goals       Goal[]
+  reports     Report[]
+  errorLogs   ErrorLog[]
+  scans       Scan[]
+}
+
+model Department {
+  id          Int       @id @default(autoincrement())
+  name        String
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  supervisor  User?     @relation("DepartmentSupervisor", fields: [supervisorId], references: [id])
+  supervisorId Int?
+  users       User[]
+  goals       Goal[]
+  reports     Report[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model User {
+  id           Int          @id @default(autoincrement())
+  name         String
+  email        String       @unique
+  passwordHash String
+  role         UserRole
+  isActive     Boolean      @default(false)
+  profileUrl   String?
+  department   Department?  @relation(fields: [departmentId], references: [id])
+  departmentId Int?
+  sucursal     Sucursal     @relation(fields: [sucursalId], references: [id])
+  sucursalId   Int
+  folders      Folder[]
+  files        File[]
+  libraries    Library[]
+  libraryMemberships LibraryMember[]
+  createdGoals Goal[]       @relation("GoalCreator")
+  assignedGoals GoalAssignment[]
+  reportsSent  Report[]     @relation("ReportsSent")
+  notifications Notification[] @relation("UserNotifications")
+  scans        Scan[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model Folder {
+  id          Int       @id @default(autoincrement())
+  name        String
+  owner       User      @relation(fields: [ownerId], references: [id])
+  ownerId     Int
+  parent      Folder?   @relation("FolderToFolder", fields: [parentId], references: [id])
+  parentId    Int?
+  children    Folder[]  @relation("FolderToFolder")
+  files       File[]
+  isPublic    Boolean   @default(false)
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model File {
+  id          Int       @id @default(autoincrement())
+  name        String
+  url         String
+  owner       User      @relation(fields: [ownerId], references: [id])
+  ownerId     Int
+  folder      Folder?   @relation(fields: [folderId], references: [id])
+  folderId    Int?
+  isPublic    Boolean   @default(false)
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  createdAt   DateTime  @default(now())
+}
+
+model Library {
+  id          Int       @id @default(autoincrement())
+  name        String
+  owner       User      @relation(fields: [ownerId], references: [id])
+  ownerId     Int
+  members     LibraryMember[]
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model LibraryMember {
+  library   Library @relation(fields: [libraryId], references: [id])
+  libraryId Int
+  user      User    @relation(fields: [userId], references: [id])
+  userId    Int
+  @@id([libraryId, userId])
+}
+
+model Goal {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  startDate   DateTime?
+  endDate     DateTime?
+  status      GoalStatus @default(PENDING)
+  isPublished Boolean   @default(false)
+  creator     User      @relation("GoalCreator", fields: [creatorId], references: [id])
+  creatorId   Int
+  department  Department @relation(fields: [departmentId], references: [id])
+  departmentId Int
+  assignments GoalAssignment[]
+  reports     Report[]
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model GoalAssignment {
+  goal    Goal @relation(fields: [goalId], references: [id])
+  goalId  Int
+  user    User @relation(fields: [userId], references: [id])
+  userId  Int
+  isCompleted Boolean   @default(false)
+  completedAt DateTime?
+  @@id([goalId, userId])
+}
+
+model Report {
+  id          Int       @id @default(autoincrement())
+  title       String
+  description String?
+  fileUrl     String
+  goal        Goal?     @relation(fields: [goalId], references: [id])
+  goalId      Int?
+  sender      User      @relation("ReportsSent", fields: [senderId], references: [id])
+  senderId    Int
+  department  Department @relation(fields: [departmentId], references: [id])
+  departmentId Int
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  createdAt   DateTime  @default(now())
+}
+
+model Notification {
+  id          Int       @id @default(autoincrement())
+  type        NotificationType
+  title       String
+  description String
+  recipient   User      @relation("UserNotifications", fields: [recipientId], references: [id])
+  recipientId Int
+  isRead      Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+}
+
+model ErrorLog {
+  id          Int       @id @default(autoincrement())
+  sucursal    Sucursal  @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  message     String
+  errorType   String
+  createdAt   DateTime  @default(now())
+}
+
+model Scan {
+  id          Int      @id @default(autoincrement())
+  title       String
+  pdfUrl      String
+  owner       User     @relation(fields: [ownerId], references: [id])
+  ownerId     Int
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id])
+  sucursalId  Int
+  createdAt   DateTime @default(now())
+}
