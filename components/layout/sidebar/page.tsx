@@ -139,11 +139,10 @@ const SiderPage = () => {
       getItem(t("navigation.viewGoals"), "/goals/view", <AimOutlined />)
     );
 
-    // Supervisors and above can create and edit goals
+    // Supervisors and above can create goals
     if (isSupervisorOrHigher) {
       goalsChildren.push(
-        getItem(t("navigation.createGoals"), "/goals/create", <EditOutlined />),
-        getItem(t("navigation.editGoals"), "/goals/edit", <EditOutlined />)
+        getItem(t("navigation.createGoals"), "/goals/create", <EditOutlined />)
       );
     }
 

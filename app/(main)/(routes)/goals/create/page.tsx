@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Form,
@@ -9,8 +9,6 @@ import {
   Space,
   DatePicker,
   Select,
-  InputNumber,
-  Progress,
   message,
   Typography,
   Divider,
@@ -19,36 +17,30 @@ import {
   Tag,
   Radio,
   Spin,
-  Tooltip,
+  Alert,
 } from 'antd';
 import {
   PlusOutlined,
   SaveOutlined,
   AimOutlined,
   CalendarOutlined,
-  PercentageOutlined,
   UserOutlined,
   TeamOutlined,
   FileTextOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
-import { Goal, GoalStatus, GoalPriority, User, UserRole } from '@/types';
+import { Goal, GoalStatus, GoalPriority, UserRole } from '@/types';
+import type { User } from '@/lib/services/userService';
 import { useRouter } from 'next/navigation';
+import { userService } from '@/lib/services/userService';
+import { departmentService } from '@/lib/services/departmentService';
+import { goalService } from '@/lib/services/goalService';
 
 const { TextArea } = Input;
 const { Title } = Typography;
 const { RangePicker } = DatePicker;
 const { Option } = Select;
-
-// Mock users data for department selection
-const mockUsers: User[] = [
-  { id: '1', name: 'João Silva', email: 'joao@empresa.com', role: UserRole.USER, department: 'IT', status: 'active' as any, createdAt: new Date() },
-  { id: '2', name: 'Maria Santos', email: 'maria@empresa.com', role: UserRole.USER, department: 'IT', status: 'active' as any, createdAt: new Date() },
-  { id: '3', name: 'Pedro Costa', email: 'pedro@empresa.com', role: UserRole.USER, department: 'HR', status: 'active' as any, createdAt: new Date() },
-  { id: '4', name: 'Ana Oliveira', email: 'ana@empresa.com', role: UserRole.USER, department: 'HR', status: 'active' as any, createdAt: new Date() },
-  { id: '5', name: 'Carlos Silva', email: 'carlos@empresa.com', role: UserRole.USER, department: 'Finance', status: 'active' as any, createdAt: new Date() },
-];
 
 export default function CreateGoalPage() {
   const [form] = Form.useForm();
@@ -56,56 +48,125 @@ export default function CreateGoalPage() {
   const [goalType, setGoalType] = useState<'individual' | 'department'>('individual');
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [departments, setDepartments] = useState<any[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+  
   const { user } = useUser();
   const { t } = useTranslation();
   const router = useRouter();
 
+  // Load departments and users on component mount
+  useEffect(() => {
+    loadInitialData();
+  }, []);
+
+  // Filter users when department changes
+  useEffect(() => {
+    if (selectedDepartment) {
+      filterUsersByDepartment();
+    }
+  }, [selectedDepartment, users]);
+
+  const loadInitialData = async () => {
+    setLoadingData(true);
+    try {
+      // Load departments
+      const deps = await departmentService.getAll();
+      setDepartments(deps);
+
+      // Load users based on role
+      let allUsers: User[] = [];
+      
+      if (user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.DEVELOPER) {
+        // Admin can see all users from all departments
+        const usersResponse = await userService.getAll();
+        allUsers = usersResponse.users || [];
+      } else if (user?.role === UserRole.SUPERVISOR) {
+        // Supervisor can only see users from their department
+        if (user.departmentId) {
+          const deptUsers = await userService.getByDepartment(user.departmentId);
+          allUsers = deptUsers;
+          // Auto-select supervisor's department
+          setSelectedDepartment(user.departmentId);
+          form.setFieldsValue({ department: user.departmentId });
+        }
+      }
+      
+      setUsers(allUsers);
+    } catch (error) {
+      console.error('Failed to load initial data:', error);
+      message.error(t('common.error'));
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const filterUsersByDepartment = () => {
+    if (!selectedDepartment) {
+      setFilteredUsers([]);
+      return;
+    }
+
+    let filtered: User[] = [];
+    
+    if (user?.role === UserRole.ADMIN || user?.role === UserRole.SUPER_ADMIN || user?.role === UserRole.DEVELOPER) {
+      // Admin can assign to any user in the selected department
+      filtered = users.filter(u => u.departmentId === selectedDepartment);
+    } else if (user?.role === UserRole.SUPERVISOR) {
+      // Supervisor can only assign to users in their department
+      filtered = users.filter(u => u.departmentId === selectedDepartment);
+    }
+
+    setFilteredUsers(filtered);
+  };
+
   const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newGoal: Goal = {
-        id: Date.now().toString(),
-        title: values.title,
+      // Transform data to match backend API expectations
+      const goalData = {
+        name: values.title, // Backend expects 'name' not 'title'
         description: values.description,
-        status: GoalStatus.PENDING,
+        departmentId: values.department,
+        timeline: values.dateRange[1].toISOString(), // Backend expects 'timeline' as end date
         priority: values.priority,
-        startDate: values.dateRange[0].toDate(),
-        endDate: values.dateRange[1].toDate(),
-        progress: 0,
-        assignedTo: goalType === 'individual' && values.assignedTo 
-          ? mockUsers.filter(u => values.assignedTo.includes(u.id))
-          : undefined,
-        assignedDepartment: goalType === 'department' ? values.department || user?.department : undefined,
-        createdBy: user!,
-        department: values.department || user?.department || '',
-        createdAt: new Date(),
-        updatedAt: new Date(),
-        reports: [],
-        isCompleted: false,
-        requiresReportOnCompletion: values.requiresReportOnCompletion ?? true,
-        completionReportSubmitted: false,
+        userIds: goalType === 'individual' ? values.assignedTo : [] // Backend expects 'userIds' not 'assignedUserIds'
       };
+
+      console.log('Sending goal data to backend:', goalData);
+
+      // If it's a department goal, get all users from that department
+      if (goalType === 'department') {
+        const deptUsers = users.filter(u => u.departmentId === values.department);
+        goalData.userIds = deptUsers.map(u => u.id);
+      }
+
+      // Send to backend with transformed field names
+      const response = await fetch('/goals', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+        body: JSON.stringify(goalData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to create goal');
+      }
       
-      // In a real app, you would save this to your backend
-      console.log('Creating goal:', newGoal);
-      
-      message.success('Goal created successfully!');
+      message.success(t('goals.goalCreatedSuccessfully'));
       router.push('/goals/view');
     } catch (error) {
-      message.error('Failed to create goal');
+      console.error('Failed to create goal:', error);
+      message.error(t('goals.goalCreationFailed'));
     } finally {
       setLoading(false);
     }
   };
-
-  const getDepartmentUsers = () => {
-    if (!selectedDepartment) return [];
-    return mockUsers.filter(u => u.department === selectedDepartment);
-  };
-
-  const departments = ['IT', 'HR', 'Finance', 'Marketing', 'Operations', 'Sales'];
 
   const getPriorityColor = (priority: GoalPriority) => {
     const colors = {
@@ -116,6 +177,14 @@ export default function CreateGoalPage() {
     return colors[priority];
   };
 
+  if (loadingData) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -124,254 +193,204 @@ export default function CreateGoalPage() {
           🎯 {t("navigation.createGoals")}
         </Title>
         <p className="text-gray-600">
-          Create a new goal and track your progress
+          {t('goals.createGoalDescription')}
         </p>
       </Card>
 
       {/* Goal Form */}
-      <Row gutter={[24, 24]}>
-        <Col span={24}>
-          <Card title="Goal Details">
-            <Form
-              form={form}
-              onFinish={handleSubmit}
-              layout="vertical"
-              requiredMark={false}
-            >
-              <Form.Item
-                label="Goal Title"
-                name="title"
-                rules={[
-                  { required: true, message: 'Please enter goal title' },
-                  { min: 3, message: 'Title must be at least 3 characters' }
-                ]}
-              >
-                <Input
-                  prefix={<AimOutlined />}
-                  placeholder="Enter a clear and specific goal title"
-                  size="large"
-                />
-              </Form.Item>
+      <Card title={t('goals.goalDetails')}>
+        <Form
+          form={form}
+          onFinish={handleSubmit}
+          layout="vertical"
+          requiredMark={false}
+        >
+          <Form.Item
+            label={t('goals.goalTitle')}
+            name="title"
+            rules={[
+              { required: true, message: t('goals.titleRequired') },
+              { min: 3, message: t('goals.titleMinLength') }
+            ]}
+          >
+            <Input
+              prefix={<AimOutlined />}
+              placeholder={t('goals.titlePlaceholder')}
+              size="large"
+            />
+          </Form.Item>
 
-              <Form.Item
-                label="Description"
+                        <Form.Item
+                label={t('goals.goalDescriptionText')}
                 name="description"
                 rules={[
-                  { required: true, message: 'Please enter goal description' }
+                  { required: true, message: t('goals.descriptionRequired') }
                 ]}
               >
                 <TextArea
                   rows={4}
-                  placeholder="Describe your goal in detail, including what success looks like"
+                  placeholder={t('goals.descriptionPlaceholder')}
                 />
               </Form.Item>
 
-              <Form.Item label="Goal Assignment">
-                <Radio.Group
-                  value={goalType}
-                  onChange={(e) => {
-                    setGoalType(e.target.value);
-                    form.setFieldsValue({ assignedTo: [], department: undefined });
-                    setSelectedUsers([]);
-                  }}
-                  style={{ width: '100%' }}
-                >
-                  <Radio value="individual">
-                    <UserOutlined /> Individual Goal (assigned to specific users)
-                  </Radio>
-                  <Radio value="department">
-                    <TeamOutlined /> Department Goal (visible to all department members)
-                  </Radio>
-                </Radio.Group>
-              </Form.Item>
+          <Form.Item label={t('goals.goalAssignment')}>
+            <Radio.Group
+              value={goalType}
+              onChange={(e) => {
+                setGoalType(e.target.value);
+                form.setFieldsValue({ assignedTo: [], department: undefined });
+                setSelectedUsers([]);
+              }}
+              style={{ width: '100%' }}
+            >
+              <Radio value="individual">
+                <UserOutlined /> {t('goals.individualGoal')}
+              </Radio>
+              <Radio value="department">
+                <TeamOutlined /> {t('goals.departmentGoal')}
+              </Radio>
+            </Radio.Group>
+          </Form.Item>
 
-              {goalType === 'individual' && (
-                <Row gutter={16}>
-                  <Col xs={24} md={12}>
-                    <Form.Item
-                      label="Department"
-                      name="department"
-                      rules={[{ required: true, message: 'Please select department' }]}
-                    >
-                      <Select
-                        size="large"
-                        placeholder="Select department first"
-                        onChange={(value) => {
-                          setSelectedDepartment(value);
-                          form.setFieldsValue({ assignedTo: [] });
-                          setSelectedUsers([]);
-                        }}
-                      >
-                        {departments.map(dept => (
-                          <Option key={dept} value={dept}>{dept}</Option>
-                        ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                  <Col xs={24} md={12}>
-                    <Form.Item
-                      label="Assign To Users"
-                      name="assignedTo"
-                      rules={[{ required: true, message: 'Please select at least one user' }]}
-                    >
-                      <Select
-                        mode="multiple"
-                        size="large"
-                        placeholder="Select users from department"
-                        disabled={!selectedDepartment}
-                        loading={!selectedDepartment}
-                        onChange={setSelectedUsers}
-                        value={selectedUsers}
-                      >
-                        {getDepartmentUsers().map(user => (
+          {goalType === 'individual' && (
+            <Row gutter={16}>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={t('common.department')}
+                  name="department"
+                  rules={[{ required: true, message: t('goals.departmentRequired') }]}
+                >
+                  <Select
+                    size="large"
+                    placeholder={t('goals.selectDepartment')}
+                    onChange={(value) => {
+                      setSelectedDepartment(value);
+                      form.setFieldsValue({ assignedTo: [] });
+                      setSelectedUsers([]);
+                    }}
+                  >
+                    {departments.map(dept => (
+                      <Option key={dept.id} value={dept.id}>{dept.name}</Option>
+                    ))}
+                  </Select>
+                </Form.Item>
+              </Col>
+              <Col xs={24} md={12}>
+                <Form.Item
+                  label={t('goals.assignToUsers')}
+                  name="assignedTo"
+                  rules={[{ required: true, message: t('goals.usersRequired') }]}
+                >
+                  <Select
+                    mode="multiple"
+                    size="large"
+                    placeholder={t('goals.selectUsers')}
+                    disabled={!selectedDepartment}
+                    loading={!selectedDepartment}
+                    onChange={setSelectedUsers}
+                    value={selectedUsers}
+                  >
+                                            {filteredUsers.map(user => (
                           <Option key={user.id} value={user.id}>
                             <Space>
                               <UserOutlined />
                               {user.name}
+                              <Tag color="blue">{user.role}</Tag>
                             </Space>
                           </Option>
                         ))}
-                      </Select>
-                    </Form.Item>
-                  </Col>
-                </Row>
-              )}
-
-              {goalType === 'department' && (
-                <Form.Item
-                  label="Department"
-                  name="department"
-                  rules={[{ required: true, message: 'Please select department' }]}
-                >
-                  <Select size="large" placeholder="Select department for this goal">
-                    {departments.map(dept => (
-                      <Option key={dept} value={dept}>
-                        <TeamOutlined /> {dept}
-                      </Option>
-                    ))}
                   </Select>
                 </Form.Item>
-              )}
+              </Col>
+            </Row>
+          )}
 
-              <Row gutter={16}>
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Priority"
-                    name="priority"
-                    rules={[{ required: true, message: 'Please select priority' }]}
-                    initialValue={GoalPriority.MEDIUM}
-                  >
-                    <Select size="large">
-                      <Select.Option value={GoalPriority.LOW}>
-                        <Tag color={getPriorityColor(GoalPriority.LOW)}>Low Priority</Tag>
-                      </Select.Option>
-                      <Select.Option value={GoalPriority.MEDIUM}>
-                        <Tag color={getPriorityColor(GoalPriority.MEDIUM)}>Medium Priority</Tag>
-                      </Select.Option>
-                      <Select.Option value={GoalPriority.HIGH}>
-                        <Tag color={getPriorityColor(GoalPriority.HIGH)}>High Priority</Tag>
-                      </Select.Option>
-                    </Select>
-                  </Form.Item>
-                </Col>
+          {goalType === 'department' && (
+            <Form.Item
+              label={t('common.department')}
+              name="department"
+              rules={[{ required: true, message: t('goals.departmentRequired') }]}
+            >
+              <Select size="large" placeholder={t('goals.selectDepartmentForGoal')}>
+                {departments.map(dept => (
+                  <Option key={dept.id} value={dept.id}>
+                    <TeamOutlined /> {dept.name}
+                  </Option>
+                ))}
+              </Select>
+            </Form.Item>
+          )}
 
-                <Col xs={24} md={12}>
-                  <Form.Item
-                    label="Timeline"
-                    name="dateRange"
-                    rules={[{ required: true, message: 'Please select timeline' }]}
-                  >
-                    <RangePicker
-                      size="large"
-                      style={{ width: '100%' }}
-                      prefix={<CalendarOutlined />}
-                    />
-                  </Form.Item>
-                </Col>
-              </Row>
+          {goalType === 'department' && (
+            <Alert
+              message={t('goals.departmentGoalInfo')}
+              description={t('goals.departmentGoalDescription')}
+              type="info"
+              showIcon
+              className="mb-4"
+            />
+          )}
 
-              <Divider />
-
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
               <Form.Item
-                label="Completion Report Requirement"
-                name="requiresReportOnCompletion"
-                valuePropName="checked"
-                initialValue={true}
+                label={t('goals.priority')}
+                name="priority"
+                rules={[{ required: true, message: t('goals.priorityRequired') }]}
+                initialValue={GoalPriority.MEDIUM}
               >
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <input 
-                      type="checkbox" 
-                      defaultChecked
-                      onChange={(e) => {
-                        form.setFieldValue('requiresReportOnCompletion', e.target.checked);
-                      }}
-                    />
-                    <span>Require completion report when goal is finished</span>
-                    <Tooltip title="When enabled, assigned users must submit a completion report before the goal can be marked as 100% complete">
-                      <FileTextOutlined style={{ color: '#1890ff' }} />
-                    </Tooltip>
-                  </div>
-                  <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-                    This ensures proper documentation of goal outcomes and achievements
-                  </Typography.Text>
-                </div>
+                <Select size="large">
+                  <Select.Option value={GoalPriority.LOW}>
+                    <Tag color={getPriorityColor(GoalPriority.LOW)}>{t('goals.lowPriority')}</Tag>
+                  </Select.Option>
+                  <Select.Option value={GoalPriority.MEDIUM}>
+                    <Tag color={getPriorityColor(GoalPriority.MEDIUM)}>{t('goals.mediumPriority')}</Tag>
+                  </Select.Option>
+                  <Select.Option value={GoalPriority.HIGH}>
+                    <Tag color={getPriorityColor(GoalPriority.HIGH)}>{t('goals.highPriority')}</Tag>
+                  </Select.Option>
+                </Select>
               </Form.Item>
+            </Col>
 
-              <Form.Item>
-                <Space>
-                  <Button
-                    type="primary"
-                    htmlType="submit"
-                    loading={loading}
-                    icon={<SaveOutlined />}
-                    size="large"
-                  >
-                    Create Goal
-                  </Button>
-                  <Button 
-                    size="large"
-                    onClick={() => router.push('/goals/view')}
-                  >
-                    Cancel
-                  </Button>
-                </Space>
+            <Col xs={24} md={12}>
+              <Form.Item
+                label={t('goals.timeline')}
+                name="dateRange"
+                rules={[{ required: true, message: t('goals.timelineRequired') }]}
+              >
+                <RangePicker
+                  size="large"
+                  style={{ width: '100%' }}
+                  prefix={<CalendarOutlined />}
+                />
               </Form.Item>
-            </Form>
-          </Card>
-        </Col>
+            </Col>
+          </Row>
 
-        <Col xs={24} lg={8}>
-          <Card title="Goal Tips" className="mb-6">
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium text-gray-900">🎯 Be Specific</h4>
-                <p className="text-sm text-gray-600">
-                  Clear goals are easier to achieve and measure
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900">📊 Track Progress</h4>
-                <p className="text-sm text-gray-600">
-                  Use reports to document progress and updates
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900">� Team Goals</h4>
-                <p className="text-sm text-gray-600">
-                  Department goals allow team collaboration
-                </p>
-              </div>
-              <div>
-                <h4 className="font-medium text-gray-900">📝 Reports</h4>
-                <p className="text-sm text-gray-600">
-                  Submit detailed reports when goals are completed
-                </p>
-              </div>
-            </div>
-          </Card>
-        </Col>
-      </Row>
+          <Divider />
+
+          <Form.Item>
+            <Space>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+                icon={<SaveOutlined />}
+                size="large"
+              >
+                {t('goals.createGoal')}
+              </Button>
+              <Button 
+                size="large"
+                onClick={() => router.push('/goals/view')}
+              >
+                {t('common.cancel')}
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Card>
     </div>
   );
 }

@@ -68,6 +68,7 @@ export interface Dictionary {
     accessDenied: string;
     startDate: string;
     endDate: string;
+    department: string;
   };
   auth: {
     welcomeBack: string;
@@ -291,6 +292,36 @@ export interface Dictionary {
     title: string;
     subtitle: string;
     createNew: string;
+    // New translations for goal creation
+    goalTitle: string;
+    goalDescriptionText: string;
+    goalAssignment: string;
+    individualGoal: string;
+    departmentGoal: string;
+    departmentRequired: string;
+    usersRequired: string;
+    priority: string;
+    timeline: string;
+    titleRequired: string;
+    titleMinLength: string;
+    descriptionRequired: string;
+    priorityRequired: string;
+    timelineRequired: string;
+    assignToUsers: string;
+    selectDepartment: string;
+    selectUsers: string;
+    selectDepartmentForGoal: string;
+    departmentGoalInfo: string;
+    departmentGoalDescription: string;
+    lowPriority: string;
+    mediumPriority: string;
+    highPriority: string;
+    createGoalDescription: string;
+    goalDetails: string;
+    titlePlaceholder: string;
+    descriptionPlaceholder: string;
+    goalCreatedSuccessfully: string;
+    goalCreationFailed: string;
   };
   files: {
     myFiles: string;
@@ -511,6 +542,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       accessDenied: 'Acesso negado',
       startDate: 'Data de Início',
       endDate: 'Data de Fim',
+      department: 'Departamento',
     },
     auth: {
       welcomeBack: 'Bem-vindo de volta',
@@ -845,6 +877,36 @@ const dictionaries: Record<Locale, Dictionary> = {
       title: 'Gestão de Metas',
       subtitle: 'Acompanhe e gerencie metas e objetivos organizacionais',
       createNew: 'Criar Nova Meta',
+      // New translations for goal creation
+      goalTitle: 'Título da Meta',
+      goalDescriptionText: 'Descrição da Meta',
+      goalAssignment: 'Atribuição da Meta',
+      individualGoal: 'Meta Individual (atribuída a usuários específicos)',
+      departmentGoal: 'Meta de Departamento (visível para todos os membros do departamento)',
+      departmentRequired: 'Por favor selecione o departamento',
+      usersRequired: 'Por favor selecione pelo menos um usuário',
+      priority: 'Prioridade',
+      timeline: 'Cronograma',
+      titleRequired: 'Por favor digite o título da meta',
+      titleMinLength: 'O título deve ter pelo menos 3 caracteres',
+      descriptionRequired: 'Por favor digite a descrição da meta',
+      priorityRequired: 'Por favor selecione a prioridade',
+      timelineRequired: 'Por favor selecione o cronograma',
+      assignToUsers: 'Atribuir a Usuários',
+      selectDepartment: 'Selecionar departamento primeiro',
+      selectUsers: 'Selecionar usuários do departamento',
+      selectDepartmentForGoal: 'Selecionar departamento para esta meta',
+      departmentGoalInfo: 'Meta de Departamento',
+      departmentGoalDescription: 'Quando você seleciona uma meta de departamento, todos os usuários desse departamento serão automaticamente atribuídos à meta.',
+      lowPriority: 'Baixa Prioridade',
+      mediumPriority: 'Média Prioridade',
+      highPriority: 'Alta Prioridade',
+      createGoalDescription: 'Crie uma nova meta e acompanhe seu progresso',
+      goalDetails: 'Detalhes da Meta',
+      titlePlaceholder: 'Digite um título claro e específico para a meta',
+      descriptionPlaceholder: 'Descreva sua meta em detalhes, incluindo como o sucesso se parece',
+      goalCreatedSuccessfully: 'Meta criada com sucesso!',
+      goalCreationFailed: 'Falha ao criar meta',
     },
     files: {
       myFiles: 'Meus Arquivos',
@@ -1029,6 +1091,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       accessDenied: 'Access denied',
       startDate: 'Start Date',
       endDate: 'End Date',
+      department: 'Department',
     },
     auth: {
       welcomeBack: 'Welcome Back',
@@ -1363,6 +1426,36 @@ const dictionaries: Record<Locale, Dictionary> = {
       title: 'Goals Management',
       subtitle: 'Track and manage organizational goals and objectives',
       createNew: 'Create New Goal',
+      // New translations for goal creation
+      goalTitle: 'Goal Title',
+      goalDescriptionText: 'Goal Description',
+      goalAssignment: 'Goal Assignment',
+      individualGoal: 'Individual Goal (assigned to specific users)',
+      departmentGoal: 'Department Goal (visible to all department members)',
+      departmentRequired: 'Please select department',
+      usersRequired: 'Please select at least one user',
+      priority: 'Priority',
+      timeline: 'Timeline',
+      titleRequired: 'Please enter goal title',
+      titleMinLength: 'Title must be at least 3 characters',
+      descriptionRequired: 'Please enter goal description',
+      priorityRequired: 'Please select priority',
+      timelineRequired: 'Please select timeline',
+      assignToUsers: 'Assign To Users',
+      selectDepartment: 'Select department first',
+      selectUsers: 'Select users from department',
+      selectDepartmentForGoal: 'Select department for this goal',
+      departmentGoalInfo: 'Department Goal',
+      departmentGoalDescription: 'When you select a department goal, all users from that department will be automatically assigned to the goal.',
+      lowPriority: 'Low Priority',
+      mediumPriority: 'Medium Priority',
+      highPriority: 'High Priority',
+      createGoalDescription: 'Create a new goal and track your progress',
+      goalDetails: 'Goal Details',
+      titlePlaceholder: 'Enter a clear and specific goal title',
+      descriptionPlaceholder: 'Describe your goal in detail, including what success looks like',
+      goalCreatedSuccessfully: 'Goal created successfully!',
+      goalCreationFailed: 'Failed to create goal',
     },
     files: {
       myFiles: 'My Files',
