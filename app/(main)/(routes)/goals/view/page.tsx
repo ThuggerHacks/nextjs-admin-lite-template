@@ -403,15 +403,26 @@ export default function ViewGoalsPage() {
   const filteredGoals = goals.filter(goal => {
     const matchesSearch = goal.title.toLowerCase().includes(searchText.toLowerCase()) ||
                          goal.description.toLowerCase().includes(searchText.toLowerCase());
+    
+    // Fix status filter - compare enum values properly
     const matchesStatus = !statusFilter || goal.status === statusFilter;
+    
+    // Fix priority filter - compare enum values properly  
     const matchesPriority = !priorityFilter || goal.priority === priorityFilter;
+    
+    // Fix department filter
     const matchesDepartment = !departmentFilter || goal.department === departmentFilter;
     
+    // Fix date filter - ensure proper date comparison
     let matchesDate = true;
     if (dateRangeFilter && dateRangeFilter[0] && dateRangeFilter[1]) {
-      const startDate = dateRangeFilter[0].toDate();
-      const endDate = dateRangeFilter[1].toDate();
-      matchesDate = goal.startDate >= startDate && goal.endDate <= endDate;
+      const filterStartDate = dateRangeFilter[0].toDate();
+      const filterEndDate = dateRangeFilter[1].toDate();
+      const goalStartDate = new Date(goal.startDate);
+      const goalEndDate = new Date(goal.endDate);
+      
+      // Check if goal dates overlap with filter range
+      matchesDate = goalStartDate <= filterEndDate && goalEndDate >= filterStartDate;
     }
 
     return matchesSearch && matchesStatus && matchesPriority && matchesDepartment && matchesDate;
@@ -724,12 +735,12 @@ export default function ViewGoalsPage() {
               allowClear
               style={{ width: '100%' }}
             >
-              <Select.Option value="PENDING">{t('goals.pending')}</Select.Option>
-              <Select.Option value="IN_PROGRESS">{t('goals.inProgress')}</Select.Option>
-              <Select.Option value="ON_HOLD">{t('goals.onHold')}</Select.Option>
-              <Select.Option value="AWAITING">{t('goals.awaiting')}</Select.Option>
-              <Select.Option value="DONE">{t('goals.done')}</Select.Option>
-              <Select.Option value="COMPLETED">{t('goals.completed')}</Select.Option>
+              <Select.Option value="pending">{t('goals.pending')}</Select.Option>
+              <Select.Option value="in_progress">{t('goals.inProgress')}</Select.Option>
+              <Select.Option value="on_hold">{t('goals.onHold')}</Select.Option>
+              <Select.Option value="awaiting">{t('goals.awaiting')}</Select.Option>
+              <Select.Option value="done">{t('goals.done')}</Select.Option>
+              <Select.Option value="completed">{t('goals.completed')}</Select.Option>
             </Select>
           </Col>
           <Col span={4}>
@@ -740,9 +751,9 @@ export default function ViewGoalsPage() {
               allowClear
               style={{ width: '100%' }}
             >
-              <Select.Option value="LOW">{t('goals.lowPriority')}</Select.Option>
-              <Select.Option value="MEDIUM">{t('goals.mediumPriority')}</Select.Option>
-              <Select.Option value="HIGH">{t('goals.highPriority')}</Select.Option>
+              <Select.Option value="low">{t('goals.lowPriority')}</Select.Option>
+              <Select.Option value="medium">{t('goals.mediumPriority')}</Select.Option>
+              <Select.Option value="high">{t('goals.highPriority')}</Select.Option>
             </Select>
           </Col>
           <Col span={4}>
@@ -1098,12 +1109,12 @@ function StatusUpdateForm({ goal, onSuccess, onCancel }: {
         rules={[{ required: true, message: t('goals.statusRequired') }]}
       >
         <Select placeholder={t('goals.selectNewStatus')}                  >
-                    <Select.Option value="PENDING">{t('goals.pending')}</Select.Option>
-                    <Select.Option value="IN_PROGRESS">{t('goals.inProgress')}</Select.Option>
-                    <Select.Option value="ON_HOLD">{t('goals.onHold')}</Select.Option>
-                    <Select.Option value="AWAITING">{t('goals.awaiting')}</Select.Option>
-                    <Select.Option value="DONE">{t('goals.done')}</Select.Option>
-                    <Select.Option value="COMPLETED">{t('goals.completed')}</Select.Option>
+                    <Select.Option value="pending">{t('goals.pending')}</Select.Option>
+                    <Select.Option value="in_progress">{t('goals.inProgress')}</Select.Option>
+                    <Select.Option value="on_hold">{t('goals.onHold')}</Select.Option>
+                    <Select.Option value="awaiting">{t('goals.awaiting')}</Select.Option>
+                    <Select.Option value="done">{t('goals.done')}</Select.Option>
+                    <Select.Option value="completed">{t('goals.completed')}</Select.Option>
                   </Select>
       </Form.Item>
 
@@ -1299,11 +1310,11 @@ function UploadReportForm({ goal, onSuccess, onCancel }: {
         initialValue={goal.status}
       >
         <Select placeholder={t('goals.selectStatus')}>
-          <Select.Option value="PENDING">{t('goals.pending')}</Select.Option>
-          <Select.Option value="COMPLETED">{t('goals.completed')}</Select.Option>
-          <Select.Option value="BLOCKED">{t('goals.blocked')}</Select.Option>
-          <Select.Option value="ON_HOLD">{t('goals.onHold')}</Select.Option>
-          <Select.Option value="CANCELLED">{t('goals.cancelled')}</Select.Option>
+          <Select.Option value="pending">{t('goals.pending')}</Select.Option>
+          <Select.Option value="completed">{t('goals.completed')}</Select.Option>
+          <Select.Option value="blocked">{t('goals.blocked')}</Select.Option>
+          <Select.Option value="on_hold">{t('goals.onHold')}</Select.Option>
+          <Select.Option value="cancelled">{t('goals.cancelled')}</Select.Option>
         </Select>
       </Form.Item>
 
