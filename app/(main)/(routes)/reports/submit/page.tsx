@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Card, Form, Input, Select, Upload, Button, message, Row, Col, Progress, Typography } from "antd";
-import { UploadOutlined, FileTextOutlined, SendOutlined } from "@ant-design/icons";
+import { Card, Form, Input, Select, Upload, Button, message, Row, Col, Progress, Typography, AutoComplete } from "antd";
+import { UploadOutlined, FileTextOutlined, SendOutlined, PlusOutlined } from "@ant-design/icons";
 
 import { useUser } from "@/contexts/UserContext";
 import { useTranslation } from "@/contexts/LanguageContext";
@@ -28,10 +28,12 @@ export default function SubmitReportPage() {
   const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [fileList, setFileList] = useState<any[]>([]);
-  const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [fileProgresses, setFileProgresses] = useState<{ [key: number]: number }>({});
   const [isUploading, setIsUploading] = useState(false);
   const [supervisors, setSupervisors] = useState<Supervisor[]>([]);
   const [loadingSupervisors, setLoadingSupervisors] = useState(false);
+  const [reportType, setReportType] = useState<string>('');
   
   const { user } = useUser();
   const { t } = useTranslation();
@@ -74,57 +76,40 @@ export default function SubmitReportPage() {
   }, [loadSupervisors]);
 
   const handleSubmit = async (values: any) => {
+    // Validate report type
+    if (!reportType.trim()) {
+      message.error(t("reports.pleaseEnterReportType"));
+      return;
+    }
+
     setLoading(true);
     setIsUploading(true);
+    setUploadProgress(0);
+    setFileProgresses({});
     
     try {
-      // Simulate file upload progress if files are attached
-      if (fileList.length > 0) {
-        const progressInit = fileList.reduce((acc, file, index) => {
-          acc[`file-${index}`] = 0;
-          return acc;
-        }, {} as { [key: string]: number });
-        setUploadProgress(progressInit);
-
-        // Simulate upload progress for each file
-        const uploadPromises = fileList.map(async (file, index) => {
-          const fileKey = `file-${index}`;
-          
-          for (let progress = 0; progress <= 100; progress += Math.random() * 10 + 5) {
-            await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 100));
-            
-            setUploadProgress(prev => ({
-              ...prev,
-              [fileKey]: Math.min(progress, 100)
-            }));
-            
-            if (progress >= 100) break;
-          }
-        });
-        
-        await Promise.all(uploadPromises);
-      }
-      
-      // Simulate report submission API call
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
       // Convert file list to actual File objects
       const files = fileList.map(file => file.originFileObj).filter(Boolean);
 
-      // Submit the report using the new service
+      // Submit the report using the new service with real upload progress
       const result = await reportService.submitGeneralReport({
         title: values.title,
         description: values.description,
-        type: values.type,
-        submittedToId: values.supervisorId,
-        files: files
+        type: reportType,
+        submittedToIds: values.supervisorIds,
+        files: files,
+        onUploadProgress: (progress: number) => {
+          setUploadProgress(progress);
+        }
       });
 
       if (result.success) {
         message.success(t("reports.reportSubmitted"));
         form.resetFields();
         setFileList([]);
-        setUploadProgress({});
+        setUploadProgress(0);
+        setFileProgresses({});
+        setReportType('');
       } else {
         message.error(result.error || t("reports.failedToSubmitReport"));
       }
@@ -177,23 +162,45 @@ export default function SubmitReportPage() {
               <Form.Item
                 label={t("reports.reportType")}
                 name="type"
-                rules={[{ required: true, message: t("reports.pleaseSelectReportType") }]}
+                rules={[{ 
+                  required: true, 
+                  message: t("reports.pleaseEnterReportType") 
+                }]}
               >
-                <Select placeholder={t("reports.selectReportType")}>
-                  {getReportTypes().map(type => (
-                    <Option key={type.key} value={type.key}>{type.label}</Option>
-                  ))}
-                </Select>
+                <AutoComplete
+                  value={reportType}
+                  onChange={(value) => setReportType(value)}
+                  placeholder={t("reports.enterReportType")}
+                  options={getReportTypes().map(type => ({
+                    value: type.label,
+                    label: type.label
+                  }))}
+                  filterOption={(inputValue, option) =>
+                    option?.label?.toLowerCase().includes(inputValue.toLowerCase()) || false
+                  }
+                />
               </Form.Item>
             </Col>
 
             <Col xs={24} md={12}>
               <Form.Item
-                label={t("reports.selectSupervisor")}
-                name="supervisorId"
+                label={t("reports.selectSupervisors")}
+                name="supervisorIds"
                 rules={[{ required: true, message: t("reports.pleaseSelectSupervisor") }]}
               >
-                <Select placeholder={t("reports.selectSupervisorPlaceholder")} loading={loadingSupervisors}>
+                <Select 
+                  mode="multiple"
+                  placeholder={t("reports.selectSupervisorsPlaceholder")} 
+                  loading={loadingSupervisors}
+                  showSearch
+                  filterOption={(input, option) => {
+                    const children = option?.children;
+                    if (typeof children === 'string') {
+                      return children?.toLowerCase()?.includes(input.toLowerCase());
+                    }
+                    return false;
+                  }}
+                >
                   {getAvailableSupervisors().map(supervisor => (
                     <Option key={supervisor.id} value={supervisor.id}>
                       {supervisor.name} - {supervisor.department?.name || supervisor.role}
@@ -241,27 +248,28 @@ export default function SubmitReportPage() {
             </p>
 
             {/* Upload Progress */}
-            {isUploading && Object.keys(uploadProgress).length > 0 && (
+            {isUploading && fileList.length > 0 && (
               <Card title={t("reports.uploadProgress")} style={{ marginTop: 16 }} size="small">
-                <div style={{ maxHeight: 200, overflowY: 'auto' }}>
-                  {Object.entries(uploadProgress).map(([fileKey, progress], index) => {
-                    const file = fileList[parseInt(fileKey.split('-')[1])];
-                    return (
-                      <div key={fileKey} style={{ marginBottom: 12 }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                          <Text ellipsis style={{ maxWidth: '70%' }}>
-                            {file?.name || `File ${index + 1}`}
-                          </Text>
-                          <Text type="secondary">{Math.round(progress)}%</Text>
-                        </div>
-                        <Progress
-                          percent={Math.round(progress)}
-                          size="small"
-                          status={progress === 100 ? 'success' : 'active'}
-                        />
-                      </div>
-                    );
-                  })}
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <Text>
+                      {t("reports.uploadingFiles")} ({fileList.length} {fileList.length === 1 ? 'file' : 'files'})
+                    </Text>
+                    <Text type="secondary">{uploadProgress}%</Text>
+                  </div>
+                  <Progress
+                    percent={uploadProgress}
+                    status={uploadProgress === 100 ? 'success' : 'active'}
+                    strokeColor={{
+                      '0%': '#108ee9',
+                      '100%': '#87d068',
+                    }}
+                  />
+                  {uploadProgress === 100 && (
+                    <Text type="success" style={{ marginTop: 8, display: 'block' }}>
+                      {t("reports.uploadComplete")}
+                    </Text>
+                  )}
                 </div>
               </Card>
             )}

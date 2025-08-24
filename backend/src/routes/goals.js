@@ -71,14 +71,81 @@ router.get('/', authenticateToken, async (req, res) => {
       };
     } else if (['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role)) {
       if (req.user.role === 'SUPERVISOR' && req.user.departmentId) {
-        where.departmentId = req.user.departmentId;
+        // Supervisors can see goals in their department OR goals shared with them
+        where.OR = [
+          { departmentId: req.user.departmentId },
+          {
+            shares: {
+              some: {
+                sharedWithId: req.user.id
+              }
+            }
+          }
+        ];
+      } else if (req.user.role === 'ADMIN') {
+        // Admins can see goals in their department OR goals shared with them
+        where.OR = [
+          { departmentId: req.user.departmentId },
+          {
+            assignments: {
+              some: {
+                user: {
+                  departmentId: req.user.departmentId
+                }
+              }
+            }
+          },
+          {
+            shares: {
+              some: {
+                sharedWithId: req.user.id
+              }
+            }
+          }
+        ];
+      } else if (req.user.role === 'SUPER_ADMIN' || req.user.role === 'DEVELOPER') {
+        // Super admins can see:
+        // 1. Goals they created (published or not)
+        // 2. Goals shared with them
+        where.OR = [
+          {
+            createdById: req.user.id
+          },
+          {
+            shares: {
+              some: {
+                sharedWithId: req.user.id
+              }
+            }
+          }
+        ];
       }
     } else {
-      where.assignments = {
-        some: {
-          userId: req.user.id
+      // Regular users (USER role) can see:
+      // 1. Published goals assigned to them
+      // 2. Goals shared with them
+      // Note: Users don't create goals, only supervisors and above do
+      where.OR = [
+        {
+          AND: [
+            { isPublished: true },
+            {
+              assignments: {
+                some: {
+                  userId: req.user.id
+                }
+              }
+            }
+          ]
+        },
+        {
+          shares: {
+            some: {
+              sharedWithId: req.user.id
+            }
+          }
         }
-      };
+      ];
     }
 
     const goals = await prisma.goal.findMany({
@@ -120,6 +187,24 @@ router.get('/', authenticateToken, async (req, res) => {
             }
           }
         },
+        shares: {
+          include: {
+            sharedBy: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            },
+            sharedWith: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        },
         _count: {
           select: {
             assignments: true,
@@ -133,6 +218,11 @@ router.get('/', authenticateToken, async (req, res) => {
     });
 
     const total = await prisma.goal.count({ where });
+
+    // Debug: Log goals with shares
+    const goalsWithShares = goals.filter(g => g.shares && g.shares.length > 0);
+    console.log('Goals with shares found:', goalsWithShares.length);
+    console.log('Sample goal with shares:', goalsWithShares[0]);
 
     res.json({
       goals,
@@ -1164,6 +1254,252 @@ router.get('/reports/:reportId/files/:fileId/download', authenticateToken, async
   } catch (error) {
     await logError('DATABASE_ERROR', 'Download goal report file failed', error);
     res.status(500).json({ error: 'Failed to download file' });
+  }
+});
+
+// Publish goal endpoint
+router.patch('/:goalId/publish', authenticateToken, async (req, res) => {
+  try {
+    const { goalId } = req.params;
+
+    // Check if goal exists and user has permission to publish
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId },
+      include: {
+        createdBy: true
+      }
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Only the creator, supervisors, admins, or super admins can publish
+    const canPublish = goal.createdById === req.user.id || 
+                      ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+
+    if (!canPublish) {
+      return res.status(403).json({ error: 'Access denied. Only goal creator or supervisors can publish goals.' });
+    }
+
+    // Update goal to published
+    const updatedGoal = await prisma.goal.update({
+      where: { id: goalId },
+      data: {
+        isPublished: true,
+        publishedAt: new Date()
+      },
+      include: {
+        department: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        assignments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    // Send notifications to assigned users
+    if (updatedGoal.assignments && updatedGoal.assignments.length > 0) {
+      for (const assignment of updatedGoal.assignments) {
+        await createNotification(
+          assignment.userId,
+          'GOAL_PUBLISHED',
+          `Goal "${updatedGoal.name}" has been published and is now available`,
+          `/goals/view`,
+          req.user.sucursalId
+        );
+      }
+    }
+
+    res.json({ 
+      message: 'Goal published successfully',
+      goal: updatedGoal 
+    });
+  } catch (error) {
+    console.error('Publish goal error:', error);
+    await logError('PUBLISH_GOAL_ERROR', 'Failed to publish goal', error);
+    res.status(500).json({ error: 'Failed to publish goal' });
+  }
+});
+
+// Share goal endpoint
+router.post('/:goalId/share', authenticateToken, [
+  body('sharedWithIds').isArray({ min: 1 }).withMessage('Must share with at least one user'),
+  body('message').optional().isString().withMessage('Message must be a string')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { goalId } = req.params;
+    const { sharedWithIds, message } = req.body;
+
+    // Check if goal exists and is completed
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId },
+      include: {
+        department: true,
+        createdBy: true
+      }
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    // Only completed goals can be shared
+    if (goal.status?.toLowerCase() !== 'completed' && goal.status?.toLowerCase() !== 'done') {
+      return res.status(400).json({ error: 'Only completed goals can be shared' });
+    }
+
+    // Only supervisors, admins, or super admins can share goals
+    const canShare = ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+
+    if (!canShare) {
+      return res.status(403).json({ error: 'Access denied. Only supervisors and above can share goals.' });
+    }
+
+    // Verify all recipients exist and have appropriate roles
+    const recipients = await prisma.user.findMany({
+      where: { 
+        id: { in: sharedWithIds },
+        sucursalId: req.user.sucursalId 
+      }
+    });
+
+    if (recipients.length !== sharedWithIds.length) {
+      return res.status(400).json({ error: 'One or more selected users are invalid' });
+    }
+
+    // Create shares (ignore duplicates)
+    const sharePromises = sharedWithIds.map(async (userId) => {
+      try {
+        return await prisma.goalShare.create({
+          data: {
+            goalId,
+            sharedById: req.user.id,
+            sharedWithId: userId,
+            message: message || null
+          }
+        });
+      } catch (error) {
+        // Ignore duplicate shares
+        if (error.code === 'P2002') {
+          return null;
+        }
+        throw error;
+      }
+    });
+
+    const shares = await Promise.all(sharePromises);
+    const createdShares = shares.filter(share => share !== null);
+
+    // Send notifications to recipients
+    for (const recipient of recipients) {
+      await createNotification(
+        recipient.id,
+        'GOAL_SHARED',
+        `Goal "${goal.name}" has been shared with you by ${req.user.name}`,
+        `/goals/view`,
+        req.user.sucursalId
+      );
+    }
+
+    res.json({ 
+      message: `Goal shared with ${createdShares.length} user(s)`,
+      shares: createdShares 
+    });
+  } catch (error) {
+    console.error('Share goal error:', error);
+    await logError('SHARE_GOAL_ERROR', 'Failed to share goal', error);
+    res.status(500).json({ error: 'Failed to share goal' });
+  }
+});
+
+// Get users available for sharing
+router.get('/users/shareable', authenticateToken, async (req, res) => {
+  try {
+    // Only supervisors, admins, and super admins can access this endpoint
+    const canShare = ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+    
+    if (!canShare) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    let users = [];
+
+    if (req.user.role === 'SUPERVISOR' || req.user.role === 'ADMIN') {
+      // Supervisors and admins can share with super admins
+      users = await prisma.user.findMany({
+        where: {
+          sucursalId: req.user.sucursalId,
+          role: { in: ['SUPER_ADMIN', 'DEVELOPER'] },
+          id: { not: req.user.id } // Exclude self
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [
+          { role: 'desc' },
+          { name: 'asc' }
+        ]
+      });
+    } else if (req.user.role === 'SUPER_ADMIN' || req.user.role === 'DEVELOPER') {
+      // Super admins can share with anyone
+      users = await prisma.user.findMany({
+        where: {
+          sucursalId: req.user.sucursalId,
+          id: { not: req.user.id } // Exclude self
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          role: true,
+          department: {
+            select: {
+              id: true,
+              name: true
+            }
+          }
+        },
+        orderBy: [
+          { role: 'desc' },
+          { name: 'asc' }
+        ]
+      });
+    }
+
+    res.json(users);
+  } catch (error) {
+    console.error('Get shareable users error:', error);
+    await logError('GET_SHAREABLE_USERS_ERROR', 'Failed to get shareable users', error);
+    res.status(500).json({ error: 'Failed to get users' });
   }
 });
 

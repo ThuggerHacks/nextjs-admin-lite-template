@@ -225,4 +225,49 @@ export const goalService = {
     });
     return response.data.report || response.data;
   },
+
+  // Publish goal
+  publishGoal: async (id: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const response = await api.patch(`/goals/${id}/publish`);
+      return { success: true, message: response.data.message };
+    } catch (error: any) {
+      console.error('Publish goal error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to publish goal' 
+      };
+    }
+  },
+
+  // Share goal
+  shareGoal: async (id: string, sharedWithIds: string[], message?: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const response = await api.post(`/goals/${id}/share`, {
+        sharedWithIds,
+        message
+      });
+      return { success: true, message: response.data.message };
+    } catch (error: any) {
+      console.error('Share goal error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to share goal' 
+      };
+    }
+  },
+
+  // Get users available for sharing
+  getShareableUsers: async (): Promise<{ success: boolean; users?: any[]; error?: string }> => {
+    try {
+      const response = await api.get('/goals/users/shareable');
+      return { success: true, users: response.data };
+    } catch (error: any) {
+      console.error('Get shareable users error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to get shareable users' 
+      };
+    }
+  },
 };

@@ -46,6 +46,8 @@ import {
   FileTextOutlined,
   DownloadOutlined,
   EyeOutlined as ViewFileOutlined,
+  SendOutlined,
+  ShareAltOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
@@ -63,6 +65,7 @@ import { goalService, CreateGoalRequest, UpdateGoalRequest } from '@/lib/service
 import { userService } from '@/lib/services/userService';
 import { departmentService } from '@/lib/services/departmentService';
 import { apiService as api, baseUrl } from '@/lib/axios';
+import ShareGoalForm from '@/components/ShareGoalForm';
 
 const { Title, Text } = Typography;
 
@@ -144,6 +147,23 @@ interface GoalWithAssignments {
   isCompleted: boolean;
   requiresReportOnCompletion: boolean;
   completionReportSubmitted: boolean;
+  isPublished: boolean;
+  publishedAt?: Date;
+  shares?: Array<{
+    id: string;
+    sharedBy: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    sharedWith: {
+      id: string;
+      name: string;
+      email: string;
+    };
+    sharedAt: Date;
+    message?: string;
+  }>;
 }
 
 interface GoalReport {
@@ -184,6 +204,8 @@ export default function ViewGoalsPage() {
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [reportsModalVisible, setReportsModalVisible] = useState(false);
   const [statusUpdateModalVisible, setStatusUpdateModalVisible] = useState(false);
+  const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [shareableUsers, setShareableUsers] = useState<any[]>([]);
 
   const [activeTab, setActiveTab] = useState('my-goals');
   const [searchText, setSearchText] = useState('');
@@ -234,6 +256,10 @@ export default function ViewGoalsPage() {
 
       // Load goals from backend using service
       const goalsResponse = await goalService.getAll();
+      
+      // Debug: Log the raw response to see what's being returned
+      console.log('Raw goals response:', goalsResponse);
+      console.log('Goals with shares:', goalsResponse.goals.filter((g: any) => g.shares && g.shares.length > 0));
       
       // Store original goals data for edit functionality
       const originalGoalsMap = new Map();
@@ -291,9 +317,16 @@ export default function ViewGoalsPage() {
         isCompleted: goal.isCompleted || false,
         requiresReportOnCompletion: goal.requiresReportOnCompletion || false,
         completionReportSubmitted: goal.completionReportSubmitted || false,
+        isPublished: goal.isPublished || false,
+        publishedAt: goal.publishedAt ? new Date(goal.publishedAt) : undefined,
+        shares: goal.shares || [], // Will be empty until backend supports it
         status: mapBackendStatusToFrontend(goal.status),
         priority: mapBackendPriorityToFrontend(goal.priority)
       }));
+
+      // Debug: Log goals with shares after mapping
+      const goalsWithShares = goalsWithAssignments.filter(g => g.shares && g.shares.length > 0);
+      console.log('Goals with shares after mapping:', goalsWithShares);
 
       setGoals(goalsWithAssignments);
     } catch (error) {
@@ -322,6 +355,38 @@ export default function ViewGoalsPage() {
   const handleViewReports = (goal: GoalWithAssignments) => {
     setSelectedGoal(goal);
     setReportsModalVisible(true);
+  };
+
+  const handlePublishGoal = async (goal: GoalWithAssignments) => {
+    try {
+      const result = await goalService.publishGoal(goal.id);
+      if (result.success) {
+        message.success(result.message || t('goals.goalPublished'));
+        loadInitialData(); // Reload to show updated status
+      } else {
+        message.error(result.error || t('goals.failedToPublishGoal'));
+      }
+    } catch (error) {
+      console.error('Error publishing goal:', error);
+      message.error(t('goals.failedToPublishGoal'));
+    }
+  };
+
+  const handleShareGoal = async (goal: GoalWithAssignments) => {
+    setSelectedGoal(goal);
+    // Load shareable users
+    try {
+      const result = await goalService.getShareableUsers();
+      if (result.success) {
+        setShareableUsers(result.users || []);
+        setShareModalVisible(true);
+      } else {
+        message.error(result.error || t('goals.failedToLoadUsers'));
+      }
+    } catch (error) {
+      console.error('Error loading shareable users:', error);
+      message.error(t('goals.failedToLoadUsers'));
+    }
   };
 
   const handleEditGoal = (goalId: string) => {
@@ -434,10 +499,14 @@ export default function ViewGoalsPage() {
       case 'my-goals':
         return filteredGoals.filter(goal => 
           goal.assignedTo.some(assignedUser => assignedUser.id === user?.id) ||
-          goal.createdBy.id === user?.id
+          goal.createdBy.id === user?.id ||
+          goal.shares?.some(share => share.sharedWith?.id === user?.id)
         );
       case 'department-goals':
-        return filteredGoals.filter(goal => goal.department === user?.department?.name);
+        return filteredGoals.filter(goal => 
+          goal.department === user?.department?.name ||
+          goal.shares?.some(share => share.sharedWith?.id === user?.id)
+        );
       case 'all-goals':
         return filteredGoals;
       default:
@@ -466,6 +535,31 @@ export default function ViewGoalsPage() {
             <Tag color={getStatusColor(record.status as GoalStatus)} icon={getStatusIcon(record.status as GoalStatus)}>
               {record.status.replace('_', ' ').toUpperCase()}
             </Tag>
+            {record.isPublished ? (
+              <Tag color="green">📢 Published</Tag>
+            ) : (
+              <Tag color="orange">📝 Draft</Tag>
+            )}
+            {record.shares && record.shares.length > 0 && (
+              <div className="mt-1">
+                {record.shares.map((share, index) => (
+                  <Tooltip 
+                    key={share.id} 
+                    title={
+                      <div>
+                        <div><strong>{t('goals.sharedBy')}:</strong> {share.sharedBy.name}</div>
+                        <div><strong>{t('goals.sharedOn')}:</strong> {new Date(share.sharedAt).toLocaleDateString()}</div>
+                        {share.message && <div><strong>{t('goals.message')}:</strong> {share.message}</div>}
+                      </div>
+                    }
+                  >
+                    <Tag color="blue" className="mr-1 cursor-help">
+                      🔗 Shared by {share.sharedBy.name}
+                    </Tag>
+                  </Tooltip>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       ),
@@ -506,9 +600,45 @@ export default function ViewGoalsPage() {
         </div>
       ),
     },
+    // {
+    //   title: t('goals.sharingInfo'),
+    //   key: 'sharing',
+    //   width: 150,
+    //   render: (record: GoalWithAssignments) => {
+    //     if (!record.shares || record.shares.length === 0) {
+    //       return <div className="text-gray-400">Not shared</div>;
+    //     }
+        
+    //     return (
+    //       <div>
+    //         {record.shares.map((share, index) => (
+    //           <div key={share.id} className="mb-1">
+    //             <Tooltip 
+    //               title={
+    //                 <div>
+    //                   <div><strong>{t('goals.sharedBy')}:</strong> {share.sharedBy.name}</div>
+    //                   <div><strong>{t('goals.sharedOn')}:</strong> {new Date(share.sharedAt).toLocaleDateString()}</div>
+    //                   {share.message && <div><strong>{t('goals.message')}:</strong> {share.message}</div>}
+    //                 </div>
+    //               }
+    //             >
+    //               <Tag color="blue" className="cursor-help">
+    //                 🔗 {share.sharedBy.name}
+    //               </Tag>
+    //             </Tooltip>
+    //             <div className="text-xs text-gray-500 mt-1">
+    //               {new Date(share.sharedAt).toLocaleDateString()}
+    //             </div>
+    //           </div>
+    //         ))}
+    //       </div>
+    //     );
+    //   },
+    // },
     {
       title: t('goals.timeline'),
       key: 'timeline',
+      width:330,
       render: (record: GoalWithAssignments) => {
         const daysRemaining = Math.ceil((record.endDate.getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
         return (
@@ -544,14 +674,17 @@ export default function ViewGoalsPage() {
     {
       title: t('goals.actions'),
       key: 'actions',
-      width: 200,
       render: (record: GoalWithAssignments) => {
-        const canEdit = record.createdBy.id === user?.id || hasRole(UserRole.ADMIN);
-        const canDelete = record.createdBy.id === user?.id || hasRole(UserRole.ADMIN);
+        const canEdit = (record.createdBy.id === user?.id) && !record.isPublished;
+        const canDelete = (record.createdBy.id === user?.id) && !record.isPublished;
         const isAssigned = record.assignedTo && record.assignedTo.some(assignedUser => assignedUser.id === user?.id);
         
+        const canPublish = (record.createdBy.id === user?.id) && !record.isPublished;
+        const canShare = (hasRole(UserRole.SUPERVISOR) || hasRole(UserRole.ADMIN) || hasRole(UserRole.SUPER_ADMIN)) && 
+                         (record.status === GoalStatus.COMPLETED || record.status === GoalStatus.DONE);
+        
         return (
-          <Space>
+          <Space wrap>
             <Tooltip title={t('goals.viewDetails')}>
               <Button
                 icon={<EyeOutlined />}
@@ -577,6 +710,29 @@ export default function ViewGoalsPage() {
                   />
                 </Tooltip>
               </>
+            )}
+
+            {canPublish && (
+              <Tooltip title={t('goals.publishGoal')}>
+                <Button
+                  icon={<SendOutlined />}
+                  size="small"
+                  type="primary"
+                  onClick={() => handlePublishGoal(record)}
+                >
+                  {/* {t('goals.publish')} */}
+                </Button>
+              </Tooltip>
+            )}
+
+            {canShare && (
+              <Tooltip title={t('goals.shareGoal')}>
+                <Button
+                  icon={<ShareAltOutlined />}
+                  size="small"
+                  onClick={() => handleShareGoal(record)}
+                />
+              </Tooltip>
             )}
             
             {canEdit && (
@@ -620,7 +776,7 @@ export default function ViewGoalsPage() {
       }
     ];
 
-    if (hasRole(UserRole.ADMIN)) {
+    if (hasRole(UserRole.ADMIN) || hasRole(UserRole.SUPER_ADMIN)) {
       tabs.push({
         key: 'all-goals',
         label: t('goals.allGoals'),
@@ -812,7 +968,7 @@ export default function ViewGoalsPage() {
           <Button key="close" onClick={() => setDetailsModalVisible(false)}>
             {t('common.close')}
           </Button>,
-          selectedGoal && ((selectedGoal.assignedTo && selectedGoal.assignedTo.some(assignedUser => assignedUser.id === user?.id)) || selectedGoal.createdBy.id === user?.id || hasRole(UserRole.ADMIN)) && (
+          selectedGoal && selectedGoal.createdBy.id === user?.id && !selectedGoal.isPublished && (
             <Button key="edit" type="primary" onClick={() => {
               setDetailsModalVisible(false);
               handleEditGoal(selectedGoal.id);
@@ -879,6 +1035,27 @@ export default function ViewGoalsPage() {
               <Descriptions.Item label={t('goals.lastUpdated')}>
                 {selectedGoal.updatedAt.toLocaleDateString()}
               </Descriptions.Item>
+              {selectedGoal.shares && selectedGoal.shares.length > 0 && (
+                <Descriptions.Item label={t('goals.sharedWithYou')} span={2}>
+                  <div>
+                    {selectedGoal.shares.map((share, index) => (
+                      <div key={share.id} className="mb-2 p-2 bg-blue-50 rounded border">
+                        <div className="font-medium text-blue-800">
+                          🔗 {t('goals.sharedBy')} {share.sharedBy.name} ({share.sharedBy.email})
+                        </div>
+                        <div className="text-sm text-blue-600">
+                          {t('goals.sharedOn')}: {new Date(share.sharedAt).toLocaleDateString()}
+                        </div>
+                        {share.message && (
+                          <div className="text-sm text-gray-600 mt-1">
+                            Message: "{share.message}"
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </Descriptions.Item>
+              )}
             </Descriptions>
           </div>
         )}
@@ -1052,6 +1229,27 @@ export default function ViewGoalsPage() {
               loadInitialData(); // Reload goals to show updated status
             }}
             onCancel={() => setStatusUpdateModalVisible(false)}
+          />
+        )}
+      </Modal>
+
+      {/* Share Goal Modal */}
+      <Modal
+        title={`${t('goals.shareGoal')} - ${selectedGoal?.title || ''}`}
+        open={shareModalVisible}
+        onCancel={() => setShareModalVisible(false)}
+        footer={null}
+        width={600}
+      >
+        {selectedGoal && (
+          <ShareGoalForm
+            goal={selectedGoal}
+            shareableUsers={shareableUsers}
+            onSuccess={() => {
+              setShareModalVisible(false);
+              loadInitialData(); // Reload to show updated shares
+            }}
+            onCancel={() => setShareModalVisible(false)}
           />
         )}
       </Modal>

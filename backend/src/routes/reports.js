@@ -40,11 +40,14 @@ const upload = multer({
 });
 
 // Submit a general report (not goal-related)
-router.post('/submit', authenticateToken, upload.array('files', 5), [
+router.post('/submit', authenticateToken, [
   body('title').notEmpty().withMessage('Report title is required'),
   body('description').notEmpty().withMessage('Report description is required'),
   body('type').notEmpty().withMessage('Report type is required'),
   body('submittedToId').optional().isString().withMessage('Submitted to ID must be a string'),
+  body('submittedToIds').optional().isArray().withMessage('Submitted to IDs must be an array'),
+  body('fileUrls').optional().isArray().withMessage('File URLs must be an array'),
+  body('fileMetadata').optional().isArray().withMessage('File metadata must be an array'),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -52,10 +55,39 @@ router.post('/submit', authenticateToken, upload.array('files', 5), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { title, description, type, submittedToId } = req.body;
-    const files = req.files || [];
+    const { title, description, type, submittedToId, submittedToIds, fileMetadata } = req.body;
 
-    // Create the report record
+    // Handle both single and multiple supervisor selection for backward compatibility
+    let recipientIds = [];
+    if (submittedToIds && Array.isArray(submittedToIds) && submittedToIds.length > 0) {
+      recipientIds = submittedToIds;
+    } else if (submittedToId) {
+      recipientIds = [submittedToId];
+    }
+
+    // Verify all recipient users exist and have appropriate roles
+    if (recipientIds.length > 0) {
+      const recipients = await prisma.user.findMany({
+        where: { 
+          id: { in: recipientIds },
+          sucursalId: req.user.sucursalId 
+        }
+      });
+      
+      if (recipients.length !== recipientIds.length) {
+        return res.status(400).json({ error: 'One or more selected supervisors are invalid' });
+      }
+      
+      const invalidRecipients = recipients.filter(user => 
+        !['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(user.role)
+      );
+      
+      if (invalidRecipients.length > 0) {
+        return res.status(400).json({ error: 'One or more selected users cannot receive reports' });
+      }
+    }
+
+    // Create the report record - we'll store the primary recipient for backward compatibility
     const reportData = {
       title,
       description,
@@ -63,36 +95,26 @@ router.post('/submit', authenticateToken, upload.array('files', 5), [
       status: 'PENDING',
       submittedById: req.user.id,
       sucursalId: req.user.sucursalId,
+      submittedToId: recipientIds.length > 0 ? recipientIds[0] : null,
     };
 
-    if (submittedToId) {
-      // Verify the submitted to user exists and has appropriate role
-      const submittedToUser = await prisma.user.findUnique({
-        where: { id: submittedToId }
-      });
-      
-      if (!submittedToUser) {
-        return res.status(400).json({ error: 'Invalid supervisor selected' });
-      }
-      
-      if (!['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(submittedToUser.role)) {
-        return res.status(400).json({ error: 'Selected user cannot receive reports' });
-      }
-      
-      reportData.submittedToId = submittedToId;
-    }
-
-    // First create files if any
+    // Create file records from metadata if any
     let createdFiles = [];
-    if (files.length > 0) {
-      for (const file of files) {
+    if (fileMetadata && Array.isArray(fileMetadata) && fileMetadata.length > 0) {
+      for (const fileData of fileMetadata) {
+        // Extract filename from URL (assuming URL format: .../uploads/files/filename)
+        const urlParts = fileData.url.split('/');
+        const filename = urlParts[urlParts.length - 1];
+        
         const createdFile = await prisma.file.create({
           data: {
-            name: file.filename,
-            originalName: file.originalname,
-            path: file.path,
-            size: file.size,
-            mimeType: file.mimetype,
+            name: filename,
+            originalName: fileData.originalName || filename,
+            url: fileData.url,
+            path: fileData.url,
+            size: fileData.size || 0,
+            type: 'file',
+            mimeType: fileData.mimeType || '',
             userId: req.user.id,
             sucursalId: req.user.sucursalId,
           }
@@ -140,15 +162,19 @@ router.post('/submit', authenticateToken, upload.array('files', 5), [
       }
     });
 
-    // Create notification for the recipient
-    if (submittedToId) {
-      await createNotification(
-        submittedToId,
-        'REPORT_SUBMITTED',
-        `New report submitted: ${title}`,
-        `/reports/view?id=${report.id}`,
-        req.user.sucursalId
+    // Create notifications for all recipients
+    if (recipientIds.length > 0) {
+      const notificationPromises = recipientIds.map(recipientId =>
+        createNotification(
+          recipientId,
+          'REPORT_SUBMITTED',
+          `New report submitted: ${title}`,
+          `/reports/view?id=${report.id}`,
+          req.user.sucursalId
+        )
       );
+      
+      await Promise.all(notificationPromises);
     }
 
     res.status(201).json(report);
@@ -165,22 +191,14 @@ router.get('/supervisors', authenticateToken, async (req, res) => {
     let supervisors = [];
 
     if (req.user.role === 'USER') {
-      // Users can submit to admins in their department or super admins
+      // Users can only submit to supervisors/admins of their department
       supervisors = await prisma.user.findMany({
         where: {
           sucursalId: req.user.sucursalId,
+          departmentId: req.user.departmentId,
           OR: [
-            {
-              role: 'SUPER_ADMIN'
-            },
-            {
-              role: 'ADMIN',
-              departmentId: req.user.departmentId
-            },
-            {
-              role: 'SUPERVISOR',
-              departmentId: req.user.departmentId
-            }
+            { role: 'SUPERVISOR' },
+            { role: 'ADMIN' }
           ]
         },
         select: {
@@ -196,8 +214,8 @@ router.get('/supervisors', authenticateToken, async (req, res) => {
           }
         }
       });
-    } else if (req.user.role === 'ADMIN') {
-      // Admins can submit to super admins
+    } else if (req.user.role === 'SUPERVISOR' || req.user.role === 'ADMIN') {
+      // Supervisors and Admins can submit to all super admins
       supervisors = await prisma.user.findMany({
         where: {
           sucursalId: req.user.sucursalId,
@@ -216,15 +234,14 @@ router.get('/supervisors', authenticateToken, async (req, res) => {
           }
         }
       });
-    } else if (req.user.role === 'SUPERVISOR') {
-      // Supervisors can submit to admins and super admins
+    } else if (req.user.role === 'SUPER_ADMIN' || req.user.role === 'DEVELOPER') {
+      // Super admins can submit to all users
       supervisors = await prisma.user.findMany({
         where: {
           sucursalId: req.user.sucursalId,
-          OR: [
-            { role: 'SUPER_ADMIN' },
-            { role: 'ADMIN' }
-          ]
+          id: {
+            not: req.user.id // Exclude self
+          }
         },
         select: {
           id: true,
@@ -237,7 +254,11 @@ router.get('/supervisors', authenticateToken, async (req, res) => {
               name: true
             }
           }
-        }
+        },
+        orderBy: [
+          { role: 'desc' }, // Higher roles first
+          { name: 'asc' }
+        ]
       });
     }
 

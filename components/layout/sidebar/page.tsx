@@ -63,7 +63,7 @@ const SiderPage = () => {
     const targetKey = e.key as string;
     
     // Only navigate if it's a direct page URL (not a parent menu)
-    if (targetKey && targetKey !== '/reports' && targetKey !== '/goals' && targetKey !== '/management') {
+    if (targetKey && targetKey !== '/goals' && targetKey !== '/management') {
       if (pathname !== targetKey) {
         router.push(targetKey);
         onStart();
@@ -155,29 +155,29 @@ const SiderPage = () => {
       )
     );
 
-    // Reports section - All users
-    const reportsChildren: MenuItem[] = [];
+    // Reports section - Commented out as requested
+    // const reportsChildren: MenuItem[] = [];
 
-    // All users can submit reports
-    reportsChildren.push(
-      getItem(t("navigation.submitReports"), "/reports/submit", <UploadOutlined />)
-    );
+    // // All users can submit reports
+    // reportsChildren.push(
+    //   getItem(t("navigation.submitReports"), "/reports/submit", <UploadOutlined />)
+    // );
 
-    // Supervisors and above can view reports
-    if (isSupervisorOrHigher) {
-      reportsChildren.push(
-        getItem(t("navigation.viewReports"), "/reports/view", <FileTextOutlined />)
-      );
-    }
+    // // Supervisors and above can view reports
+    // if (isSupervisorOrHigher) {
+    //   reportsChildren.push(
+    //     getItem(t("navigation.viewReports"), "/reports/view", <FileTextOutlined />)
+    //   );
+    // }
 
-    menuItems.push(
-      getItem(
-        t("navigation.reports"),
-        "/reports",
-        <FileTextOutlined />,
-        reportsChildren
-      )
-    );
+    // menuItems.push(
+    //   getItem(
+    //     t("navigation.reports"),
+    //     "/reports",
+    //     <FileTextOutlined />,
+    //     reportsChildren
+    //   )
+    // );
 
     // Documents and Files - All users
     menuItems.push(
@@ -240,7 +240,7 @@ const SiderPage = () => {
         <Menu
           onClick={onClick}
           defaultSelectedKeys={[selectedKeys]}
-          defaultOpenKeys={["/reports", "/goals", "/management"]}
+          defaultOpenKeys={["/goals", "/management"]}
           mode="inline"
           items={items}
           inlineCollapsed={isCollapsed}

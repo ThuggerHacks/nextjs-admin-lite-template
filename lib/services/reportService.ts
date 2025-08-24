@@ -111,37 +111,105 @@ export interface ReportStats {
 }
 
 export const reportService = {
+  // Upload files and get URLs
+  uploadFiles: async (files: File[], onProgress?: (fileIndex: number, progress: number) => void): Promise<{ success: boolean; fileUrls?: string[]; error?: string }> => {
+    try {
+      const token = localStorage.getItem('token');
+      const fileUrls: string[] = [];
+      
+      // Upload files one by one to get individual progress
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await axios.post(`${API_BASE_URL}/uploads`, formData, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'multipart/form-data',
+          },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total && onProgress) {
+              const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+              onProgress(i, percentCompleted);
+            }
+          },
+        });
+
+        if (response.data && response.data.file && response.data.file.url) {
+          fileUrls.push(response.data.file.url);
+        }
+      }
+
+      return { success: true, fileUrls };
+    } catch (error: any) {
+      console.error('Upload files error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.message || error.response?.data?.error || 'Failed to upload files'
+      };
+    }
+  },
+
   // Submit a general report
   submitGeneralReport: async (reportData: {
     title: string;
     description: string;
     type: string;
     submittedToId?: string;
+    submittedToIds?: string[];
     files?: File[];
+    onUploadProgress?: (progress: number) => void;
   }): Promise<{ success: boolean; report?: GeneralReport; error?: string }> => {
     try {
       const token = localStorage.getItem('token');
       
-      const formData = new FormData();
-      formData.append('title', reportData.title);
-      formData.append('description', reportData.description);
-      formData.append('type', reportData.type);
-      
-      if (reportData.submittedToId) {
-        formData.append('submittedToId', reportData.submittedToId);
-      }
-
-      // Add files if any
+      // First upload files if any
+      let fileUrls: string[] = [];
       if (reportData.files && reportData.files.length > 0) {
-        reportData.files.forEach((file) => {
-          formData.append('files', file);
+        const uploadResult = await reportService.uploadFiles(reportData.files, (fileIndex, progress) => {
+          // Calculate overall progress
+          const baseProgress = (fileIndex / reportData.files!.length) * 100;
+          const currentFileProgress = (progress / reportData.files!.length);
+          const totalProgress = Math.min(baseProgress + currentFileProgress, 100);
+          
+          if (reportData.onUploadProgress) {
+            reportData.onUploadProgress(totalProgress);
+          }
         });
+
+        if (!uploadResult.success) {
+          return { success: false, error: uploadResult.error };
+        }
+
+        fileUrls = uploadResult.fileUrls || [];
       }
 
-      const response = await axios.post(`${API_BASE_URL}/reports/submit`, formData, {
+      // Then submit the report with file metadata
+      const fileMetadata = reportData.files ? reportData.files.map((file, index) => ({
+        url: fileUrls[index],
+        originalName: file.name,
+        size: file.size,
+        mimeType: file.type
+      })) : [];
+
+      const payload = {
+        title: reportData.title,
+        description: reportData.description,
+        type: reportData.type,
+        submittedToIds: reportData.submittedToIds,
+        fileMetadata: fileMetadata
+      };
+
+      // Backward compatibility for single supervisor
+      if (reportData.submittedToId) {
+        payload.submittedToIds = [reportData.submittedToId];
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/reports/submit`, payload, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/json',
         },
       });
 
