@@ -786,7 +786,7 @@ export default function ViewGoalsPage() {
         <Tabs
           activeKey={activeTab}
           onChange={setActiveTab}
-          items={getTabItems()}
+        //   items={getTabItems()}
         />
         
         <Table
