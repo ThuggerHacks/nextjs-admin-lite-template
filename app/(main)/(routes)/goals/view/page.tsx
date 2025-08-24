@@ -846,7 +846,7 @@ export default function ViewGoalsPage() {
               title={t('goals.inProgress')}
               value={stats.inProgress}
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#FFA500' }}
             />
           </Card>
         </Col>
@@ -1451,7 +1451,7 @@ function UploadReportForm({ goal, onSuccess, onCancel }: {
           itemRender={(originNode, file, fileList, actions) => (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 0' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <FileTextOutlined style={{ color: '#1890ff' }} />
+                <FileTextOutlined style={{ color: '#FFA500' }} />
                 <div>
                   <div style={{ fontWeight: 500 }}>{file.name}</div>
                   <div style={{ fontSize: '12px', color: '#666' }}>

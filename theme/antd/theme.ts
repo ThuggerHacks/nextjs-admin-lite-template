@@ -38,6 +38,7 @@ const customComponentConfig: ThemeConfig["components"] = {
  * Antd theme editor: https://ant.design/theme-editor
  */
 const customThemeTokenConfig: ThemeConfig["token"] = {
+  colorPrimary: "#FFA500",
   colorSuccess: "#22c55e",
   colorWarning: "#ff7849",
   colorError: "#ff5630",
@@ -52,11 +53,11 @@ const customThemeTokenConfig: ThemeConfig["token"] = {
 };
 
 const colorPrimarys = {
-  default: "#00a76f",
+  default: "#FFA500",
   cyan: "#5248e5",
   purple: "#7635DC",
   blue: "#2065D1",
-  orange: "#FDA92D",
+  orange: "#FFA500",
   red: "#FF3030",
 };
 

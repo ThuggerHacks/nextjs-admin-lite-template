@@ -145,11 +145,11 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
   const getNotificationIcon = (type: string) => {
     switch (type) {
       case 'USER_CREATION':
-        return <Avatar style={{ backgroundColor: '#1890ff' }}>U</Avatar>;
+        return <Avatar style={{ backgroundColor: '#FFA500' }}>U</Avatar>;
       case 'FILE_UPLOADED':
         return <Avatar style={{ backgroundColor: '#52c41a' }}>F</Avatar>;
       case 'GOAL_UPDATED':
-        return <Avatar style={{ backgroundColor: '#faad14' }}>G</Avatar>;
+        return <Avatar style={{ backgroundColor: '#FFA500' }}>G</Avatar>;
       case 'REPORT_SUBMITTED':
         return <Avatar style={{ backgroundColor: '#722ed1' }}>R</Avatar>;
       default:
@@ -159,13 +159,22 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
   // Dropdown content
   const dropdownContent = (
-    <div style={{ width: 400, maxHeight: 500, overflow: 'hidden' }}>
+    <div style={{ 
+      width: 400, 
+      maxHeight: 500, 
+      overflow: 'hidden',
+      backgroundColor: 'white',
+      borderRadius: '8px',
+      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+      border: '1px solid #f0f0f0'
+    }}>
       <div style={{
         padding: '12px 16px',
         borderBottom: '1px solid #f0f0f0',
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center'
+        alignItems: 'center',
+        backgroundColor: 'white'
       }}>
         <Text strong>Notifications</Text>
         {unreadCount > 0 && (
@@ -180,9 +189,9 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         )}
       </div>
 
-      <div style={{ maxHeight: 400, overflow: 'auto' }}>
+      <div style={{ maxHeight: 400, overflow: 'auto', backgroundColor: 'white' }}>
         {loading ? (
-          <div style={{ textAlign: 'center', padding: '20px' }}>
+          <div style={{ textAlign: 'center', padding: '20px', backgroundColor: 'white' }}>
             <Spin size="small" />
             <div style={{ marginTop: 8 }}>{t('common.loading')}</div>
           </div>
@@ -190,7 +199,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
           <Empty
             image={Empty.PRESENTED_IMAGE_SIMPLE}
             description={t('notifications.noNotifications')}
-            style={{ padding: '40px 20px' }}
+            style={{ padding: '40px 20px', backgroundColor: 'white' }}
           />
         ) : (
           <List
@@ -199,8 +208,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
               <List.Item
                 style={{
                   padding: '12px 16px',
-                  backgroundColor: notification.isRead ? 'transparent' : '#f6ffed',
-                  borderLeft: notification.isRead ? 'none' : '3px solid #52c41a',
+                  backgroundColor: notification.isRead ? 'white' : '#fff7ed',
+                  borderLeft: notification.isRead ? 'none' : '3px solid #FFA500',
                   position: 'relative'
                 }}
                 actions={[
@@ -236,7 +245,7 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                             width: 8,
                             height: 8,
                             borderRadius: '50%',
-                            backgroundColor: '#52c41a'
+                            backgroundColor: '#FFA500'
                           }}
                         />
                       )}
@@ -266,7 +275,8 @@ const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
         <div style={{
           padding: '8px 16px',
           borderTop: '1px solid #f0f0f0',
-          textAlign: 'center'
+          textAlign: 'center',
+          backgroundColor: 'white'
         }}>
           <Button
             type="link"

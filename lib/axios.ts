@@ -210,8 +210,8 @@ const apiService = {
   // Clear auth token
   clearAuthToken: () => {
     if (typeof window !== 'undefined') {
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
+      localStorage.clear();
+      sessionStorage.clear();
     }
   },
 

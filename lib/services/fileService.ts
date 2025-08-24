@@ -230,4 +230,52 @@ export const fileService = {
     const response = await apiService.download(`/files/${fileId}/download`);
     return response;
   },
+
+  // Get all documents for documents view
+  async getAllDocuments(params?: {
+    type?: 'public' | 'department' | 'personal' | 'all';
+    departmentId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<FileListResponse> {
+    const response = await apiService.get<FileListResponse>('/files/documents/all', { params });
+    return response.data;
+  },
+
+  // Get all folders for documents view
+  async getDocumentFolders(params?: {
+    type?: 'public' | 'department' | 'personal' | 'all';
+    departmentId?: string;
+  }): Promise<{ folders: Folder[] }> {
+    const response = await apiService.get<{ folders: Folder[] }>('/folders/documents/all', { params });
+    return response.data;
+  },
+
+  // Get documents and folders for documents view
+  async getDocumentsAndFolders(params?: {
+    type?: 'public' | 'department' | 'personal' | 'all';
+    departmentId?: string;
+    page?: number;
+    limit?: number;
+  }): Promise<{
+    files: File[];
+    folders: Folder[];
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }> {
+    const [filesResponse, foldersResponse] = await Promise.all([
+      this.getAllDocuments(params),
+      this.getDocumentFolders(params)
+    ]);
+
+    return {
+      files: filesResponse.files,
+      folders: foldersResponse.folders,
+      pagination: filesResponse.pagination
+    };
+  },
 };

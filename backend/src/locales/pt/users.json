@@ -39,6 +39,11 @@
   "departmentAdminDescription": "Este usuário se tornará supervisor de seu departamento",
   "enterPhoneNumber": "Digite o número de telefone",
   "files": "Arquivos",
+  "status": {
+    "ACTIVE": "Ativo",
+    "INACTIVE": "Inativo",
+    "PENDING": "Pendente"
+  },
   "userTypes": {
     "SUPER_ADMIN": "Super Administrador",
     "ADMIN": "Administrador",

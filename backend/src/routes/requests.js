@@ -8,7 +8,7 @@ const { logError } = require('../utils/errorLogger');
 const router = express.Router();
 
 // Get all pending users (for requests page)
-router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN',]), async (req, res) => {
   try {
     const { page = 1, limit = 10, status } = req.query;
     const offset = (page - 1) * limit;
@@ -29,6 +29,11 @@ router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_AD
       }
     }
     // SUPER_ADMIN sees all users (no additional filtering)
+    
+    // If a specific departmentId is requested and user has permission, use it
+    if (req.query.departmentId && req.user.role === 'SUPER_ADMIN') {
+      where.departmentId = req.query.departmentId;
+    }
 
     // If status is specified, filter by it, otherwise show both pending and inactive
     if (status && status !== 'all') {
@@ -138,7 +143,7 @@ router.get('/:requestId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN'
 });
 
 // Approve request (approve user)
-router.post('/:requestId/approve', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.post('/:requestId/approve', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN','SUPERVISOR']), async (req, res) => {
   try {
     const { requestId } = req.params;
     const { response } = req.body;

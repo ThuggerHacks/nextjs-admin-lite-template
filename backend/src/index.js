@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const cronService = require('./services/cronService');
 const { logError } = require('./utils/errorLogger');
 require('dotenv').config();
+const path = require('path');
 
 const app = express();
 const PORT = process.env.PORT || 3003;
@@ -18,6 +19,9 @@ app.use(compression());
 app.use(morgan('combined'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Serve static files from uploads directory
+app.use('/api/uploads/files', express.static(path.join(__dirname, '../uploads')));
 
 // Rate limiting
 const limiter = rateLimit({

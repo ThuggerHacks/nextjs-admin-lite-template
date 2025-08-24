@@ -125,7 +125,7 @@ export default function HomePage() {
                 title={t("dashboard.storedFiles")}
                 value={mockStats.storedFiles}
                 prefix={<FileOutlined />}
-                valueStyle={{ color: '#1890ff' }}
+                valueStyle={{ color: '#FFA500' }}
               />
             </Card>
           </Col>

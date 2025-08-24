@@ -52,6 +52,7 @@ import { userService } from '@/lib/services/userService';
 import { departmentService } from '@/lib/services/departmentService';
 import type { User as UserType } from '@/lib/services/userService';
 import type { Department } from '@/lib/services/departmentService';
+import { SupervisorRoute } from '@/components/auth/RouteGuard';
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -99,7 +100,14 @@ export default function UserManagementPage() {
   const loadUsers = useCallback(async (page = 1, limit = 10) => {
     try {
       setLoading(true);
-      const response = await userService.getAll({ page, limit });
+      
+      // For supervisors and admins, only fetch users from their department
+      const params: any = { page, limit };
+      if ((hasRole(UserRole.SUPERVISOR) || hasRole(UserRole.ADMIN)) && user?.departmentId) {
+        params.departmentId = user.departmentId;
+      }
+      
+      const response = await userService.getAll(params);
       setUsers(response.users);
       setPagination({
         current: response.pagination.page,
@@ -112,7 +120,7 @@ export default function UserManagementPage() {
     } finally {
       setLoading(false);
     }
-  }, [t]);
+  }, [t, hasRole, user?.departmentId]);
 
   // Load departments for dropdown
   const loadDepartments = useCallback(async () => {
@@ -134,28 +142,9 @@ export default function UserManagementPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount to avoid infinite loops
 
-  // Calculate statistics
-  const stats = {
-    total: users.length,
-    superAdmins: users.filter(u => u.role === UserRole.SUPER_ADMIN).length,
-    admins: users.filter(u => u.role === UserRole.ADMIN).length,
-    normalUsers: users.filter(u => u.role === UserRole.USER).length,
-    activeUsers: users.filter(u => u.status === UserStatus.ACTIVE).length,
-    inactiveUsers: users.filter(u => u.status === UserStatus.INACTIVE).length,
-  };
-
   // Filter users based on current user role and filters
   const getFilteredUsers = () => {
-    let filteredUsers = [];
-    
-    if (hasRole(UserRole.SUPER_ADMIN)) {
-      filteredUsers = users; // Super admins see all users
-    } else if (hasRole(UserRole.ADMIN)) {
-      // Admins see only normal users, not other admins or super admins
-      filteredUsers = users.filter(u => u.role === UserRole.USER);
-    } else {
-      return []; // Normal users shouldn't access this page
-    }
+    let filteredUsers = users; // Backend already filters by department for supervisors/admins
 
     // Apply search filter
     if (searchText) {
@@ -170,8 +159,8 @@ export default function UserManagementPage() {
       filteredUsers = filteredUsers.filter(user => user.status === statusFilter);
     }
 
-    // Apply department filter
-    if (departmentFilter) {
+    // Apply department filter (only for super admins who can see all departments)
+    if (departmentFilter && (hasRole(UserRole.SUPER_ADMIN) || hasRole(UserRole.DEVELOPER))) {
       filteredUsers = filteredUsers.filter(user => user.departmentId === departmentFilter);
     }
 
@@ -179,6 +168,16 @@ export default function UserManagementPage() {
   };
 
   const filteredUsers = getFilteredUsers();
+
+  // Calculate statistics based on filtered users
+  const stats = {
+    total: filteredUsers.length,
+    superAdmins: filteredUsers.filter(u => u.role === UserRole.SUPER_ADMIN).length,
+    admins: filteredUsers.filter(u => u.role === UserRole.ADMIN).length,
+    normalUsers: filteredUsers.filter(u => u.role === UserRole.USER).length,
+    activeUsers: filteredUsers.filter(u => u.status === UserStatus.ACTIVE).length,
+    inactiveUsers: filteredUsers.filter(u => u.status === UserStatus.INACTIVE).length,
+  };
 
   const handleCreateUser = () => {
     setEditingUser(null);
@@ -377,25 +376,36 @@ export default function UserManagementPage() {
       
       // Only show remove option if target user is not a super admin
       if (userData.role !== UserRole.SUPER_ADMIN) {
-      items.push({
-        key: 'remove',
-        label: (
-          <Popconfirm
-            title={t('users.removeUserConfirm')}
-            description={t('users.removeUserWarning')}
-            onConfirm={() => handleRemoveUser(userData.id)}
-            okText={t('common.yes')}
-            cancelText={t('common.no')}
-            okType="danger"
-          >
-            <span>{t('users.removeUser')}</span>
-          </Popconfirm>
-        ),
-        icon: <DeleteOutlined />,
-        danger: true,
-        onClick: () => {}, // Empty onClick since Popconfirm handles the action
-      });
+        items.push({
+          key: 'remove',
+          label: (
+            <Popconfirm
+              title={t('users.removeUserConfirm')}
+              description={t('users.removeUserWarning')}
+              onConfirm={() => handleRemoveUser(userData.id)}
+              okText={t('common.yes')}
+              cancelText={t('common.no')}
+              okType="danger"
+            >
+              <span>{t('users.removeUser')}</span>
+            </Popconfirm>
+          ),
+          icon: <DeleteOutlined />,
+          danger: true,
+          onClick: () => {}, // Empty onClick since Popconfirm handles the action
+        });
       }
+    }
+
+    // Supervisors and Admins can reset passwords for users in their department
+    if ((hasRole(UserRole.SUPERVISOR) || hasRole(UserRole.ADMIN)) && 
+        userData.departmentId === user?.departmentId) {
+      items.push({
+        key: 'reset-password',
+        label: t('users.resetPassword'),
+        icon: <LockOutlined />,
+        onClick: () => handleResetPassword(userData.id, userData.email),
+      });
     }
 
     return items;
@@ -829,7 +839,7 @@ export default function UserManagementPage() {
             >
               {t("users.exportUsers")}
             </Button> */}
-            {canAccess([UserRole.ADMIN, UserRole.SUPER_ADMIN]) && (
+            {canAccess([UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.SUPER_ADMIN]) && (
               <Button
                 type="primary"
                 icon={<PlusOutlined />}
@@ -1007,7 +1017,15 @@ export default function UserManagementPage() {
           >
             <Select placeholder={t("users.selectRole")}>
               <Select.Option value={UserRole.USER}>{t("users.normalUsers")}</Select.Option>
-              <Select.Option value={UserRole.ADMIN}>{t("users.admins")}</Select.Option>
+              {/* Supervisors can promote users to supervisor role */}
+              {(hasRole(UserRole.ADMIN) || hasRole(UserRole.SUPERVISOR) || hasRole(UserRole.SUPER_ADMIN)) && (
+                <Select.Option value={UserRole.SUPERVISOR}>{t("users.supervisors")}</Select.Option>
+              )}
+              {/* Only super admins can create admins */}
+              {hasRole(UserRole.SUPER_ADMIN) && (
+                <Select.Option value={UserRole.ADMIN}>{t("users.admins")}</Select.Option>
+              )}
+              {/* Only super admins can create super admins */}
               {hasRole(UserRole.SUPER_ADMIN) && (
                 <Select.Option value={UserRole.SUPER_ADMIN}>{t("users.superAdmins")}</Select.Option>
               )}
@@ -1026,12 +1044,19 @@ export default function UserManagementPage() {
               filterOption={(input, option) =>
                 (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
               }
+              disabled={!hasRole(UserRole.SUPER_ADMIN) && !hasRole(UserRole.DEVELOPER)}
             >
-              {departments.map(dept => (
-                <Select.Option key={dept.id} value={dept.id}>
-                  {dept.name}
-                </Select.Option>
-              ))}
+              {departments
+                .filter(dept => 
+                  hasRole(UserRole.SUPER_ADMIN) || 
+                  hasRole(UserRole.DEVELOPER) || 
+                  dept.id === user?.departmentId
+                )
+                .map(dept => (
+                  <Select.Option key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </Select.Option>
+                ))}
             </Select>
           </Form.Item>
 

@@ -72,7 +72,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <>
-      <div className="h-[48px] fixed w-full bg-[#645ae7] z-10">
+      <div className="h-[48px] fixed w-full bg-primary-500 z-10">
         <HeaderPage />
       </div>
       <div className="flex min-h-full ">

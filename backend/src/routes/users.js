@@ -5,6 +5,7 @@ const { authenticateToken, requireRole } = require('../middleware/auth');
 const { createNotification } = require('../utils/notifications');
 const { logError } = require('../utils/errorLogger');
 const currentSucursal = require('../lib/currentSucursal');
+const upload = require('../middleware/upload'); // Added for avatar upload
 
 const router = express.Router();
 
@@ -18,9 +19,24 @@ router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_AD
       sucursalId: req.user.sucursalId
     };
 
+    // Department-based filtering based on user role
+    if (req.user.role === 'SUPERVISOR') {
+      // Supervisors only see users from their department
+      where.departmentId = req.user.departmentId;
+    } else if (req.user.role === 'ADMIN') {
+      // Admins only see users from their department (if they have one)
+      if (req.user.departmentId) {
+        where.departmentId = req.user.departmentId;
+      }
+    }
+    // SUPER_ADMIN sees all users (no additional filtering)
+
     if (role) where.role = role;
     if (status) where.status = status;
-    if (departmentId) where.departmentId = departmentId;
+    // Only allow departmentId override for SUPER_ADMIN
+    if (departmentId && req.user.role === 'SUPER_ADMIN') {
+      where.departmentId = departmentId;
+    }
 
     const users = await prisma.user.findMany({
       where,
@@ -47,6 +63,191 @@ router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_AD
   } catch (error) {
     await logError('DATABASE_ERROR', 'Get users failed', error);
     res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
+// Get user profile (current user)
+router.get('/profile', authenticateToken, async (req, res) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+      include: {
+        department: true,
+        supervisor: true
+      }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get profile failed', error);
+    res.status(500).json({ error: 'Failed to get profile' });
+  }
+});
+
+// Update user profile (current user)
+router.put('/profile', authenticateToken, [
+  body('name').optional().notEmpty().withMessage('Name cannot be empty'),
+  body('email').optional().isEmail().withMessage('Valid email is required'),
+  body('phone').optional().custom((value) => {
+    if (value === null || value === undefined) return true;
+    return typeof value === 'string';
+  }).withMessage('Phone must be a string or null'),
+  body('address').optional().isString().withMessage('Address must be a string'),
+  body('departmentId').optional().isString().withMessage('Department ID must be a string'),
+  body('avatar').optional().isString().withMessage('Avatar must be a string')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { name, email, phone, address, departmentId, avatar } = req.body;
+    const userId = req.user.id;
+
+    const existingUser = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!existingUser) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const updateData = {};
+    if (name !== undefined) updateData.name = name;
+    if (email !== undefined) {
+      if (email !== existingUser.email) {
+        const emailExists = await prisma.user.findUnique({
+          where: { email }
+        });
+        if (emailExists) {
+          return res.status(400).json({ error: 'Email already exists' });
+        }
+      }
+      updateData.email = email;
+    }
+    if (phone !== undefined) updateData.phone = phone;
+    if (address !== undefined) updateData.address = address;
+    if (departmentId !== undefined) updateData.departmentId = departmentId;
+    if (avatar !== undefined) updateData.avatar = avatar;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+      include: {
+        department: true,
+        supervisor: true
+      }
+    });
+
+    await createNotification(
+      userId,
+      'SYSTEM_UPDATE',
+      'Perfil Atualizado',
+      'Seu perfil foi atualizado com sucesso.'
+    );
+
+    res.json({
+      message: 'Profile updated successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Update profile failed', error);
+    res.status(500).json({ error: 'Failed to update profile' });
+  }
+});
+
+// Change password (current user)
+router.put('/profile/password', authenticateToken, [
+  body('currentPassword').notEmpty().withMessage('Current password is required'),
+  body('newPassword').isLength({ min: 6 }).withMessage('New password must be at least 6 characters')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { currentPassword, newPassword } = req.body;
+    const userId = req.user.id;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const bcrypt = require('bcryptjs');
+
+    // Verify current password
+    const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isCurrentPasswordValid) {
+      return res.status(400).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedNewPassword }
+    });
+
+    await createNotification(
+      userId,
+      'SYSTEM_UPDATE',
+      'Senha Alterada',
+      'Sua senha foi alterada com sucesso.'
+    );
+
+    res.json({ message: 'Password changed successfully' });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Change password failed', error);
+    res.status(500).json({ error: 'Failed to change password' });
+  }
+});
+
+// Upload avatar (current user)
+router.post('/profile/avatar', authenticateToken, upload.single('avatar'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const userId = req.user.id;
+    const avatarUrl = `/uploads/users/${req.file.filename}`;
+
+    // Update user avatar
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { avatar: avatarUrl },
+      include: {
+        department: true,
+        supervisor: true
+      }
+    });
+
+    await createNotification(
+      userId,
+      'SYSTEM_UPDATE',
+      'Avatar Atualizado',
+      'Seu avatar foi atualizado com sucesso.'
+    );
+
+    res.json({
+      message: 'Avatar uploaded successfully',
+      user: updatedUser
+    });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Upload avatar failed', error);
+    res.status(500).json({ error: 'Failed to upload avatar' });
   }
 });
 
@@ -79,7 +280,7 @@ router.get('/:userId', authenticateToken, async (req, res) => {
 });
 
 // Create user (Admin/Supervisor only)
-router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), [
+router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER', ]), [
   body('name').notEmpty().withMessage('Name is required'),
   body('email').isEmail().withMessage('Valid email is required'),
   body('password').optional().isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
@@ -502,7 +703,7 @@ router.post('/:userId/reset-password', authenticateToken, requireRole(['ADMIN', 
 });
 
 // Get user files
-router.get('/:userId/files', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+router.get('/:userId/files', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER','SUPERVISOR','USER']), async (req, res) => {
   try {
     const { userId } = req.params;
 

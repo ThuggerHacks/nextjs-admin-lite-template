@@ -22,7 +22,7 @@ const getPathLabels = (url: string, t: (key: string) => string) => {
     '/goals/create': t("navigation.createGoals"),
     '/goals/edit': t("navigation.editGoals"),
     '/scanner': t("navigation.scan"),
-    '/digitalize': t("navigation.digitalize"),
+
     '/libraries': t("navigation.libraries"),
     '/documents': t("navigation.documents"),
     '/management': t("navigation.management"),

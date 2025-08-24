@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 
 import { useCollapse } from "@/hooks/use-collapse-store";
 import { useUser } from "@/contexts/UserContext";
@@ -15,7 +16,7 @@ import {
   GlobalOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
-import { Avatar, Dropdown, Button, Select } from "antd";
+import { Avatar, Dropdown, Button, Select, message } from "antd";
 
 import SettingButton from "./setting-button";
 import NotificationDropdown from "@/components/NotificationDropdown";
@@ -41,11 +42,28 @@ const HeaderPage: React.FC = () => {
     },
   ];
 
-  const onClick: MenuProps["onClick"] = ({ key }) => {
-    if (key === "logout") {
-      logout();
+  const handleLogout = async () => {
+    try {
+      // Call logout from context (which handles all storage clearing)
+      await logout();
+      
+      // Navigate to login
       router.push("/login");
       onStart();
+      
+      message.success(t("common.logoutSuccess") || "Logged out successfully");
+    } catch (error) {
+      console.error('Logout error:', error);
+      // Even if there's an error, redirect to login
+      router.push("/login");
+      onStart();
+      message.error(t("common.logoutError") || "Error during logout, but session cleared");
+    }
+  };
+
+  const onClick: MenuProps["onClick"] = ({ key }) => {
+    if (key === "logout") {
+      handleLogout();
     } else if (pathname !== key) {
       router.push(key);
       onStart();
@@ -58,14 +76,22 @@ const HeaderPage: React.FC = () => {
 
   const getUserRoleDisplay = () => {
     if (!user) return '';
-    return t(`users.userTypes.${user.role}`);
+    
+    // Use the userTypes translation
+    return t(`users.userTypes.${user.role}`) || user.role;
   };
 
   return (
     <div className="h-full flex items-center">
       <div className="flex text-white text-lg ml-4">
         <div className="flex items-center">
-          <span className="text-[28px] pr-2">📊</span>
+          <Image
+            src="/icon.png"
+            alt="Platform Logo"
+            width={32}
+            height={32}
+            className="pr-2 rounded"
+          />
           <span className="hidden md:block transition-all">
             {t("common.platformName")}
           </span>

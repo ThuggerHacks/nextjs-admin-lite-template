@@ -441,4 +441,176 @@ router.get('/public/files', authenticateToken, async (req, res) => {
   }
 });
 
+// Get all files for documents view (public, department, and user files)
+router.get('/documents/all', authenticateToken, async (req, res) => {
+  try {
+    const { type = 'all', departmentId, page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+
+    let where = {
+      sucursalId: req.user.sucursalId
+    };
+
+    // Filter by type
+    switch (type) {
+      case 'public':
+        where.isPublic = true;
+        break;
+      case 'department':
+        if (departmentId) {
+          where.user = {
+            departmentId: departmentId
+          };
+        } else if (req.user.departmentId) {
+          where.user = {
+            departmentId: req.user.departmentId
+          };
+        }
+        break;
+      case 'personal':
+        where.userId = req.user.id;
+        break;
+      case 'all':
+      default:
+        // Get all files user has access to
+        where.OR = [
+          { userId: req.user.id },
+          { isPublic: true },
+          {
+            user: {
+              departmentId: req.user.departmentId
+            }
+          }
+        ];
+        break;
+    }
+
+    const files = await prisma.file.findMany({
+      where,
+      include: {
+        folder: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            department: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        }
+      },
+      skip: parseInt(offset),
+      take: parseInt(limit),
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const total = await prisma.file.count({ where });
+
+    res.json({
+      files,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get documents failed', error);
+    res.status(500).json({ error: 'Failed to get documents' });
+  }
+});
+
+// Get all folders for documents view
+router.get('/documents/folders', authenticateToken, async (req, res) => {
+  try {
+    const { type = 'all', departmentId } = req.query;
+
+    let where = {
+      sucursalId: req.user.sucursalId
+    };
+
+    // Filter by type
+    switch (type) {
+      case 'public':
+        // Public folders (created by admins)
+        where.user = {
+          role: {
+            in: ['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']
+          }
+        };
+        break;
+      case 'department':
+        if (departmentId) {
+          where.user = {
+            departmentId: departmentId
+          };
+        } else if (req.user.departmentId) {
+          where.user = {
+            departmentId: req.user.departmentId
+          };
+        }
+        break;
+      case 'personal':
+        where.userId = req.user.id;
+        break;
+      case 'all':
+      default:
+        // Get all folders user has access to
+        where.OR = [
+          { userId: req.user.id },
+          {
+            user: {
+              role: {
+                in: ['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']
+              }
+            }
+          },
+          {
+            user: {
+              departmentId: req.user.departmentId
+            }
+          }
+        ];
+        break;
+    }
+
+    const folders = await prisma.folder.findMany({
+      where,
+      include: {
+        parent: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            department: {
+              select: {
+                id: true,
+                name: true
+              }
+            }
+          }
+        },
+        _count: {
+          select: {
+            children: true,
+            files: true
+          }
+        }
+      },
+      orderBy: { name: 'asc' }
+    });
+
+    res.json({ folders });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get document folders failed', error);
+    res.status(500).json({ error: 'Failed to get document folders' });
+  }
+});
+
 module.exports = router; 

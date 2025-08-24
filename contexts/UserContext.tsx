@@ -17,6 +17,7 @@ interface UserContextType {
   getAllUsers: () => Promise<User[]>;
   updateUser: (userId: string, userData: Partial<User>) => Promise<boolean>;
   deleteUser: (userId: string) => Promise<boolean>;
+  updateCurrentUser: (userData: Partial<User>) => void;
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined);
@@ -108,12 +109,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     try {
       await authService.logout();
+    } catch (error) {
+      console.error('Logout API error:', error);
+      // Continue with logout even if API call fails
     } finally {
-      // Clear all stored data
-      localStorage.removeItem('token');
-      localStorage.removeItem('user');
-      localStorage.removeItem('currentSucursal');
-
+      // Clear all stored data comprehensively
+      localStorage.clear();
+      sessionStorage.clear();
+      
       // Clear axios instance data
       apiService.clearAuthToken();
 
@@ -164,7 +167,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       '/documents': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
       '/libraries': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
       '/scanner': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
-      '/digitalize': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
+
       '/sucursals': [UserRole.SUPER_ADMIN, UserRole.DEVELOPER],
       '/homepage': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
       '/profile': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
@@ -251,6 +254,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateCurrentUser = (userData: Partial<User>) => {
+    if (user) {
+      const updatedUser = { ...user, ...userData } as User;
+      setUser(updatedUser);
+      localStorage.setItem('user', JSON.stringify(updatedUser));
+    }
+  };
+
   return (
     <UserContext.Provider value={{
       user,
@@ -264,6 +275,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       getAllUsers,
       updateUser,
       deleteUser,
+      updateCurrentUser,
     }}>
       {children}
     </UserContext.Provider>

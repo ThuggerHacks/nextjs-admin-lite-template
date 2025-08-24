@@ -44,13 +44,13 @@ export const authService = {
   },
 
   // Logout user
-  async logout(): Promise<void> {
-    try {
-      await apiService.post('/auth/logout');
-    } finally {
-      // Clear local storage and auth token regardless of API call success
-      apiService.clearAuthToken();
+  logout(): void {
+    // Clear all storage immediately without API calls
+    if (typeof window !== 'undefined') {
+      localStorage.clear();
+      sessionStorage.clear();
     }
+    apiService.clearAuthToken();
   },
 
   // Get current user profile

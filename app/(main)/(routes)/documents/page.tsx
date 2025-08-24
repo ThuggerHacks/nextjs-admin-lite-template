@@ -21,12 +21,12 @@ import {
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
 import { UserRole } from '@/types';
-import EnhancedFileManager from '@/components/EnhancedFileManager';
+import DocumentsManager from '@/components/DocumentsManager';
 
 const { Title, Text } = Typography;
 
 export default function DocumentsPage() {
-  const [activeTab, setActiveTab] = useState('public');
+  const [activeTab, setActiveTab] = useState('all');
   
   const { user } = useUser();
   const { t } = useTranslation();
@@ -41,42 +41,19 @@ export default function DocumentsPage() {
 
   const tabItems = [
     {
-      key: 'public',
+      key: 'all',
       label: (
         <span>
           <GlobalOutlined />
-          Public Documents
+          {t('documents.allDocuments')}
         </span>
       ),
       children: (
-        <EnhancedFileManager
-          mode="documents"
-          libraryId="public-docs"
-          libraryName="Public Documents"
+        <DocumentsManager
+          mode="all"
           canWrite={canManageDocuments()}
           canDelete={hasAdminAccess()}
-          title="Public Documents - Available to All Users"
-          rootPath="/Public Documents"
-        />
-      ),
-    },
-    {
-      key: 'department',
-      label: (
-        <span>
-          <TeamOutlined />
-          Department Documents
-        </span>
-      ),
-      children: (
-        <EnhancedFileManager
-          mode="documents"
-          libraryId={`dept-docs-${user?.department?.toLowerCase().replace(' ', '-')}`}
-          libraryName={`${user?.department} Documents`}
-          canWrite={canManageDocuments()}
-          canDelete={user?.isDepartmentAdmin || hasAdminAccess()}
-          title={`${user?.department} Department Documents`}
-          rootPath={`/Departments/${user?.department}`}
+          title={t('documents.allDocumentsTitle')}
         />
       ),
     },
@@ -85,47 +62,19 @@ export default function DocumentsPage() {
       label: (
         <span>
           <UserOutlined />
-          My Documents
+          {t('documents.myDocuments')}
         </span>
       ),
       children: (
-        <EnhancedFileManager
-          mode="user-files"
-          libraryId={`user-docs-${user?.id}`}
-          libraryName="My Documents"
+        <DocumentsManager
+          mode="personal"
           canWrite={true}
           canDelete={true}
-          title="My Personal Documents"
-          rootPath={`/Users/${user?.name}/Documents`}
-          userId={user?.id}
+          title={t('documents.myDocumentsTitle')}
         />
       ),
     },
   ];
-
-  // Add admin-only tabs
-  if (hasAdminAccess()) {
-    tabItems.push({
-      key: 'all-departments',
-      label: (
-        <span>
-          <FolderOutlined />
-          All Departments
-        </span>
-      ),
-      children: (
-        <EnhancedFileManager
-          mode="documents"
-          libraryId="all-dept-docs"
-          libraryName="All Department Documents"
-          canWrite={true}
-          canDelete={true}
-          title="All Department Documents - Admin View"
-          rootPath="/Departments"
-        />
-      ),
-    });
-  }
 
   return (
     <div className="space-y-6">
@@ -135,10 +84,10 @@ export default function DocumentsPage() {
           <Col>
             <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
               <FileOutlined style={{ color: '#1890ff' }} />
-              Document Management System
+              {t('documents.documentManagementSystem')}
             </Title>
             <Text type="secondary">
-              Organize and access documents with hierarchical folder structure, multiple view modes, and collaborative features
+              {t('documents.organizeAndAccessDocuments')}
             </Text>
           </Col>
         </Row>
@@ -147,25 +96,18 @@ export default function DocumentsPage() {
 
         {/* Features Overview */}
         <Row gutter={[16, 16]}>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={12}>
             <div style={{ textAlign: 'center', padding: '16px' }}>
               <GlobalOutlined style={{ fontSize: '24px', color: '#52c41a', marginBottom: '8px' }} />
-              <Title level={5}>Public Access</Title>
-              <Text type="secondary">Company-wide documents accessible to all employees</Text>
+              <Title level={5}>{t('documents.allDocuments')}</Title>
+              <Text type="secondary">{t('documents.companyWideDocuments')}</Text>
             </div>
           </Col>
-          <Col xs={24} sm={8}>
-            <div style={{ textAlign: 'center', padding: '16px' }}>
-              <TeamOutlined style={{ fontSize: '24px', color: '#1890ff', marginBottom: '8px' }} />
-              <Title level={5}>Department Files</Title>
-              <Text type="secondary">Department-specific documents with role-based access</Text>
-            </div>
-          </Col>
-          <Col xs={24} sm={8}>
+          <Col xs={24} sm={12}>
             <div style={{ textAlign: 'center', padding: '16px' }}>
               <UserOutlined style={{ fontSize: '24px', color: '#722ed1', marginBottom: '8px' }} />
-              <Title level={5}>Personal Space</Title>
-              <Text type="secondary">Private document storage for individual users</Text>
+              <Title level={5}>{t('documents.myDocuments')}</Title>
+              <Text type="secondary">{t('documents.privateDocumentStorage')}</Text>
             </div>
           </Col>
         </Row>

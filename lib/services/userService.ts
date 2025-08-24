@@ -52,6 +52,7 @@ export interface UpdateUserRequest {
   supervisorId?: string;
   phone?: string;
   address?: string;
+  avatar?: string;
   status?: 'ACTIVE' | 'INACTIVE' | 'PENDING';
   isDepartmentAdmin?: boolean;
   managedDepartments?: string[];
@@ -426,21 +427,6 @@ export const userService = {
       return response.data.users || [];
     } catch (error) {
       console.error('Failed to search users:', error);
-      throw error;
-    }
-  },
-
-  // Create folder for user (admin only)
-  createFolderForUser: async (userId: string, folderData: {
-    name: string;
-    description?: string;
-    parentId?: string;
-  }): Promise<{ message: string; folder: any }> => {
-    try {
-      const response = await api.post(`/users/${userId}/folders`, folderData);
-      return response.data;
-    } catch (error) {
-      console.error(`Failed to create folder for user ${userId}:`, error);
       throw error;
     }
   },

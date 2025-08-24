@@ -16,7 +16,7 @@ export interface Dictionary {
     editGoals: string;
     scanner: string;
     scan: string;
-    digitalize: string;
+
     fileManagement: string;
     libraries: string;
     documents: string;
@@ -34,7 +34,7 @@ export interface Dictionary {
     logout: string;
     save: string;
     cancel: string;
-    delete: string;
+    "delete": string;
     edit: string;
     view: string;
     create: string;
@@ -69,6 +69,8 @@ export interface Dictionary {
     startDate: string;
     endDate: string;
     department: string;
+    logoutSuccess: string;
+    logoutError: string;
   };
   auth: {
     welcomeBack: string;
@@ -117,6 +119,8 @@ export interface Dictionary {
     newUsersThisMonth: string;
     storageUsage: string;
     reportsResponseRate: string;
+    libraries: string;
+    documents: string;
   };
   departments: {
     title: string;
@@ -128,7 +132,7 @@ export interface Dictionary {
     actions: string;
     create: string;
     edit: string;
-    delete: string;
+    "delete": string;
     save: string;
     cancel: string;
     addDepartment: string;
@@ -149,7 +153,7 @@ export interface Dictionary {
     title: string;
     create: string;
     edit: string;
-    delete: string;
+    "delete": string;
     passwordReset: string;
     temporaryPassword: string;
     emailSent: string;
@@ -198,6 +202,41 @@ export interface Dictionary {
     files: string;
     folders: string;
     createFolder: string;
+    userTypes: {
+      SUPER_ADMIN: string;
+      ADMIN: string;
+      USER: string;
+      SUPERVISOR: string;
+      DEVELOPER: string;
+    };
+  };
+  notifications: {
+    notifications: string;
+    markAsRead: string;
+    markAllAsRead: string;
+    noNotifications: string;
+    noUnreadNotifications: string;
+    noReadNotifications: string;
+    all: string;
+    unread: string;
+    read: string;
+    stayUpdated: string;
+    "delete": string;
+    timeAgo: {
+      justNow: string;
+      minutesAgo: string;
+      hoursAgo: string;
+      daysAgo: string;
+    };
+    types: {
+      reportSubmitted: string;
+      goalUpdated: string;
+      userRequest: string;
+      systemAlert: string;
+      newFile: string;
+      responseReceived: string;
+    };
+  };
     uploadFile: string;
     folderName: string;
     enterFolderName: string;
@@ -211,7 +250,6 @@ export interface Dictionary {
     filterByDepartment: string;
     removeUserConfirm: string;
     removeUserWarning: string;
-  };
   reports: {
     submitReport: string;
     reportType: string;
@@ -246,24 +284,6 @@ export interface Dictionary {
     failedToLoadSupervisors: string;
     failedToSubmitReport: string;
     uploadProgress: string;
-          uploadingFiles: string;
-      uploadComplete: string;
-      shareGoal: string;
-      goalPublished: string;
-      failedToPublishGoal: string;
-      goalSharedSuccessfully: string;
-      failedToShareGoal: string;
-      failedToLoadUsers: string;
-      shareGoalInfo: string;
-      shareGoalDescription: string;
-      selectUsersToShare: string;
-      selectUsers: string;
-      message: string;
-      shareMessagePlaceholder: string;
-      sharing: string;
-      pleaseSelectUsers: string;
-      publishGoal: string;
-      publish: string;
     pending: string;
     responded: string;
     archived: string;
@@ -298,6 +318,8 @@ export interface Dictionary {
     customType: string;
     enterCustomType: string;
     pleaseEnterCustomType: string;
+    enterReportType: string;
+    pleaseEnterReportType: string;
   };
   requests: {
     title: string;
@@ -407,7 +429,6 @@ export interface Dictionary {
     onHold: string;
     cancelled: string;
     of: string;
-    goals: string;
     viewDetails: string;
     uploadReport: string;
     updateProgress: string;
@@ -488,6 +509,34 @@ export interface Dictionary {
        shareMessagePlaceholder: string;
        sharing: string;
        pleaseSelectUsers: string;
+       // Additional sharing keys
+       sharedWithYou: string;
+       sharedBy: string;
+       sharedOn: string;
+       sharingInfo: string;
+  };
+  documents: {
+    // Page title and description
+    documentManagementSystem: string;
+    organizeAndAccessDocuments: string;
+    
+    // Tab labels
+    allDocuments: string;
+    myDocuments: string;
+    
+    // Tab descriptions
+    allDocumentsDescription: string;
+    myDocumentsDescription: string;
+    
+    // Tab titles
+    allDocumentsTitle: string;
+    myDocumentsTitle: string;
+    
+    // Company-wide description
+    companyWideDocuments: string;
+    
+    // Private storage description
+    privateDocumentStorage: string;
   };
   files: {
     myFiles: string;
@@ -542,7 +591,7 @@ export interface Dictionary {
     view: string;
     download: string;
     rename: string;
-    delete: string;
+    "delete": string;
     deleteConfirm: string;
     createNewFolder: string;
     createFolderIn: string;
@@ -557,8 +606,134 @@ export interface Dictionary {
     uploadFiles: string;
     uploadDragText: string;
     uploadHint: string;
+    // Bulk operations
+    copy: string;
+    move: string;
+    cut: string;
+    paste: string;
+    properties: string;
+    editDocument: string;
+    clearSelection: string;
+    selected: string;
+    items: string;
+    copySelected: string;
+    moveSelected: string;
+    deleteSelected: string;
+    copySelectedItems: string;
+    moveSelectedItems: string;
+    selectTargetFolderCopy: string;
+    selectTargetFolderMove: string;
+    copyToRoot: string;
+    moveToRoot: string;
+    root: string;
+    // Document types
+    folder: string;
+    document: string;
+    image: string;
+    pdf: string;
+    
+    // Missing keys for DocumentsManager
+    spreadsheet: string;
+    text: string;
+    file: string;
+    exportAsPdf: string;
+    characters: string;
+    words: string;
+    richTextEditorPoweredByQuill: string;
+    loadingEditor: string;
+    documentTitle: string;
+    startTypingDocument: string;
+    pleaseEnterDocumentTitle: string;
+    pleaseEnterContent: string;
+    pleaseAddContentBeforePdf: string;
+    // Status messages
+    folderCreatedSuccess: string;
+    documentCreatedSuccess: string;
+    documentUpdatedSuccess: string;
+    itemRenamedSuccess: string;
+    itemCopiedSuccess: string;
+    itemMovedSuccess: string;
+    itemDeletedSuccess: string;
+    filesUploadedSuccess: string;
+    bulkCopySuccess: string;
+    bulkMoveSuccess: string;
+    bulkDeleteSuccess: string;
+    documentExportedSuccess: string;
+    // Error messages
+    failedToLoadDocuments: string;
+    failedToCreateFolder: string;
+    failedToCreateDocument: string;
+    failedToUpdateDocument: string;
+    failedToUploadFiles: string;
+    failedToDeleteItem: string;
+    failedToRenameItem: string;
+    failedToCopyItem: string;
+    failedToMoveItem: string;
+    failedToPasteItem: string;
+    failedBulkCopy: string;
+    failedBulkMove: string;
+    failedToGeneratePdf: string;
+    itemNotFound: string;
+    failedToLoadDocumentContent: string;
+    // UI labels
+    goBack: string;
+    goForward: string;
+    sortOrder: string;
+    refresh: string;
+    searchDocuments: string;
+    noDocumentsFound: string;
+    exportAsPdf: string;
+    // Additional file management keys
+    characters: string;
+    words: string;
+    richTextEditorPoweredByQuill: string;
+    loadingEditor: string;
+    documentTitle: string;
+      startTypingDocument: string;
+      pleaseEnterDocumentTitle: string;
+      pleaseEnterContent: string;
+      pleaseAddContentBeforePdf: string;
+      home: string;
+      type: string;
+      owner: string;
+      created: string;
+      lastModified: string;
+      subfolders: string;
+      files: string;
+      mimeType: string;
+      unknown: string;
+      areYouSureDelete: string;
+      yes: string;
+      no: string;
+      cancel: string;
+      close: string;
+      save: string;
+      export: string;
+      noDescription: string;
+      targetFolder: string;
+      pleaseSelectTargetFolder: string;
+      pleaseEnterFolderName: string;
+      pleaseEnterNewName: string;
+      createNewDocument: string;
+      itemProperties: string;
+      copyItem: string;
+      moveItem: string;
+      renameItem: string;
+      by: string;
+      bulkCopyItems: string;
+      bulkMoveItems: string;
+      selectTargetFolderForBulkCopy: string;
+      selectTargetFolderForBulkMove: string;
+      successfullyDeletedItems: string;
+      failedToDeleteSomeItems: string;
+      // Additional missing keys
+      copyText: string;
+      moveText: string;
+      deleteSelectedText: string;
   };
   scanner: {
+    title: string;
+    description: string;
     scanDocument: string;
     takePhoto: string;
     addPage: string;
@@ -571,6 +746,57 @@ export interface Dictionary {
     avoidShadows: string;
     centerDocument: string;
     adjustBorders: string;
+    camera: string;
+    startCamera: string;
+    startCameraHint: string;
+    stopCamera: string;
+    scannedPages: string;
+    noPagesScanned: string;
+    page: string;
+    view: string;
+    "delete": string;
+    fileName: string;
+    fileNamePlaceholder: string;
+    captureSuccess: string;
+    pdfGenerated: string;
+    pdfGenerationFailed: string;
+    captureAtLeastOnePage: string;
+    enterFileName: string;
+    cameraAccessError: string;
+    // Additional scanner keys
+    useDeviceCamera: string;
+    convertToPdf: string;
+    scanningTipsTitle: string;
+    ensureGoodLighting: string;
+    keepDocumentFlat: string;
+    avoidShadowsGlare: string;
+    centerDocumentFrame: string;
+    cameraSection: string;
+    scannedPagesSection: string;
+    pdfGenerationSection: string;
+    fileNameLabel: string;
+    fileNameRequired: string;
+    enterFileNameWithoutExtension: string;
+    generatePdfButton: string;
+    generatingPdf: string;
+    processingPages: string;
+    pageSingular: string;
+    pagePlural: string;
+    noPagesScannedYet: string;
+    clickStartCamera: string;
+    toBeginScanning: string;
+    pageNumber: string;
+    movePageUp: string;
+    movePageDown: string;
+    previewModal: string;
+    unableToAccessCamera: string;
+    checkPermissions: string;
+    pageCapturedSuccessfully: string;
+    pleaseCaptureOnePage: string;
+    pleaseEnterFileName: string;
+    pdfGeneratedSuccessfully: string;
+    failedToGeneratePdf: string;
+    tryAgain: string;
   };
   sucursal: {
     management: string;
@@ -640,6 +866,69 @@ export interface Dictionary {
     errorType: string;
     description: string;
   };
+  profile: {
+    title: string;
+    description: string;
+    editProfile: string;
+    updateProfile: string;
+    cancel: string;
+    personalInfo: string;
+    accountInfo: string;
+    security: string;
+    fullName: string;
+    email: string;
+    phone: string;
+    address: string;
+    department: string;
+    memberSince: string;
+    lastLogin: string;
+    userId: string;
+    never: string;
+    noDepartment: string;
+    enterFullName: string;
+    enterEmail: string;
+    enterPhone: string;
+    enterAddress: string;
+    selectDepartment: string;
+    changePassword: string;
+    currentPassword: string;
+    newPassword: string;
+    confirmPassword: string;
+    enterCurrentPassword: string;
+    enterNewPassword: string;
+    confirmNewPassword: string;
+    passwordRequirements: string;
+    passwordsDoNotMatch: string;
+    clickToChange: string;
+    uploadingAvatar: string;
+    onlyImageFiles: string;
+    imageSizeLimit: string;
+    avatarUploaded: string;
+    failedToUploadAvatar: string;
+    profileUpdated: string;
+    profileUpdateSuccess: string;
+    failedToUpdateProfile: string;
+    updateError: string;
+    passwordChanged: string;
+    passwordChangeSuccess: string;
+    failedToChangePassword: string;
+    passwordChangeError: string;
+    passwordSecurity: string;
+    passwordSecurityDescription: string;
+    departmentChangeInfo: string;
+    departmentChangeDescription: string;
+    roleDescriptions: {
+      superAdmin: string;
+      admin: string;
+      supervisor: string;
+      user: string;
+      developer: string;
+    };
+    validation: {
+      required: string;
+      email: string;
+    };
+  };
 }
 
 const dictionaries: Record<Locale, Dictionary> = {
@@ -656,7 +945,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       editGoals: 'Editar Metas',
       scanner: 'Scanner',
       scan: 'Digitalizar',
-      digitalize: 'Digitalizar',
+
       fileManagement: 'Gestão de Arquivos',
       libraries: 'Bibliotecas',
       documents: 'Documentos',
@@ -708,8 +997,10 @@ const dictionaries: Record<Locale, Dictionary> = {
       accessDenied: 'Acesso negado',
       startDate: 'Data de Início',
       endDate: 'Data de Fim',
-      department: 'Departamento',
-    },
+          department: 'Departamento',
+    logoutSuccess: 'Logout realizado com sucesso',
+    logoutError: 'Erro durante o logout, mas sessão foi limpa',
+  },
     auth: {
       welcomeBack: 'Bem-vindo de volta',
       enterCredentials: 'Digite suas credenciais para acessar',
@@ -757,6 +1048,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       newUsersThisMonth: 'Novos Usuários Este Mês',
       storageUsage: 'Uso de Armazenamento',
       reportsResponseRate: 'Taxa de Resposta de Relatórios',
+      libraries: 'Bibliotecas',
+      documents: 'Documentos',
     },
     departments: {
       title: 'Departamentos',
@@ -854,6 +1147,40 @@ const dictionaries: Record<Locale, Dictionary> = {
       promoteToSupervisor: 'Promover a Supervisor do Departamento',
       removeUserConfirm: 'Confirmar Remoção',
       removeUserWarning: 'Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita.',
+      userTypes: {
+        SUPER_ADMIN: 'Super Administrador',
+        ADMIN: 'Administrador',
+        USER: 'Usuário',
+        SUPERVISOR: 'Supervisor',
+        DEVELOPER: 'Desenvolvedor'
+      },
+    },
+    notifications: {
+      notifications: 'Notificações',
+      markAsRead: 'Marcar como Lido',
+      markAllAsRead: 'Marcar Todos como Lidos',
+      noNotifications: 'Nenhuma notificação',
+      noUnreadNotifications: 'Nenhuma notificação não lida',
+      noReadNotifications: 'Nenhuma notificação lida',
+      all: 'Todas',
+      unread: 'Não lidas',
+      read: 'Lidas',
+      stayUpdated: 'Mantenha-se atualizado com as atividades importantes da plataforma',
+      delete: 'Excluir',
+      timeAgo: {
+        justNow: 'Agora mesmo',
+        minutesAgo: 'min atrás',
+        hoursAgo: 'h atrás',
+        daysAgo: 'd atrás',
+      },
+      types: {
+        reportSubmitted: 'Relatório Submetido',
+        goalUpdated: 'Meta Atualizada',
+        userRequest: 'Solicitação de Usuário',
+        systemAlert: 'Alerta do Sistema',
+        newFile: 'Novo Arquivo',
+        responseReceived: 'Resposta Recebida',
+      },
     },
     requests: {
       title: 'Solicitações',
@@ -1236,6 +1563,29 @@ const dictionaries: Record<Locale, Dictionary> = {
       sharedOn: 'Compartilhado em',
       sharingInfo: 'Informações de Compartilhamento',
     },
+    documents: {
+      // Page title and description
+      documentManagementSystem: 'Sistema de Gestão de Documentos',
+      organizeAndAccessDocuments: 'Organize e acesse documentos com estrutura hierárquica de pastas, múltiplos modos de visualização e recursos colaborativos',
+      
+      // Tab labels
+      allDocuments: 'Todos os Documentos',
+      myDocuments: 'Meus Documentos',
+      
+      // Tab descriptions
+      allDocumentsDescription: 'Documentos da empresa acessíveis a todos os funcionários',
+      myDocumentsDescription: 'Armazenamento de documentos criados por mim',
+      
+      // Tab titles
+      allDocumentsTitle: 'Todos os Documentos - Disponível para Todos os Usuários',
+      myDocumentsTitle: 'Meus Documentos - Seu Armazenamento Privado',
+      
+      // Company-wide description
+      companyWideDocuments: 'Documentos da empresa acessíveis a todos os funcionários',
+      
+      // Private storage description
+      privateDocumentStorage: 'Armazenamento privado de documentos para usuários individuais',
+    },
     files: {
       myFiles: 'Meus Arquivos',
       libraries: 'Bibliotecas',
@@ -1303,8 +1653,129 @@ const dictionaries: Record<Locale, Dictionary> = {
       uploadFiles: 'Enviar Arquivos',
       uploadDragText: 'Arraste arquivos aqui ou clique para selecionar',
       uploadHint: 'Suporte para upload único ou em massa',
+      // Bulk operations
+      copy: 'Copiar',
+      move: 'Mover',
+      cut: 'Recortar',
+      paste: 'Colar',
+      properties: 'Propriedades',
+      editDocument: 'Editar Documento',
+      clearSelection: 'Limpar Seleção',
+      selected: 'Selecionado',
+      items: 'itens',
+      copySelected: 'Copiar Selecionados',
+      moveSelected: 'Mover Selecionados',
+      deleteSelected: 'Excluir Selecionados',
+      copySelectedItems: 'Copiar Itens Selecionados',
+      moveSelectedItems: 'Mover Itens Selecionados',
+      selectTargetFolderCopy: 'Selecione uma pasta de destino para copiar os itens selecionados:',
+      selectTargetFolderMove: 'Selecione uma pasta de destino para mover os itens selecionados:',
+      copyToRoot: 'Copiar para Raiz',
+      moveToRoot: 'Mover para Raiz',
+      root: 'Raiz',
+      bulkCopyItems: 'Copiar Itens Selecionados',
+      bulkMoveItems: 'Mover Itens Selecionados',
+      selectTargetFolderForBulkCopy: 'Selecione uma pasta de destino para copiar os itens selecionados:',
+      selectTargetFolderForBulkMove: 'Selecione uma pasta de destino para mover os itens selecionados:',
+      successfullyDeletedItems: '{{count}} item(s) excluído(s) com sucesso',
+      failedToDeleteSomeItems: 'Falha ao excluir alguns itens',
+      // Document types
+      folder: 'Pasta',
+      document: 'Documento',
+      image: 'Imagem',
+      pdf: 'PDF',
+      spreadsheet: 'Planilha',
+      text: 'Texto',
+      file: 'Arquivo',
+      // Status messages
+      folderCreatedSuccess: 'Pasta criada com sucesso',
+      documentCreatedSuccess: 'Documento criado com sucesso',
+      documentUpdatedSuccess: 'Documento atualizado com sucesso',
+      itemRenamedSuccess: 'Item renomeado com sucesso',
+      itemCopiedSuccess: 'Item copiado com sucesso',
+      itemMovedSuccess: 'Item movido com sucesso',
+      itemDeletedSuccess: 'Item excluído com sucesso',
+      filesUploadedSuccess: 'Arquivos enviados com sucesso',
+      bulkCopySuccess: '{{count}} item(ns) copiado(s) com sucesso',
+      bulkMoveSuccess: '{{count}} item(ns) movido(s) com sucesso',
+      bulkDeleteSuccess: '{{count}} item(ns) excluído(s) com sucesso',
+      documentExportedSuccess: 'Documento exportado como HTML com sucesso',
+      // Error messages
+      failedToLoadDocuments: 'Falha ao carregar documentos',
+      failedToCreateFolder: 'Falha ao criar pasta',
+      failedToCreateDocument: 'Falha ao criar documento',
+      failedToUpdateDocument: 'Falha ao atualizar documento',
+      failedToUploadFiles: 'Falha ao enviar arquivos',
+      failedToDeleteItem: 'Falha ao excluir item',
+      failedToRenameItem: 'Falha ao renomear item',
+      failedToCopyItem: 'Falha ao copiar item',
+      failedToMoveItem: 'Falha ao mover item',
+      failedToPasteItem: 'Falha ao colar item',
+      failedBulkCopy: 'Falha ao preparar cópia em massa',
+      failedBulkMove: 'Falha ao preparar movimentação em massa',
+              failedToGeneratePdf: 'Falha ao gerar PDF',
+        itemNotFound: 'Item não encontrado',
+        failedToLoadDocumentContent: 'Falha ao carregar conteúdo do documento',
+      // UI labels
+      goBack: 'Voltar',
+      goForward: 'Avançar',
+      sortOrder: 'Ordem de Classificação',
+      refresh: 'Atualizar',
+      searchDocuments: 'Pesquisar documentos...',
+      noDocumentsFound: 'Nenhum documento encontrado',
+                exportAsPdf: 'Exportar como PDF',
+      characters: 'Caracteres',
+      words: 'Palavras',
+      richTextEditorPoweredByQuill: 'Editor de Texto Rico alimentado por Quill',
+      loadingEditor: 'Carregando editor...',
+      documentTitle: 'Título do Documento',
+      startTypingDocument: 'Comece a digitar seu documento...',
+      pleaseEnterDocumentTitle: 'Por favor, digite um título para o documento',
+      pleaseEnterContent: 'Por favor, digite algum conteúdo',
+      pleaseAddContentBeforePdf: 'Por favor, adicione algum conteúdo antes de gerar o PDF',
+      home: 'Início',
+      type: 'Tipo',
+      owner: 'Proprietário',
+      created: 'Criado',
+      lastModified: 'Última Modificação',
+      subfolders: 'Subpastas',
+      files: 'Arquivos',
+      mimeType: 'Tipo MIME',
+      unknown: 'Desconhecido',
+      areYouSureDelete: 'Tem certeza de que deseja excluir este item?',
+      yes: 'Sim',
+      no: 'Não',
+      cancel: 'Cancelar',
+      close: 'Fechar',
+      save: 'Salvar',
+      export: 'Exportar',
+      noDescription: 'Sem descrição',
+      targetFolder: 'Pasta de Destino',
+      pleaseSelectTargetFolder: 'Por favor, selecione a pasta de destino',
+      pleaseEnterFolderName: 'Por favor, digite o nome da pasta',
+      pleaseEnterNewName: 'Por favor, digite o novo nome',
+      createNewDocument: 'Criar Novo Documento',
+      itemProperties: 'Propriedades do Item',
+      copyItem: 'Copiar Item',
+      moveItem: 'Mover Item',
+      renameItem: 'Renomear Item',
+      by: 'Por',
+      copyText: 'Copiar',
+      moveText: 'Mover',
+      deleteSelectedText: 'Excluir Selecionados',
+      // Clipboard messages
+      itemCutToClipboard: '{{name}} cortado para a área de transferência',
+      itemCopiedToClipboard: '{{name}} copiado para a área de transferência',
+      itemPastedSuccess: '{{name}} colado com sucesso',
+      itemsCutToClipboard: '{{count}} itens cortados para a área de transferência',
+      itemsCopiedToClipboard: '{{count}} itens copiados para a área de transferência',
+      itemsPastedSuccess: '{{count}} itens colados com sucesso',
+      paste: 'Colar',
+      cut: 'Cortar',
     },
     scanner: {
+      title: 'Scanner',
+      description: 'Digitalize documentos e gere PDFs',
       scanDocument: 'Digitalizar Documento',
       takePhoto: 'Tirar Foto',
       addPage: 'Adicionar Página',
@@ -1317,6 +1788,57 @@ const dictionaries: Record<Locale, Dictionary> = {
       avoidShadows: 'Evitar Sombras',
       centerDocument: 'Centralizar Documento',
       adjustBorders: 'Ajustar Bordas',
+      camera: 'Câmera',
+      startCamera: 'Iniciar Câmera',
+      startCameraHint: 'Clique em "Iniciar Câmera" para começar a digitalizar',
+      stopCamera: 'Parar Câmera',
+      scannedPages: 'Páginas Digitalizadas',
+      noPagesScanned: 'Nenhuma página digitalizada',
+      page: 'Página',
+      view: 'Ver',
+      "delete": 'Excluir',
+      fileName: 'Nome do Arquivo',
+      fileNamePlaceholder: 'Digite o nome do arquivo (sem extensão)',
+      captureSuccess: 'Página capturada com sucesso!',
+      pdfGenerated: 'PDF gerado com sucesso!',
+      pdfGenerationFailed: 'Falha ao gerar PDF. Tente novamente.',
+      captureAtLeastOnePage: 'Por favor, capture pelo menos uma página antes de gerar o PDF.',
+      enterFileName: 'Por favor, digite um nome de arquivo.',
+      cameraAccessError: 'Não foi possível acessar a câmera. Verifique as permissões.',
+      // Additional scanner keys
+      useDeviceCamera: 'Use a câmera do seu dispositivo para digitalizar documentos e convertê-los em PDF.',
+      convertToPdf: 'Converter para PDF',
+      scanningTipsTitle: 'Dicas de Digitalização',
+      ensureGoodLighting: '• Garanta boa iluminação para melhor qualidade',
+      keepDocumentFlat: '• Mantenha o documento plano e estável',
+      avoidShadowsGlare: '• Evite sombras e brilho',
+      centerDocumentFrame: '• Centralize o documento no quadro',
+      cameraSection: 'Câmera',
+      scannedPagesSection: 'Páginas Digitalizadas',
+      pdfGenerationSection: 'Geração de PDF',
+      fileNameLabel: 'Nome do Arquivo *',
+      fileNameRequired: 'Nome do arquivo é obrigatório',
+      enterFileNameWithoutExtension: 'Digite o nome do arquivo (sem extensão)',
+      generatePdfButton: 'Gerar PDF',
+      generatingPdf: 'Gerando PDF...',
+      processingPages: 'Processando',
+      pageSingular: 'página',
+      pagePlural: 'páginas',
+      noPagesScannedYet: 'Nenhuma página digitalizada ainda',
+      clickStartCamera: 'Clique em "Iniciar Câmera"',
+      toBeginScanning: 'para começar a digitalizar',
+      pageNumber: 'Página',
+      movePageUp: 'Mover para cima',
+      movePageDown: 'Mover para baixo',
+      previewModal: 'Visualização',
+      unableToAccessCamera: 'Não foi possível acessar a câmera.',
+      checkPermissions: 'Verifique as permissões.',
+      pageCapturedSuccessfully: 'Página capturada com sucesso!',
+      pleaseCaptureOnePage: 'Por favor, capture pelo menos uma página antes de gerar o PDF.',
+      pleaseEnterFileName: 'Por favor, digite um nome de arquivo.',
+      pdfGeneratedSuccessfully: 'PDF "{fileName}.pdf" gerado com sucesso!',
+      failedToGeneratePdf: 'Falha ao gerar PDF. Tente novamente.',
+      tryAgain: 'Tente novamente',
     },
     sucursal: {
       management: 'Gerenciamento de Sucursal',
@@ -1385,6 +1907,69 @@ const dictionaries: Record<Locale, Dictionary> = {
       errorType: 'Tipo de Erro',
       description: 'Descrição',
     },
+    profile: {
+      title: 'Perfil do Usuário',
+      description: 'Gerencie suas informações pessoais, configurações de conta e segurança',
+      editProfile: 'Editar Perfil',
+      updateProfile: 'Atualizar Perfil',
+      cancel: 'Cancelar',
+      personalInfo: 'Informações Pessoais',
+      accountInfo: 'Informações da Conta',
+      security: 'Segurança',
+      fullName: 'Nome Completo',
+      email: 'E-mail',
+      phone: 'Telefone',
+      address: 'Endereço',
+      department: 'Departamento',
+      memberSince: 'Membro desde',
+      lastLogin: 'Último Acesso',
+      userId: 'ID do Usuário',
+      never: 'Nunca',
+      noDepartment: 'Sem departamento',
+      enterFullName: 'Digite o nome completo',
+      enterEmail: 'Digite o e-mail',
+      enterPhone: 'Digite o telefone',
+      enterAddress: 'Digite o endereço',
+      selectDepartment: 'Selecione o departamento',
+      changePassword: 'Alterar Senha',
+      currentPassword: 'Senha Atual',
+      newPassword: 'Nova Senha',
+      confirmPassword: 'Confirmar Senha',
+      enterCurrentPassword: 'Digite a senha atual',
+      enterNewPassword: 'Digite a nova senha',
+      confirmNewPassword: 'Confirme a nova senha',
+      passwordRequirements: 'A senha deve ter pelo menos 8 caracteres',
+      passwordsDoNotMatch: 'As senhas não coincidem',
+      clickToChange: 'Clique para alterar',
+      uploadingAvatar: 'Carregando avatar',
+      onlyImageFiles: 'Apenas arquivos de imagem são permitidos',
+      imageSizeLimit: 'O arquivo deve ter menos de 2MB',
+      avatarUploaded: 'Avatar carregado com sucesso',
+      failedToUploadAvatar: 'Falha ao carregar avatar',
+      profileUpdated: 'Perfil Atualizado',
+      profileUpdateSuccess: 'Seu perfil foi atualizado com sucesso',
+      failedToUpdateProfile: 'Falha ao atualizar perfil',
+      updateError: 'Erro ao atualizar perfil',
+      passwordChanged: 'Senha Alterada',
+      passwordChangeSuccess: 'Sua senha foi alterada com sucesso',
+      failedToChangePassword: 'Falha ao alterar senha',
+      passwordChangeError: 'Erro ao alterar senha',
+      passwordSecurity: 'Segurança da Senha',
+      passwordSecurityDescription: 'Mantenha sua senha segura e altere-a regularmente',
+      departmentChangeInfo: 'Alteração de Departamento',
+      departmentChangeDescription: 'Apenas administradores podem alterar departamentos. Entre em contato com o suporte se necessário.',
+      roleDescriptions: {
+        superAdmin: 'Super Administrador com acesso total ao sistema',
+        admin: 'Administrador com permissões elevadas',
+        supervisor: 'Supervisor com permissões de equipe',
+        user: 'Usuário padrão com acesso básico',
+        developer: 'Desenvolvedor com acesso completo ao sistema',
+      },
+      validation: {
+        required: 'Este campo é obrigatório',
+        email: 'Digite um e-mail válido',
+      },
+    },
   },
   en: {
     navigation: {
@@ -1398,8 +1983,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       createGoals: 'Create Goals',
       editGoals: 'Edit Goals',
       scanner: 'Scanner',
-      scan: 'Digitalize',
-      digitalize: 'Digitalize',
+
+
       fileManagement: 'File Management',
       libraries: 'Libraries',
       documents: 'Documents',
@@ -1451,8 +2036,10 @@ const dictionaries: Record<Locale, Dictionary> = {
       accessDenied: 'Access denied',
       startDate: 'Start Date',
       endDate: 'End Date',
-      department: 'Department',
-    },
+          department: 'Department',
+    logoutSuccess: 'Logged out successfully',
+    logoutError: 'Error during logout, but session cleared',
+  },
     auth: {
       welcomeBack: 'Welcome back',
       enterCredentials: 'Enter your credentials to access',
@@ -1500,6 +2087,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       newUsersThisMonth: 'New Users This Month',
       storageUsage: 'Storage Usage',
       reportsResponseRate: 'Reports Response Rate',
+      libraries: 'Libraries',
+      documents: 'Documents',
     },
     departments: {
       title: 'Departments',
@@ -1597,6 +2186,40 @@ const dictionaries: Record<Locale, Dictionary> = {
       promoteToSupervisor: 'Promote to Department Supervisor',
       removeUserConfirm: 'Confirm Removal',
       removeUserWarning: 'Are you sure you want to remove this user? This action cannot be undone.',
+      userTypes: {
+        SUPER_ADMIN: 'Super Administrator',
+        ADMIN: 'Administrator',
+        USER: 'User',
+        SUPERVISOR: 'Supervisor',
+        DEVELOPER: 'Developer'
+      },
+    },
+    notifications: {
+      notifications: 'Notifications',
+      markAsRead: 'Mark as Read',
+      markAllAsRead: 'Mark All as Read',
+      noNotifications: 'No notifications',
+      noUnreadNotifications: 'No unread notifications',
+      noReadNotifications: 'No read notifications',
+      all: 'All',
+      unread: 'Unread',
+      read: 'Read',
+      stayUpdated: 'Stay updated with important platform activities',
+      delete: 'Delete',
+      timeAgo: {
+        justNow: 'Just now',
+        minutesAgo: 'm ago',
+        hoursAgo: 'h ago',
+        daysAgo: 'd ago',
+      },
+      types: {
+        reportSubmitted: 'Report Submitted',
+        goalUpdated: 'Goal Updated',
+        userRequest: 'User Request',
+        systemAlert: 'System Alert',
+        newFile: 'New File',
+        responseReceived: 'Response Received',
+      },
     },
     requests: {
       title: 'Requests',
@@ -1979,6 +2602,29 @@ const dictionaries: Record<Locale, Dictionary> = {
       sharing: 'Sharing',
       pleaseSelectUsers: 'Please select at least one user',
     },
+    documents: {
+      // Page title and description
+      documentManagementSystem: 'Document Management System',
+      organizeAndAccessDocuments: 'Organize and access documents with hierarchical folder structure, multiple view modes, and collaborative features',
+      
+      // Tab labels
+      allDocuments: 'All Documents',
+      myDocuments: 'My Documents',
+      
+      // Tab descriptions
+      allDocumentsDescription: 'Company-wide documents accessible to all employees',
+      myDocumentsDescription: 'Private document storage for individual users',
+      
+      // Tab titles
+      allDocumentsTitle: 'All Documents - Available to All Users',
+      myDocumentsTitle: 'My Documents - Your Private Storage',
+      
+      // Company-wide description
+      companyWideDocuments: 'Company-wide documents accessible to all employees',
+      
+      // Private storage description
+      privateDocumentStorage: 'Private document storage for individual users',
+    },
     files: {
       myFiles: 'My Files',
       libraries: 'Libraries',
@@ -2046,8 +2692,129 @@ const dictionaries: Record<Locale, Dictionary> = {
       uploadFiles: 'Upload Files',
       uploadDragText: 'Drag files here or click to select',
       uploadHint: 'Support for single or bulk upload',
+      // Bulk operations
+      copy: 'Copy',
+      move: 'Move',
+      cut: 'Cut',
+      paste: 'Paste',
+      properties: 'Properties',
+      editDocument: 'Edit Document',
+      clearSelection: 'Clear Selection',
+      selected: 'Selected',
+      items: 'items',
+      copySelected: 'Copy Selected',
+      moveSelected: 'Move Selected',
+      deleteSelected: 'Delete Selected',
+      copySelectedItems: 'Copy Selected Items',
+      moveSelectedItems: 'Move Selected Items',
+      selectTargetFolderCopy: 'Select a target folder to copy the selected items to:',
+      selectTargetFolderMove: 'Select a target folder to move the selected items to:',
+      copyToRoot: 'Copy to Root',
+      moveToRoot: 'Move to Root',
+      root: 'Root',
+      bulkCopyItems: 'Copy Selected Items',
+      bulkMoveItems: 'Move Selected Items',
+      selectTargetFolderForBulkCopy: 'Select a target folder to copy the selected items to:',
+      selectTargetFolderForBulkMove: 'Select a target folder to move the selected items to:',
+      successfullyDeletedItems: 'Successfully deleted {{count}} item(s)',
+      failedToDeleteSomeItems: 'Failed to delete some items',
+      // Document types
+      folder: 'Folder',
+      document: 'Document',
+      image: 'Image',
+      pdf: 'PDF',
+      spreadsheet: 'Spreadsheet',
+      text: 'Text',
+      file: 'File',
+      // Status messages
+      folderCreatedSuccess: 'Folder created successfully',
+      documentCreatedSuccess: 'Document created successfully',
+      documentUpdatedSuccess: 'Document updated successfully',
+      itemRenamedSuccess: 'Item renamed successfully',
+      itemCopiedSuccess: 'Item copied successfully',
+      itemMovedSuccess: 'Item moved successfully',
+      itemDeletedSuccess: 'Item deleted successfully',
+      filesUploadedSuccess: 'Files uploaded successfully',
+      bulkCopySuccess: 'Successfully copied {{count}} item(s)',
+      bulkMoveSuccess: 'Successfully moved {{count}} item(s)',
+      bulkDeleteSuccess: 'Successfully deleted {{count}} item(s)',
+      documentExportedSuccess: 'Document exported as HTML successfully',
+      // Error messages
+      failedToLoadDocuments: 'Failed to load documents',
+      failedToCreateFolder: 'Failed to create folder',
+      failedToCreateDocument: 'Failed to create document',
+      failedToUpdateDocument: 'Failed to update document',
+      failedToUploadFiles: 'Failed to upload files',
+      failedToDeleteItem: 'Failed to delete item',
+      failedToRenameItem: 'Failed to rename item',
+      failedToCopyItem: 'Failed to copy item',
+      failedToMoveItem: 'Failed to move item',
+      failedToPasteItem: 'Failed to paste item',
+      failedBulkCopy: 'Failed to prepare bulk copy',
+      failedBulkMove: 'Failed to prepare bulk move',
+              failedToGeneratePdf: 'Failed to generate PDF',
+        itemNotFound: 'Item not found',
+        failedToLoadDocumentContent: 'Failed to load document content',
+      // UI labels
+      goBack: 'Go Back',
+      goForward: 'Go Forward',
+      sortOrder: 'Sort Order',
+      refresh: 'Refresh',
+      searchDocuments: 'Search documents...',
+      noDocumentsFound: 'No documents found',
+                exportAsPdf: 'Export as PDF',
+      characters: 'Characters',
+      words: 'Words',
+      richTextEditorPoweredByQuill: 'Rich Text Editor powered by Quill',
+      loadingEditor: 'Loading editor...',
+      documentTitle: 'Document Title',
+      startTypingDocument: 'Start typing your document...',
+      pleaseEnterDocumentTitle: 'Please enter a document title',
+      pleaseEnterContent: 'Please enter some content',
+      pleaseAddContentBeforePdf: 'Please add some content before generating PDF',
+      home: 'Home',
+      type: 'Type',
+      owner: 'Owner',
+      created: 'Created',
+      lastModified: 'Last Modified',
+      subfolders: 'Subfolders',
+      files: 'Files',
+      mimeType: 'MIME Type',
+      unknown: 'Unknown',
+      areYouSureDelete: 'Are you sure you want to delete this item?',
+      yes: 'Yes',
+      no: 'No',
+      cancel: 'Cancel',
+      close: 'Close',
+      save: 'Save',
+      export: 'Export',
+      noDescription: 'No description',
+      targetFolder: 'Target Folder',
+      pleaseSelectTargetFolder: 'Please select target folder',
+      pleaseEnterFolderName: 'Please enter folder name',
+      pleaseEnterNewName: 'Please enter new name',
+      createNewDocument: 'Create New Document',
+      itemProperties: 'Item Properties',
+      copyItem: 'Copy Item',
+      moveItem: 'Move Item',
+      renameItem: 'Rename Item',
+      by: 'By',
+      copyText: 'Copy',
+      moveText: 'Move',
+      deleteSelectedText: 'Delete Selected',
+      // Clipboard messages
+      itemCutToClipboard: '{{name}} cut to clipboard',
+      itemCopiedToClipboard: '{{name}} copied to clipboard',
+      itemPastedSuccess: '{{name}} pasted successfully',
+      itemsCutToClipboard: '{{count}} items cut to clipboard',
+      itemsCopiedToClipboard: '{{count}} items copied to clipboard',
+      itemsPastedSuccess: '{{count}} items pasted successfully',
+      paste: 'Paste',
+      cut: 'Cut',
     },
     scanner: {
+      title: 'Scanner',
+      description: 'Scan documents and generate PDFs',
       scanDocument: 'Scan Document',
       takePhoto: 'Take Photo',
       addPage: 'Add Page',
@@ -2060,6 +2827,57 @@ const dictionaries: Record<Locale, Dictionary> = {
       avoidShadows: 'Avoid Shadows',
       centerDocument: 'Center Document',
       adjustBorders: 'Adjust Borders',
+      camera: 'Camera',
+      startCamera: 'Start Camera',
+      startCameraHint: 'Click "Start Camera" to begin scanning',
+      stopCamera: 'Stop Camera',
+      scannedPages: 'Scanned Pages',
+      noPagesScanned: 'No pages scanned',
+      page: 'Page',
+      view: 'View',
+      "delete": 'Delete',
+      fileName: 'File Name',
+      fileNamePlaceholder: 'Enter file name (without extension)',
+      captureSuccess: 'Page captured successfully!',
+      pdfGenerated: 'PDF generated successfully!',
+      pdfGenerationFailed: 'Failed to generate PDF. Please try again.',
+      captureAtLeastOnePage: 'Please capture at least one page before generating PDF.',
+      enterFileName: 'Please enter a file name.',
+      cameraAccessError: 'Unable to access camera. Please check permissions.',
+      // Additional scanner keys
+      useDeviceCamera: 'Use your device camera to scan documents and convert them to PDF.',
+      convertToPdf: 'Convert to PDF',
+      scanningTipsTitle: 'Scanning Tips',
+      ensureGoodLighting: '• Ensure good lighting for better quality',
+      keepDocumentFlat: '• Keep the document flat and steady',
+      avoidShadowsGlare: '• Avoid shadows and glare',
+      centerDocumentFrame: '• Center the document in the frame',
+      cameraSection: 'Camera',
+      scannedPagesSection: 'Scanned Pages',
+      pdfGenerationSection: 'PDF Generation',
+      fileNameLabel: 'File Name *',
+      fileNameRequired: 'File name is required',
+      enterFileNameWithoutExtension: 'Enter file name (without extension)',
+      generatePdfButton: 'Generate PDF',
+      generatingPdf: 'Generating PDF...',
+      processingPages: 'Processing',
+      pageSingular: 'page',
+      pagePlural: 'pages',
+      noPagesScannedYet: 'No pages scanned yet',
+      clickStartCamera: 'Click "Start Camera"',
+      toBeginScanning: 'to begin scanning',
+      pageNumber: 'Page',
+      movePageUp: 'Move up',
+      movePageDown: 'Move down',
+      previewModal: 'Preview',
+      unableToAccessCamera: 'Unable to access camera.',
+      checkPermissions: 'Please check permissions.',
+      pageCapturedSuccessfully: 'Page captured successfully!',
+      pleaseCaptureOnePage: 'Please capture at least one page before generating PDF.',
+      pleaseEnterFileName: 'Please enter a file name.',
+      pdfGeneratedSuccessfully: 'PDF "{fileName}.pdf" generated successfully!',
+      failedToGeneratePdf: 'Failed to generate PDF. Please try again.',
+      tryAgain: 'Try again',
     },
     sucursal: {
       management: 'Sucursal Management',
@@ -2127,6 +2945,69 @@ const dictionaries: Record<Locale, Dictionary> = {
       url: 'URL',
       errorType: 'Error Type',
       description: 'Description',
+    },
+    profile: {
+      title: 'User Profile',
+      description: 'Manage your personal information, account settings, and security',
+      editProfile: 'Edit Profile',
+      updateProfile: 'Update Profile',
+      cancel: 'Cancel',
+      personalInfo: 'Personal Information',
+      accountInfo: 'Account Information',
+      security: 'Security',
+      fullName: 'Full Name',
+      email: 'Email',
+      phone: 'Phone',
+      address: 'Address',
+      department: 'Department',
+      memberSince: 'Member Since',
+      lastLogin: 'Last Login',
+      userId: 'User ID',
+      never: 'Never',
+      noDepartment: 'No Department',
+      enterFullName: 'Enter full name',
+      enterEmail: 'Enter email',
+      enterPhone: 'Enter phone number',
+      enterAddress: 'Enter address',
+      selectDepartment: 'Select department',
+      changePassword: 'Change Password',
+      currentPassword: 'Current Password',
+      newPassword: 'New Password',
+      confirmPassword: 'Confirm Password',
+      enterCurrentPassword: 'Enter current password',
+      enterNewPassword: 'Enter new password',
+      confirmNewPassword: 'Confirm new password',
+      passwordRequirements: 'Password must be at least 8 characters',
+      passwordsDoNotMatch: 'Passwords do not match',
+      clickToChange: 'Click to change',
+      uploadingAvatar: 'Uploading avatar',
+      onlyImageFiles: 'Only image files are allowed',
+      imageSizeLimit: 'File must be less than 2MB',
+      avatarUploaded: 'Avatar uploaded successfully',
+      failedToUploadAvatar: 'Failed to upload avatar',
+      profileUpdated: 'Profile Updated',
+      profileUpdateSuccess: 'Your profile has been updated successfully',
+      failedToUpdateProfile: 'Failed to update profile',
+      updateError: 'Error updating profile',
+      passwordChanged: 'Password Changed',
+      passwordChangeSuccess: 'Your password has been changed successfully',
+      failedToChangePassword: 'Failed to change password',
+      passwordChangeError: 'Error changing password',
+      passwordSecurity: 'Password Security',
+      passwordSecurityDescription: 'Keep your password secure and change it regularly',
+      departmentChangeInfo: 'Department Change',
+      departmentChangeDescription: 'Only administrators can change departments. Contact support if needed.',
+      roleDescriptions: {
+        superAdmin: 'Super Administrator with full system access',
+        admin: 'Administrator with elevated permissions',
+        supervisor: 'Supervisor with team permissions',
+        user: 'Standard user with basic access',
+        developer: 'Developer with full system access',
+      },
+      validation: {
+        required: 'This field is required',
+        email: 'Please enter a valid email',
+      },
     },
   },
 };

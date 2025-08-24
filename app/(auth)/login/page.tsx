@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, Form, Input, Button, Checkbox, message, Tabs, Select, Divider } from "antd";
 import { UserOutlined, LockOutlined, MailOutlined, TeamOutlined, GlobalOutlined } from "@ant-design/icons";
+import Image from "next/image";
 
 import { useUser } from "@/contexts/UserContext";
 import { useLanguage, useTranslation } from "@/contexts/LanguageContext";
@@ -18,11 +19,28 @@ export default function LoginPage() {
   const [activeTab, setActiveTab] = useState("login");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
+  const [currentSlide, setCurrentSlide] = useState(0);
   
   const { login } = useUser();
   const { locale, setLocale } = useLanguage();
   const { t } = useTranslation();
   const router = useRouter();
+
+  // Slideshow images - assuming these exist in public/slides/
+  const slides = [
+    '/slides/EDM1.jpg',
+    '/slides/EDM2.jpg', 
+    '/slides/EDM3.jpg',
+  ];
+
+  // Slideshow effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % slides.length);
+    }, 5000); // Change slide every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [slides.length]);
 
   // Fetch departments on component mount
   useEffect(() => {
@@ -380,8 +398,29 @@ export default function LoginPage() {
   ];
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 px-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+      {/* Slideshow Background */}
+      <div className="absolute inset-0 z-0">
+        {slides.map((slide, index) => (
+          <div
+            key={index}
+            className={`absolute inset-0 transition-opacity duration-1000 ${
+              index === currentSlide ? 'opacity-100' : 'opacity-0'
+            }`}
+            style={{
+              backgroundImage: `url(${slide})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+              backgroundRepeat: 'no-repeat'
+            }}
+          />
+        ))}
+        {/* Dark overlay for better text readability */}
+        <div className="absolute inset-0 bg-black bg-opacity-40" />
+      </div>
+
+      {/* Content */}
+      <div className="w-full max-w-md relative z-10">
         {/* Language Switcher */}
         <div className="flex justify-center mb-6">
           <Select
@@ -397,9 +436,18 @@ export default function LoginPage() {
           />
         </div>
 
-        <Card className="shadow-2xl">
+        <Card className="shadow-2xl bg-white/95 backdrop-blur-sm">
           <div className="text-center mb-6">
-            <div className="text-4xl mb-2">📊</div>
+            {/* Logo */}
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/icon.png"
+                alt="Platform Logo"
+                width={64}
+                height={64}
+                className="rounded-lg"
+              />
+            </div>
             <h1 className="text-2xl font-bold text-gray-800">{t("common.platformName")}</h1>
             <p className="text-gray-600">{t("auth.enterCredentials")}</p>
           </div>
@@ -415,6 +463,19 @@ export default function LoginPage() {
             }}
           />
         </Card>
+
+        {/* Slideshow indicators */}
+        <div className="flex justify-center mt-6 space-x-2">
+          {slides.map((_, index) => (
+            <button
+              key={index}
+              className={`w-2 h-2 rounded-full transition-all duration-300 ${
+                index === currentSlide ? 'bg-white scale-125' : 'bg-white/50'
+              }`}
+              onClick={() => setCurrentSlide(index)}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );

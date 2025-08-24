@@ -11,3 +11,4 @@ export * from './notificationService';
 export * from './reportService';
 export * from './scannerService';
 export * from './dashboardService';
+export * from './documentsService';

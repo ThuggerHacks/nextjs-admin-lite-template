@@ -11,7 +11,6 @@ import {
   EyeOutlined,
   InfoCircleOutlined
 } from "@ant-design/icons";
-
 import { useTranslation } from "@/contexts/LanguageContext";
 
 const { Option } = Select;
@@ -24,11 +23,10 @@ interface ScannedPage {
 }
 
 export default function ScannerPage() {
+  const { t } = useTranslation();
   const [scannedPages, setScannedPages] = useState<ScannedPage[]>([]);
   const [isCapturing, setIsCapturing] = useState(false);
-  const [selectedLibrary, setSelectedLibrary] = useState<string>("");
   const [fileName, setFileName] = useState<string>("");
-  const [description, setDescription] = useState<string>("");
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState<string>("");
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -36,15 +34,6 @@ export default function ScannerPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  
-  const { t } = useTranslation();
-
-  const mockLibraries = [
-    { id: '1', name: 'Personal Documents' },
-    { id: '2', name: 'Work Reports' },
-    { id: '3', name: 'HR Documents' },
-    { id: '4', name: 'Financial Records' },
-  ];
 
   const startCamera = async () => {
     try {
@@ -63,7 +52,7 @@ export default function ScannerPage() {
       }
     } catch (error) {
       console.error('Error accessing camera:', error);
-      message.error('Unable to access camera. Please check permissions.');
+      message.error(t('scanner.cameraAccessError'));
       setIsCapturing(false);
     }
   };
@@ -89,10 +78,14 @@ export default function ScannerPage() {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
 
+    // Enable image smoothing for better quality
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = 'high';
+
     // Draw the video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // Convert canvas to blob
+    // Convert canvas to blob with higher quality
     canvas.toBlob((blob) => {
       if (blob) {
         const id = Date.now().toString();
@@ -105,9 +98,9 @@ export default function ScannerPage() {
         };
 
         setScannedPages(prev => [...prev, newPage]);
-        message.success('Page captured successfully!');
+        message.success(t('scanner.pageCapturedSuccessfully'));
       }
-    }, 'image/jpeg', 0.8);
+    }, 'image/jpeg', 0.95); // Increased quality from 0.8 to 0.95
   };
 
   const removePage = (id: string) => {
@@ -120,6 +113,30 @@ export default function ScannerPage() {
     });
   };
 
+  const movePageUp = (id: string) => {
+    setScannedPages(prev => {
+      const index = prev.findIndex(p => p.id === id);
+      if (index > 0) {
+        const newPages = [...prev];
+        [newPages[index], newPages[index - 1]] = [newPages[index - 1], newPages[index]];
+        return newPages;
+      }
+      return prev;
+    });
+  };
+
+  const movePageDown = (id: string) => {
+    setScannedPages(prev => {
+      const index = prev.findIndex(p => p.id === id);
+      if (index < prev.length - 1) {
+        const newPages = [...prev];
+        [newPages[index], newPages[index + 1]] = [newPages[index + 1], newPages[index]];
+        return newPages;
+      }
+      return prev;
+    });
+  };
+
   const previewPage = (url: string) => {
     setPreviewImage(url);
     setPreviewVisible(true);
@@ -127,58 +144,125 @@ export default function ScannerPage() {
 
   const generatePDF = async () => {
     if (scannedPages.length === 0) {
-      message.warning('Please capture at least one page before generating PDF.');
+      message.warning(t('scanner.pleaseCaptureOnePage'));
       return;
     }
 
-    if (!selectedLibrary || !fileName) {
-      message.warning('Please select a library and enter a file name.');
+    if (!fileName) {
+      message.warning(t('scanner.pleaseEnterFileName'));
       return;
     }
 
     setIsGeneratingPdf(true);
     
     try {
-      // Simulate PDF generation
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      // Import jsPDF dynamically to avoid SSR issues
+      const { jsPDF } = await import('jspdf');
       
-      message.success(`PDF "${fileName}.pdf" generated and saved to library successfully!`);
+      // Create new PDF document with A4 dimensions (210mm x 297mm)
+      const pdf = new jsPDF('p', 'mm', 'a4');
+      const pageWidth = 210;
+      const pageHeight = 297;
+      
+      // Margins
+      const margin = 15;
+      const contentWidth = pageWidth - (2 * margin);
+      const contentHeight = pageHeight - (2 * margin);
+      
+      // Add each scanned page to PDF
+      for (let i = 0; i < scannedPages.length; i++) {
+        const page = scannedPages[i];
+        
+        // Convert blob to base64
+        const base64 = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            const result = reader.result as string;
+            // Remove data:image/jpeg;base64, prefix
+            const base64Data = result.split(',')[1];
+            resolve(base64Data);
+          };
+          reader.readAsDataURL(page.blob);
+        });
+        
+        // Create a temporary image to get dimensions
+        const img = new Image();
+        await new Promise<void>((resolve) => {
+          img.onload = () => {
+            const imgWidth = img.width;
+            const imgHeight = img.height;
+            
+            // Calculate aspect ratio
+            const aspectRatio = imgWidth / imgHeight;
+            
+            // Calculate dimensions to fit within content area while maintaining aspect ratio
+            let finalWidth = contentWidth;
+            let finalHeight = contentWidth / aspectRatio;
+            
+            // If height is too tall, scale down proportionally
+            if (finalHeight > contentHeight) {
+              finalHeight = contentHeight;
+              finalWidth = contentHeight * aspectRatio;
+            }
+            
+            // Center the image on the page
+            const x = margin + (contentWidth - finalWidth) / 2;
+            const y = margin + (contentHeight - finalHeight) / 2;
+            
+            // Add image to PDF with proper dimensions and positioning
+            // Use 'FAST' for better performance, 'MEDIUM' for better quality
+            pdf.addImage(base64, 'JPEG', x, y, finalWidth, finalHeight, `page${i + 1}`, 'MEDIUM');
+            resolve();
+          };
+          img.src = URL.createObjectURL(page.blob);
+        });
+        
+        // Add new page if not the last page
+        if (i < scannedPages.length - 1) {
+          pdf.addPage();
+        }
+      }
+      
+      // Save the PDF
+      pdf.save(`${fileName}.pdf`);
+      
+      message.success(t('scanner.pdfGeneratedSuccessfully', { fileName }));
       
       // Clear the scanner
       scannedPages.forEach(page => URL.revokeObjectURL(page.url));
       setScannedPages([]);
       setFileName("");
-      setDescription("");
       stopCamera();
     } catch (error) {
-      message.error('Failed to generate PDF. Please try again.');
+      console.error('Error generating PDF:', error);
+      message.error(t('scanner.failedToGeneratePdf'));
     } finally {
       setIsGeneratingPdf(false);
     }
   };
 
   return (
-    <div className="p-6">
+    <div className="p-4 sm:p-6">
       <Card>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
             <CameraOutlined />
-            {t("scanner.scanDocument")}
+            {t('scanner.title')}
           </h2>
-          <p className="text-gray-600 mt-2">
-            Use your device camera to scan documents and convert them to PDF.
+          <p className="text-gray-600 mt-2 text-sm sm:text-base">
+            {t('scanner.useDeviceCamera')}
           </p>
         </div>
 
         {/* Scanning Tips */}
         <Alert
-          message={t("scanner.scanningTips")}
+          message={t('scanner.scanningTipsTitle')}
           description={
-            <ul className="mt-2">
-              <li>• {t("scanner.goodLighting")}</li>
-              <li>• {t("scanner.keepFlat")}</li>
-              <li>• {t("scanner.avoidShadows")}</li>
-              <li>• {t("scanner.centerDocument")}</li>
+            <ul className="mt-2 text-sm">
+              <li>{t('scanner.ensureGoodLighting')}</li>
+              <li>{t('scanner.keepDocumentFlat')}</li>
+              <li>{t('scanner.avoidShadowsGlare')}</li>
+              <li>{t('scanner.centerDocumentFrame')}</li>
             </ul>
           }
           type="info"
@@ -186,10 +270,10 @@ export default function ScannerPage() {
           className="mb-6"
         />
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 sm:gap-6">
           {/* Camera Section */}
           <div>
-            <h3 className="text-lg font-semibold mb-4">Camera</h3>
+            <h3 className="text-lg font-semibold mb-4">{t('scanner.cameraSection')}</h3>
             
             <div className="relative bg-black rounded-lg overflow-hidden mb-4" style={{ aspectRatio: '4/3' }}>
               {isCapturing ? (
@@ -201,26 +285,28 @@ export default function ScannerPage() {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-white">
-                  <div className="text-center">
-                    <CameraOutlined className="text-4xl mb-2" />
-                    <p>Click "Start Camera" to begin scanning</p>
+                  <div className="text-center p-4">
+                    <CameraOutlined className="text-3xl sm:text-4xl mb-2" />
+                    <p className="text-sm sm:text-base">
+                      {t('scanner.clickStartCamera')} {t('scanner.toBeginScanning')}
+                    </p>
                   </div>
                 </div>
               )}
             </div>
 
-            <Space className="w-full justify-center">
+            <Space className="w-full justify-center" wrap>
               {!isCapturing ? (
-                <Button type="primary" icon={<CameraOutlined />} onClick={startCamera}>
-                  Start Camera
+                <Button type="primary" icon={<CameraOutlined />} onClick={startCamera} size="large">
+                  {t('scanner.startCamera')}
                 </Button>
               ) : (
                 <>
-                  <Button type="primary" icon={<CameraOutlined />} onClick={capturePhoto}>
-                    {t("scanner.takePhoto")}
+                  <Button type="primary" icon={<CameraOutlined />} onClick={capturePhoto} size="large">
+                    {t('scanner.takePhoto')}
                   </Button>
-                  <Button onClick={stopCamera}>
-                    Stop Camera
+                  <Button onClick={stopCamera} size="large">
+                    {t('scanner.stopCamera')}
                   </Button>
                 </>
               )}
@@ -233,7 +319,7 @@ export default function ScannerPage() {
           {/* Scanned Pages Section */}
           <div>
             <h3 className="text-lg font-semibold mb-4">
-              Scanned Pages ({scannedPages.length})
+              {t('scanner.scannedPagesSection')} ({scannedPages.length})
             </h3>
             
             <div className="border rounded-lg p-4 mb-4" style={{ minHeight: '300px' }}>
@@ -241,35 +327,64 @@ export default function ScannerPage() {
                 <div className="h-full flex items-center justify-center text-gray-500">
                   <div className="text-center">
                     <FilePdfOutlined className="text-3xl mb-2" />
-                    <p>No pages scanned yet</p>
+                    <p className="text-sm sm:text-base">{t('scanner.noPagesScannedYet')}</p>
                   </div>
                 </div>
               ) : (
                 <List
-                  grid={{ gutter: 16, xs: 2, sm: 2, md: 3 }}
+                  grid={{ gutter: 16, xs: 1, sm: 2, md: 2, lg: 3 }}
                   dataSource={scannedPages}
                   renderItem={(page, index) => (
                     <List.Item>
-                      <div className="border rounded-lg overflow-hidden">
+                      <div className="border rounded-lg overflow-hidden relative">
                         <img
                           src={page.url}
-                          alt={`Page ${index + 1}`}
-                          className="w-full h-24 object-cover cursor-pointer"
+                          alt={`${t('scanner.pageNumber')} ${index + 1}`}
+                          className="w-full h-20 sm:h-24 object-cover cursor-pointer"
                           onClick={() => previewPage(page.url)}
                         />
+                        <div className="absolute top-1 left-1 bg-black bg-opacity-70 text-white text-xs px-1 py-0.5 rounded">
+                          {index + 1}
+                        </div>
                         <div className="p-2 text-center">
-                          <Space>
-                            <Button
-                              size="small"
-                              icon={<EyeOutlined />}
-                              onClick={() => previewPage(page.url)}
-                            />
-                            <Button
-                              size="small"
-                              danger
-                              icon={<DeleteOutlined />}
-                              onClick={() => removePage(page.id)}
-                            />
+                          <Space size="small" direction="vertical">
+                            <Space size="small">
+                              <Button
+                                size="small"
+                                icon={<EyeOutlined />}
+                                onClick={() => previewPage(page.url)}
+                              >
+                                {t('scanner.view')}
+                              </Button>
+                              <Button
+                                size="small"
+                                danger
+                                icon={<DeleteOutlined />}
+                                onClick={() => removePage(page.id)}
+                              >
+                                {t('scanner.delete')}
+                              </Button>
+                            </Space>
+                            <Space size="small">
+                              <Button
+                                size="small"
+                                disabled={index === 0}
+                                onClick={() => movePageUp(page.id)}
+                                style={{ fontSize: '10px', padding: '0 4px' }}
+                                title={t('scanner.movePageUp')}
+                              >
+                                ↑
+                              </Button>
+                              <Button
+                                size="small"
+                                disabled={index === scannedPages.length - 1}
+                                onClick={() => movePageDown(page.id)}
+                                style={{ fontSize: '10px', padding: '0 4px' }}
+                                title={t('scanner.movePageDown')}
+                              >
+                                ↓
+                              </Button>
+                            </Space>
                           </Space>
                         </div>
                       </div>
@@ -283,40 +398,13 @@ export default function ScannerPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium mb-1">
-                  {t("files.selectLibrary")} *
-                </label>
-                <Select
-                  placeholder="Select a library"
-                  className="w-full"
-                  value={selectedLibrary}
-                  onChange={setSelectedLibrary}
-                >
-                  {mockLibraries.map(lib => (
-                    <Option key={lib.id} value={lib.id}>{lib.name}</Option>
-                  ))}
-                </Select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  {t("files.fileName")} *
+                  {t('scanner.fileNameLabel')}
                 </label>
                 <Input
-                  placeholder="Enter file name (without extension)"
+                  placeholder={t('scanner.enterFileNameWithoutExtension')}
                   value={fileName}
                   onChange={(e) => setFileName(e.target.value)}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">
-                  {t("files.fileDescription")}
-                </label>
-                <Input.TextArea
-                  rows={3}
-                  placeholder="Enter file description (optional)"
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
+                  size="large"
                 />
               </div>
 
@@ -324,13 +412,19 @@ export default function ScannerPage() {
                 type="primary"
                 icon={<FilePdfOutlined />}
                 loading={isGeneratingPdf}
-                disabled={scannedPages.length === 0 || !selectedLibrary || !fileName}
+                disabled={scannedPages.length === 0 || !fileName}
                 onClick={generatePDF}
                 className="w-full"
                 size="large"
               >
-                {t("scanner.generatePdf")}
+                {isGeneratingPdf ? t('scanner.generatingPdf') : t('scanner.generatePdfButton')}
               </Button>
+              
+              {isGeneratingPdf && (
+                <div className="text-center text-sm text-gray-500">
+                  {t('scanner.processingPages')} {scannedPages.length} {scannedPages.length > 1 ? t('scanner.pagePlural') : t('scanner.pageSingular')}...
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -340,8 +434,9 @@ export default function ScannerPage() {
           open={previewVisible}
           onCancel={() => setPreviewVisible(false)}
           footer={null}
-          width="80%"
+          width="90%"
           style={{ maxWidth: '800px' }}
+          title={t('scanner.previewModal')}
         >
           <img
             src={previewImage}

@@ -453,7 +453,7 @@ const GoalsPage: React.FC = () => {
               title="Active"
               value={stats.active}
               prefix={<ClockCircleOutlined />}
-              valueStyle={{ color: '#1890ff' }}
+              valueStyle={{ color: '#FFA500' }}
             />
           </Card>
         </Col>

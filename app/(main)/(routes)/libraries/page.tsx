@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Card,
   Row,
@@ -26,15 +26,15 @@ import {
   TeamOutlined,
   UserOutlined,
   FileOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
 import { Library, LibraryPermission, LibraryMemberSelection, UserRole } from '@/types';
-import FileManager from '@/components/FileManager/FileManager';
-import EnhancedFileManager from '@/components/EnhancedFileManager';
+import LibrariesManager from '@/components/LibrariesManager';
 
 const { TextArea } = Input;
-const { Title } = Typography;
+const { Title, Text } = Typography;
 
 // Mock data
 const mockUsers = [
@@ -115,12 +115,12 @@ const mockLibraries: Library[] = [
 ];
 
 export default function LibrariesPage() {
-  const [libraries, setLibraries] = useState<Library[]>(mockLibraries);
+  const [libraries, setLibraries] = useState<Library[]>([]);
   const [selectedLibrary, setSelectedLibrary] = useState<string | null>(null);
   const [isLibraryModalVisible, setIsLibraryModalVisible] = useState(false);
   const [libraryForm] = Form.useForm();
-  const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('libraries');
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('all');
   
   // Member selection state
   const [memberSelection, setMemberSelection] = useState<LibraryMemberSelection>({
@@ -131,6 +131,26 @@ export default function LibrariesPage() {
   
   const { user, hasRole, canAccess } = useUser();
   const { t } = useTranslation();
+
+  // Load libraries on component mount
+  useEffect(() => {
+    const loadLibraries = async () => {
+      setLoading(true);
+      try {
+        // Simulate API call delay to prevent blinking
+        await new Promise(resolve => setTimeout(resolve, 100));
+        setLibraries(mockLibraries);
+      } catch (error) {
+        console.error('Failed to load libraries:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (user) {
+      loadLibraries();
+    }
+  }, [user]);
 
   const getMemberCount = (library: Library): string => {
     const userCount = library.permissions.filter(p => p.type === 'user').length;
@@ -167,7 +187,7 @@ export default function LibrariesPage() {
     
     // Check if user's department has permission
     const hasDepartmentPermission = library.permissions.some(p => 
-      p.type === 'department' && p.targetId === user?.department
+      p.type === 'department' && p.targetId === user?.department?.id
     );
     
     return hasUserPermission || hasDepartmentPermission || library.createdBy.id === user?.id;
@@ -294,8 +314,13 @@ export default function LibrariesPage() {
 
   const tabItems = [
     {
-      key: 'libraries',
-      label: 'Libraries',
+      key: 'all',
+      label: (
+        <span>
+          <GlobalOutlined />
+          {t('libraries.allLibraries')}
+        </span>
+      ),
       children: (
         <Row gutter={[16, 16]}>
           {/* Libraries List */}
@@ -349,17 +374,21 @@ export default function LibrariesPage() {
             </Card>
           </Col>
 
-          {/* Enhanced File Manager */}
+          {/* Library Manager */}
           {selectedLibrary && selectedLibraryData && (
             <Col xs={24} lg={18}>
-              <EnhancedFileManager
-                mode="library"
-                libraryId={selectedLibrary}
-                libraryName={selectedLibraryData.name}
+              <LibrariesManager
+                mode="all"
                 canWrite={libraryPermissions?.canWrite || false}
                 canDelete={libraryPermissions?.canDelete || false}
                 title={`${selectedLibraryData.name} - ${selectedLibraryData.description}`}
-                rootPath={`/Libraries/${selectedLibraryData.name}`}
+                onDocumentsChange={() => {
+                  // Refresh library data when files change
+                  const updatedLibrary = { ...selectedLibraryData, fileCount: selectedLibraryData.fileCount + 1 };
+                  setLibraries(prev => prev.map(lib => 
+                    lib.id === selectedLibrary ? updatedLibrary : lib
+                  ));
+                }}
               />
             </Col>
           )}
@@ -378,26 +407,196 @@ export default function LibrariesPage() {
         </Row>
       ),
     },
+    {
+      key: 'personal',
+      label: (
+        <span>
+          <UserOutlined />
+          {t('libraries.myLibraries')}
+        </span>
+      ),
+      children: (
+        <Row gutter={[16, 16]}>
+          {/* My Libraries List */}
+          <Col xs={24} lg={selectedLibrary ? 6 : 24}>
+            <Card 
+              title={t('libraries.myLibraries')} 
+              size="small"
+              extra={
+                <Button
+                  type="primary"
+                  icon={<PlusOutlined />}
+                  size="small"
+                  onClick={() => setIsLibraryModalVisible(true)}
+                >
+                  {t('libraries.newLibrary')}
+                </Button>
+              }
+            >
+              <List
+                dataSource={libraries.filter(lib => lib.createdBy.id === user?.id)}
+                renderItem={(library) => (
+                  <List.Item
+                    className={`cursor-pointer p-3 rounded hover:bg-gray-50 ${
+                      selectedLibrary === library.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                    }`}
+                    onClick={() => setSelectedLibrary(library.id)}
+                  >
+                    <List.Item.Meta
+                      avatar={<FolderOutlined className="text-xl text-blue-500" />}
+                      title={library.name}
+                      description={
+                        <div>
+                          <div className="text-gray-600">{library.description}</div>
+                          <div className="text-sm text-gray-500 mt-1">
+                            {library.fileCount} {t('libraries.files')} • {t('libraries.createdBy')} {library.createdBy.name}
+                          </div>
+                          <div className="text-xs text-blue-600 mt-1">
+                            👥 {getMemberCount(library)}
+                          </div>
+                        </div>
+                      }
+                    />
+                    <Button icon={<SettingOutlined />} size="small" type="text" />
+                  </List.Item>
+                )}
+              />
+            </Card>
+          </Col>
+
+          {/* Library Manager for My Libraries */}
+          {selectedLibrary && selectedLibraryData && (
+            <Col xs={24} lg={18}>
+              <LibrariesManager
+                mode="personal"
+                canWrite={true}
+                canDelete={true}
+                title={`${selectedLibraryData.name} - ${selectedLibraryData.description}`}
+                onDocumentsChange={() => {
+                  // Refresh library data when files change
+                  const updatedLibrary = { ...selectedLibraryData, fileCount: selectedLibraryData.fileCount + 1 };
+                  setLibraries(prev => prev.map(lib => 
+                    lib.id === selectedLibrary ? updatedLibrary : lib
+                  ));
+                }}
+              />
+            </Col>
+          )}
+
+          {!selectedLibrary && (
+            <Col xs={24}>
+              <Card className="text-center py-12">
+                <FolderOutlined className="text-6xl text-gray-300 mb-4" />
+                <Title level={4} type="secondary">{t('libraries.selectLibrary')}</Title>
+                <p className="text-gray-500">
+                  {t('libraries.chooseLibraryMessage')}
+                </p>
+              </Card>
+            </Col>
+          )}
+        </Row>
+      ),
+    },
   ];
+
+  // Show loading state
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            <Text type="secondary">{t('libraries.loadingLibraries')}</Text>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show empty state if no libraries
+  if (libraries.length === 0) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <Row justify="space-between" align="middle">
+            <Col>
+              <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <FolderOutlined style={{ color: '#1890ff' }} />
+                {t('libraries.libraryManagementSystem')}
+              </Title>
+              <Text type="secondary">
+                {t('libraries.organizeAndAccessLibraries')}
+              </Text>
+            </Col>
+          </Row>
+        </Card>
+        
+        <Card className="text-center py-12">
+          <FolderOutlined className="text-6xl text-gray-300 mb-4" />
+          <Title level={4} type="secondary">{t('libraries.noLibrariesFound')}</Title>
+          <p className="text-gray-500 mb-4">{t('libraries.createFirstLibrary')}</p>
+          <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={() => setIsLibraryModalVisible(true)}
+          >
+            {t('libraries.createLibrary')}
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
+      {/* Header */}
       <Card>
-        <Title level={3} className="mb-2">
-          📚 {t("navigation.libraries")}
-        </Title>
-        <p className="text-gray-600">
-          Manage your document libraries with full file management capabilities
-        </p>
+        <Row justify="space-between" align="middle">
+          <Col>
+            <Title level={2} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <FolderOutlined style={{ color: '#1890ff' }} />
+              {t('libraries.libraryManagementSystem')}
+            </Title>
+            <Text type="secondary">
+              {t('libraries.organizeAndAccessLibraries')}
+            </Text>
+          </Col>
+        </Row>
+
+        <Divider />
+
+        {/* Features Overview */}
+        <Row gutter={[16, 16]}>
+          <Col xs={24} sm={12}>
+            <div style={{ textAlign: 'center', padding: '16px' }}>
+              <GlobalOutlined style={{ fontSize: '24px', color: '#52c41a', marginBottom: '8px' }} />
+              <Title level={5}>{t('libraries.allLibraries')}</Title>
+              <Text type="secondary">{t('libraries.companyWideLibraries')}</Text>
+            </div>
+          </Col>
+          <Col xs={24} sm={12}>
+            <div style={{ textAlign: 'center', padding: '16px' }}>
+              <UserOutlined style={{ fontSize: '24px', color: '#722ed1', marginBottom: '8px' }} />
+              <Title level={5}>{t('libraries.myLibraries')}</Title>
+              <Text type="secondary">{t('libraries.privateLibraryStorage')}</Text>
+            </div>
+          </Col>
+        </Row>
       </Card>
 
+      {/* Library Tabs */}
       <Card>
-        <Tabs items={tabItems} activeKey={activeTab} onChange={setActiveTab} />
+        <Tabs
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          items={tabItems}
+          size="large"
+        />
       </Card>
 
       {/* Create Library Modal */}
       <Modal
-        title={t("files.createLibrary")}
+        title={t("libraries.createLibrary")}
         open={isLibraryModalVisible}
         onCancel={() => setIsLibraryModalVisible(false)}
         footer={null}
@@ -408,26 +607,26 @@ export default function LibrariesPage() {
           layout="vertical"
         >
           <Form.Item
-            label={t("files.libraryName")}
+            label={t("libraries.libraryName")}
             name="name"
-            rules={[{ required: true, message: 'Please enter library name' }]}
+            rules={[{ required: true, message: t('libraries.pleaseEnterLibraryName') }]}
           >
-            <Input placeholder="Enter library name" />
+            <Input placeholder={t('libraries.enterLibraryName')} />
           </Form.Item>
 
           <Form.Item
-            label={t("files.libraryDescription")}
+            label={t("libraries.libraryDescription")}
             name="description"
           >
             <TextArea
               rows={3}
-              placeholder="Enter library description (optional)"
+              placeholder={t('libraries.enterLibraryDescription')}
             />
           </Form.Item>
 
           <Divider />
           
-          <Title level={5}>{t("files.libraryMembers")}</Title>
+          <Title level={5}>{t("libraries.libraryMembers")}</Title>
           
           <Form.Item>
             <Checkbox
@@ -439,14 +638,14 @@ export default function LibrariesPage() {
                 }))
               }
             >
-              {t("files.includeMyself")}
+              {t("files.includeMyself") || "Include myself as a member"}
             </Checkbox>
           </Form.Item>
 
-          <Form.Item label={t("files.selectUsers")}>
+          <Form.Item label={t("files.selectUsers") || "Select Users"}>
             <Select
               mode="multiple"
-              placeholder={t("files.selectUsers")}
+              placeholder={t("files.selectUsers") || "Select Users"}
               value={memberSelection.selectedUsers}
               onChange={(value) => 
                 setMemberSelection(prev => ({ 
@@ -464,10 +663,10 @@ export default function LibrariesPage() {
             </Select>
           </Form.Item>
 
-          <Form.Item label={t("files.selectDepartments")}>
+          <Form.Item label={t("files.selectDepartments") || "Select Departments"}>
             <Select
               mode="multiple"
-              placeholder={t("files.selectDepartments")}
+              placeholder={t("files.selectDepartments") || "Select Departments"}
               value={memberSelection.selectedDepartments}
               onChange={(value) => 
                 setMemberSelection(prev => ({ 
@@ -490,10 +689,10 @@ export default function LibrariesPage() {
           <Form.Item>
             <Space>
               <Button type="primary" htmlType="submit" loading={loading}>
-                {t("common.create")}
+                {t("common.create") || "Create"}
               </Button>
               <Button onClick={() => setIsLibraryModalVisible(false)}>
-                {t("common.cancel")}
+                {t("common.cancel") || "Cancel"}
               </Button>
             </Space>
           </Form.Item>

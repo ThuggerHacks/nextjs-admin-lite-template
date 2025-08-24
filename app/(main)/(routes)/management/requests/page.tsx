@@ -69,6 +69,11 @@ export default function RequestsManagementPage() {
       }
       // For 'all', don't send status parameter, backend will show both pending and inactive
 
+      // Add department filter for supervisors and admins
+      if ((user?.role === 'SUPERVISOR' || user?.role === 'ADMIN') && user?.departmentId) {
+        params.departmentId = user.departmentId;
+      }
+
       const response = await requestService.getAll(params);
       setRequests(response.requests);
       setPagination({

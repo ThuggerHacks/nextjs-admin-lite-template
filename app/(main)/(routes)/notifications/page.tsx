@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { Card, List, Button, Space, Tag, Badge, Empty, Tabs } from "antd";
+import { useState, useEffect, useCallback } from "react";
+import { Card, List, Button, Space, Tag, Badge, Empty, Tabs, message, Spin, Pagination } from "antd";
 import { 
   BellOutlined, 
   FileTextOutlined, 
@@ -11,82 +11,217 @@ import {
   FileOutlined,
   MessageOutlined,
   CheckOutlined,
-  DeleteOutlined
+  DeleteOutlined,
+  ReloadOutlined
 } from "@ant-design/icons";
 
 import { useUser } from "@/contexts/UserContext";
 import { useTranslation } from "@/contexts/LanguageContext";
-import { Notification, NotificationType, UserRole } from "@/types";
+import { notificationService, Notification as NotificationType } from "@/lib/services/notificationService";
+import { UserRole } from "@/types";
 
 const { TabPane } = Tabs;
 
-// Mock notifications data
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: NotificationType.REPORT_SUBMITTED,
-    title: 'New Report Submitted',
-    message: 'Pedro Costa submitted a monthly sales report for your review.',
-    read: false,
-    userId: '2', // Admin Maria Santos
-    createdAt: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
-    relatedId: '1',
-  },
-  {
-    id: '2',
-    type: NotificationType.GOAL_UPDATED,
-    title: 'Goal Progress Updated',
-    message: 'Q1 Sales Target goal has been updated. Current progress: 125%',
-    read: false,
-    userId: '3', // User Pedro Costa
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
-    relatedId: '1',
-  },
-  {
-    id: '3',
-    type: NotificationType.USER_REQUEST,
-    title: 'New User Registration Request',
-    message: 'Ana Silva has requested access to the platform.',
-    read: true,
-    userId: '1', // Super Admin João Silva
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 4), // 4 hours ago
-    relatedId: '3',
-  },
-  {
-    id: '4',
-    type: NotificationType.RESPONSE_RECEIVED,
-    title: 'Report Response Received',
-    message: 'Your system performance report has been reviewed and responded to.',
-    read: false,
-    userId: '4', // User Ana Silva
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
-    relatedId: '2',
-  },
-  {
-    id: '5',
-    type: NotificationType.NEW_FILE,
-    title: 'New File Uploaded',
-    message: 'Employee Handbook has been updated in HR Documents library.',
-    read: true,
-    userId: '5', // All users in HR
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-    relatedId: '2',
-  },
-  {
-    id: '6',
-    type: NotificationType.SYSTEM_ALERT,
-    title: 'System Maintenance Scheduled',
-    message: 'Planned maintenance window scheduled for this weekend.',
-    read: false,
-    userId: 'all', // All users
-    createdAt: new Date(Date.now() - 1000 * 60 * 60 * 48), // 2 days ago
-  },
-];
-
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(mockNotifications);
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0,
+    pages: 0,
+  });
+  const [activeTab, setActiveTab] = useState('all');
   const { user, hasRole } = useUser();
   const { t } = useTranslation();
+
+  // Load notifications with pagination
+  const loadNotifications = useCallback(async (page = 1, pageSize = 10, filter?: 'all' | 'unread' | 'read') => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      let response;
+      
+      if (filter === 'unread') {
+        response = await notificationService.getUnread({ page, limit: pageSize });
+      } else if (filter === 'read') {
+        response = await notificationService.getRead({ page, limit: pageSize });
+      } else {
+        response = await notificationService.getAll({ page, limit: pageSize });
+      }
+
+      setNotifications(response.notifications);
+      setPagination({
+        current: response.pagination.page,
+        pageSize: response.pagination.limit,
+        total: response.pagination.total,
+        pages: response.pagination.pages,
+      });
+    } catch (error) {
+      console.error('Failed to load notifications:', error);
+      message.error('Failed to load notifications');
+    } finally {
+      setLoading(false);
+    }
+  }, [user]);
+
+  // Load notifications on component mount and when user changes
+  useEffect(() => {
+    if (user) {
+      loadNotifications(1, pagination.pageSize, activeTab as 'all' | 'unread' | 'read');
+    }
+  }, [user, activeTab, loadNotifications]);
+
+  // Handle tab change
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    loadNotifications(1, pagination.pageSize, key as 'all' | 'unread' | 'read');
+  };
+
+  // Handle pagination change
+  const handlePageChange = (page: number, pageSize?: number) => {
+    const newPageSize = pageSize || pagination.pageSize;
+    setPagination(prev => ({ ...prev, current: page, pageSize: newPageSize }));
+    loadNotifications(page, newPageSize, activeTab as 'all' | 'unread' | 'read');
+  };
+
+  // Mark notification as read
+  const markAsRead = async (notificationId: string) => {
+    try {
+      await notificationService.markAsRead(notificationId);
+      // Update local state
+      setNotifications(prev => 
+        prev.map(notification => 
+          notification.id === notificationId 
+            ? { ...notification, isRead: true }
+            : notification
+        )
+      );
+      message.success('Notification marked as read');
+    } catch (error) {
+      console.error('Failed to mark notification as read:', error);
+      message.error('Failed to mark notification as read');
+    }
+  };
+
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
+    try {
+      await notificationService.markAllAsRead();
+      // Update local state
+      setNotifications(prev => 
+        prev.map(notification => ({ ...notification, isRead: true }))
+      );
+      message.success('All notifications marked as read');
+      // Reload to get updated counts
+      loadNotifications(pagination.current, pagination.pageSize, activeTab as 'all' | 'unread' | 'read');
+    } catch (error) {
+      console.error('Failed to mark all notifications as read:', error);
+      message.error('Failed to mark all notifications as read');
+    }
+  };
+
+  // Delete notification
+  const deleteNotification = async (notificationId: string) => {
+    try {
+      await notificationService.delete(notificationId);
+      // Update local state
+      setNotifications(prev => 
+        prev.filter(notification => notification.id !== notificationId)
+      );
+      message.success('Notification deleted');
+      // Reload to get updated counts
+      loadNotifications(pagination.current, pagination.pageSize, activeTab as 'all' | 'unread' | 'read');
+    } catch (error) {
+      console.error('Failed to delete notification:', error);
+      message.error('Failed to delete notification');
+    }
+  };
+
+  // Refresh notifications
+  const refreshNotifications = () => {
+    loadNotifications(pagination.current, pagination.pageSize, activeTab as 'all' | 'unread' | 'read');
+  };
+
+  // Get notification icon based on type
+  const getNotificationIcon = (type: string) => {
+    switch (type) {
+      case 'REPORT_SUBMITTED':
+        return <FileTextOutlined className="text-blue-500" />;
+      case 'GOAL_UPDATED':
+        return <AimOutlined className="text-green-500" />;
+      case 'USER_REQUEST':
+        return <UserOutlined className="text-purple-500" />;
+      case 'SYSTEM_ALERT':
+        return <AlertOutlined className="text-red-500" />;
+      case 'NEW_FILE':
+        return <FileOutlined className="text-orange-500" />;
+      case 'RESPONSE_RECEIVED':
+        return <MessageOutlined className="text-teal-500" />;
+      default:
+        return <BellOutlined />;
+    }
+  };
+
+  // Get notification type color
+  const getNotificationTypeColor = (type: string) => {
+    switch (type) {
+      case 'REPORT_SUBMITTED':
+        return 'blue';
+      case 'GOAL_UPDATED':
+        return 'green';
+      case 'USER_REQUEST':
+        return 'purple';
+      case 'SYSTEM_ALERT':
+        return 'red';
+      case 'NEW_FILE':
+        return 'orange';
+      case 'RESPONSE_RECEIVED':
+        return 'cyan';
+      default:
+        return 'default';
+    }
+  };
+
+  // Format time ago
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
+    
+    if (diffInMinutes < 1) return t('notifications.timeAgo.justNow');
+    if (diffInMinutes < 60) return `${diffInMinutes}${t('notifications.timeAgo.minutesAgo')}`;
+    
+    const diffInHours = Math.floor(diffInMinutes / 60);
+    if (diffInHours < 24) return `${diffInHours}${t('notifications.timeAgo.hoursAgo')}`;
+    
+    const diffInDays = Math.floor(diffInHours / 24);
+    if (diffInDays < 7) return `${diffInDays}${t('notifications.timeAgo.daysAgo')}`;
+    
+    return date.toLocaleDateString();
+  };
+
+  // Get notification type display text
+  const getNotificationTypeText = (type: string) => {
+    switch (type) {
+      case 'REPORT_SUBMITTED':
+        return t('notifications.types.reportSubmitted');
+      case 'GOAL_UPDATED':
+        return t('notifications.types.goalUpdated');
+      case 'USER_REQUEST':
+        return t('notifications.types.userRequest');
+      case 'SYSTEM_ALERT':
+        return t('notifications.types.systemAlert');
+      case 'NEW_FILE':
+        return t('notifications.types.newFile');
+      case 'RESPONSE_RECEIVED':
+        return t('notifications.types.responseReceived');
+      default:
+        return type.replace('_', ' ');
+    }
+  };
 
   // Filter notifications for current user
   const getUserNotifications = () => {
@@ -95,99 +230,23 @@ export default function NotificationsPage() {
     return notifications.filter(notification => 
       notification.userId === user.id || 
       notification.userId === 'all' ||
-      (hasRole(UserRole.ADMIN) && notification.type === NotificationType.REPORT_SUBMITTED) ||
-      (hasRole(UserRole.SUPER_ADMIN) && notification.type === NotificationType.USER_REQUEST)
-    );
-  };
-
-  const getNotificationIcon = (type: NotificationType) => {
-    switch (type) {
-      case NotificationType.REPORT_SUBMITTED:
-        return <FileTextOutlined className="text-blue-500" />;
-      case NotificationType.GOAL_UPDATED:
-        return <AimOutlined className="text-green-500" />;
-      case NotificationType.USER_REQUEST:
-        return <UserOutlined className="text-purple-500" />;
-      case NotificationType.SYSTEM_ALERT:
-        return <AlertOutlined className="text-red-500" />;
-      case NotificationType.NEW_FILE:
-        return <FileOutlined className="text-orange-500" />;
-      case NotificationType.RESPONSE_RECEIVED:
-        return <MessageOutlined className="text-teal-500" />;
-      default:
-        return <BellOutlined />;
-    }
-  };
-
-  const getNotificationTypeColor = (type: NotificationType) => {
-    switch (type) {
-      case NotificationType.REPORT_SUBMITTED:
-        return 'blue';
-      case NotificationType.GOAL_UPDATED:
-        return 'green';
-      case NotificationType.USER_REQUEST:
-        return 'purple';
-      case NotificationType.SYSTEM_ALERT:
-        return 'red';
-      case NotificationType.NEW_FILE:
-        return 'orange';
-      case NotificationType.RESPONSE_RECEIVED:
-        return 'cyan';
-      default:
-        return 'default';
-    }
-  };
-
-  const formatTimeAgo = (date: Date) => {
-    const now = new Date();
-    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
-    
-    if (diffInMinutes < 1) return 'Just now';
-    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
-    
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    
-    const diffInDays = Math.floor(diffInHours / 24);
-    if (diffInDays < 7) return `${diffInDays}d ago`;
-    
-    return date.toLocaleDateString();
-  };
-
-  const markAsRead = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, read: true }
-          : notification
-      )
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notification => ({ ...notification, read: true }))
-    );
-  };
-
-  const deleteNotification = (notificationId: string) => {
-    setNotifications(prev => 
-      prev.filter(notification => notification.id !== notificationId)
+      (hasRole(UserRole.ADMIN) && notification.type === 'REPORT_SUBMITTED') ||
+      (hasRole(UserRole.SUPER_ADMIN) && notification.type === 'USER_REQUEST')
     );
   };
 
   const userNotifications = getUserNotifications();
-  const unreadCount = userNotifications.filter(n => !n.read).length;
-  const unreadNotifications = userNotifications.filter(n => !n.read);
-  const readNotifications = userNotifications.filter(n => n.read);
+  const unreadCount = userNotifications.filter(n => !n.isRead).length;
+  const unreadNotifications = userNotifications.filter(n => !n.isRead);
+  const readNotifications = userNotifications.filter(n => n.isRead);
 
-  const renderNotificationItem = (notification: Notification) => (
+  const renderNotificationItem = (notification: NotificationType) => (
     <List.Item
       key={notification.id}
-      className={`${!notification.read ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''} hover:bg-gray-50`}
+      className={`${!notification.isRead ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''} hover:bg-gray-50`}
       actions={[
         <Space key="actions">
-          {!notification.read && (
+          {!notification.isRead && (
             <Button 
               size="small" 
               icon={<CheckOutlined />}
@@ -207,25 +266,35 @@ export default function NotificationsPage() {
     >
       <List.Item.Meta
         avatar={
-          <Badge dot={!notification.read}>
+          <Badge dot={!notification.isRead}>
             {getNotificationIcon(notification.type)}
           </Badge>
         }
         title={
           <div className="flex items-center justify-between">
-            <span className={!notification.read ? 'font-semibold' : ''}>{notification.title}</span>
+            <span className={!notification.isRead ? 'font-semibold' : ''}>{notification.title}</span>
             <div className="flex items-center gap-2">
               <Tag color={getNotificationTypeColor(notification.type)}>
-                {notification.type.replace('_', ' ')}
+                {getNotificationTypeText(notification.type)}
               </Tag>
               <span className="text-xs text-gray-500">{formatTimeAgo(notification.createdAt)}</span>
             </div>
           </div>
         }
-        description={notification.message}
+        description={notification.description}
       />
     </List.Item>
   );
+
+  if (!user) {
+    return (
+      <div className="p-6">
+        <Card>
+          <Empty description="Please log in to view notifications" />
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6">
@@ -240,48 +309,97 @@ export default function NotificationsPage() {
                 {t("notifications.notifications")}
               </h2>
               <p className="text-gray-600 mt-2">
-                Stay updated with important platform activities
+                {t("notifications.stayUpdated")}
               </p>
             </div>
-            {unreadCount > 0 && (
-              <Button onClick={markAllAsRead} icon={<CheckOutlined />}>
-                {t("notifications.markAllAsRead")} ({unreadCount})
+            <Space>
+              <Button 
+                icon={<ReloadOutlined />} 
+                onClick={refreshNotifications}
+                loading={loading}
+              >
+                {t("common.refresh")}
               </Button>
-            )}
+              {unreadCount > 0 && (
+                <Button onClick={markAllAsRead} icon={<CheckOutlined />}>
+                  {t("notifications.markAllAsRead")} ({unreadCount})
+                </Button>
+              )}
+            </Space>
           </div>
         </div>
 
-        {userNotifications.length === 0 ? (
-          <Empty 
-            image={Empty.PRESENTED_IMAGE_SIMPLE}
-            description={t("notifications.noNotifications")}
-          />
+        {loading ? (
+          <div className="text-center py-8">
+            <Spin size="large" />
+          </div>
         ) : (
-          <Tabs defaultActiveKey="all">
-            <TabPane tab={`All (${userNotifications.length})`} key="all">
-              <List
-                dataSource={userNotifications}
-                renderItem={renderNotificationItem}
-                pagination={{ pageSize: 10 }}
-              />
-            </TabPane>
+          <>
+            <Tabs activeKey={activeTab} onChange={handleTabChange}>
+              <TabPane tab={`${t("notifications.all")} (${userNotifications.length})`} key="all">
+                {userNotifications.length === 0 ? (
+                  <Empty 
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t("notifications.noNotifications")}
+                  />
+                ) : (
+                  <List
+                    dataSource={userNotifications}
+                    renderItem={renderNotificationItem}
+                    pagination={false}
+                  />
+                )}
+              </TabPane>
 
-            <TabPane tab={`Unread (${unreadCount})`} key="unread">
-              <List
-                dataSource={unreadNotifications}
-                renderItem={renderNotificationItem}
-                pagination={{ pageSize: 10 }}
-              />
-            </TabPane>
+              <TabPane tab={`${t("notifications.unread")} (${unreadCount})`} key="unread">
+                {unreadNotifications.length === 0 ? (
+                  <Empty 
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t("notifications.noUnreadNotifications")}
+                  />
+                ) : (
+                  <List
+                    dataSource={unreadNotifications}
+                    renderItem={renderNotificationItem}
+                    pagination={false}
+                  />
+                )}
+              </TabPane>
 
-            <TabPane tab={`Read (${readNotifications.length})`} key="read">
-              <List
-                dataSource={readNotifications}
-                renderItem={renderNotificationItem}
-                pagination={{ pageSize: 10 }}
-              />
-            </TabPane>
-          </Tabs>
+              <TabPane tab={`${t("notifications.read")} (${readNotifications.length})`} key="read">
+                {readNotifications.length === 0 ? (
+                  <Empty 
+                    image={Empty.PRESENTED_IMAGE_SIMPLE}
+                    description={t("notifications.noReadNotifications")}
+                  />
+                ) : (
+                  <List
+                    dataSource={readNotifications}
+                    renderItem={renderNotificationItem}
+                    pagination={false}
+                  />
+                )}
+              </TabPane>
+            </Tabs>
+
+            {/* Custom pagination */}
+            {pagination.total > pagination.pageSize && (
+              <div className="mt-6 text-center">
+                <Pagination
+                  current={pagination.current}
+                  pageSize={pagination.pageSize}
+                  total={pagination.total}
+                  onChange={handlePageChange}
+                  showSizeChanger
+                  showQuickJumper
+                  showTotal={(total, range) => 
+                    `${range[0]}-${range[1]} of ${total} items`
+                  }
+                  pageSizeOptions={['5', '10', '20', '50']}
+                />
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>

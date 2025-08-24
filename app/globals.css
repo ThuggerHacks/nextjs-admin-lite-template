@@ -12,6 +12,9 @@ html,
 body,
 :root {
   height: 100%;
+  --primary-color: #FFA500;
+  --primary-light: #ffb733;
+  --primary-dark: #e69500;
 }
 
 .ant-menu {
@@ -50,7 +53,7 @@ body,
   }
 
   .scrollbar::-webkit-scrollbar-thumb {
-    background: #c6a7fe;
+    background: #FFA500;
     border-radius: 100vh;
     border: 2px solid #f6f7ed;
   }
@@ -67,7 +70,7 @@ body,
   width: 100%;
   z-index: 2000;
   position: fixed;
-  background-color: #c6a7fe;
+  background-color: #FFA500;
 }
 
 #nprogress .spinner {

@@ -70,6 +70,7 @@ export const requestService = {
     status?: string;
     type?: string;
     priority?: string;
+    departmentId?: string;
   }): Promise<RequestsResponse> => {
     try {
       const queryParams = new URLSearchParams();
@@ -78,6 +79,7 @@ export const requestService = {
       if (params?.status) queryParams.append('status', params.status);
       if (params?.type) queryParams.append('type', params.type);
       if (params?.priority) queryParams.append('priority', params.priority);
+      if (params?.departmentId) queryParams.append('departmentId', params.departmentId);
 
       const response = await api.get(`/requests?${queryParams.toString()}`);
       return response.data;

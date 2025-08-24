@@ -77,70 +77,28 @@ const SiderPage = () => {
 
     const menuItems: MenuProps["items"] = [];
 
-    // Super Admin and Developer can access everything
-    const isSuperAdminOrDeveloper = hasRole(UserRole.SUPER_ADMIN) || hasRole(UserRole.DEVELOPER);
-    const isAdminOrHigher = hasRole(UserRole.ADMIN) || isSuperAdminOrDeveloper;
-    const isSupervisorOrHigher = hasRole(UserRole.SUPERVISOR) || isAdminOrHigher;
+    // Role-based access control
+    const isSuperAdmin = hasRole(UserRole.SUPER_ADMIN);
+    const isDeveloper = hasRole(UserRole.DEVELOPER);
+    const isAdmin = hasRole(UserRole.ADMIN);
+    const isSupervisor = hasRole(UserRole.SUPERVISOR);
+    const isUser = hasRole(UserRole.USER);
 
-    // Dashboard/Homepage - All users
-    if (isAdminOrHigher) {
+    // Dashboard - Admin, Supervisor, Super Admin, Developer
+    if (isAdmin || isSupervisor || isSuperAdmin || isDeveloper) {
       menuItems.push(
         getItem(t("navigation.dashboard"), "/management/dashboard", <DashboardOutlined />)
       );
-    } else {
-      menuItems.push(
-        getItem(t("navigation.homepage"), "/homepage", <HomeOutlined />)
-      );
     }
 
-    // Management section - Supervisor and above
-    if (isSupervisorOrHigher) {
-      const managementChildren: MenuItem[] = [];
-
-      // Users management - Admin and above
-      if (isAdminOrHigher) {
-        managementChildren.push(
-          getItem(t("navigation.users"), "/management/users", <TeamOutlined />)
-        );
-      }
-
-      // Departments - Supervisor and above
-      managementChildren.push(
-        getItem(t("navigation.departments"), "/departments", <TeamOutlined />)
-      );
-
-      // Requests - Supervisor and above (for approving users)
-      managementChildren.push(
-        getItem(t("navigation.requests"), "/management/requests", <UserOutlined />)
-      );
-
-      // Super Admin and Developer specific items
-      if (isSuperAdminOrDeveloper) {
-        managementChildren.push(
-          getItem(t("navigation.sucursals"), "/sucursals", <GlobalOutlined />)
-        );
-      }
-
-      menuItems.push(
-        getItem(
-          t("navigation.management"),
-          "/management",
-          <SettingOutlined />,
-          managementChildren
-        )
-      );
-    }
-
-    // Goals section - All users can view, Supervisors and above can manage
+    // Goals - All users
     const goalsChildren: MenuItem[] = [];
-
-    // All users can view assigned goals
     goalsChildren.push(
       getItem(t("navigation.viewGoals"), "/goals/view", <AimOutlined />)
     );
-
+    
     // Supervisors and above can create goals
-    if (isSupervisorOrHigher) {
+    if (isSupervisor || isAdmin || isSuperAdmin || isDeveloper) {
       goalsChildren.push(
         getItem(t("navigation.createGoals"), "/goals/create", <EditOutlined />)
       );
@@ -155,31 +113,12 @@ const SiderPage = () => {
       )
     );
 
-    // Reports section - Commented out as requested
-    // const reportsChildren: MenuItem[] = [];
+    // Scanner - All users
+    menuItems.push(
+      getItem(t("navigation.scan"), "/scanner", <ScanOutlined />)
+    );
 
-    // // All users can submit reports
-    // reportsChildren.push(
-    //   getItem(t("navigation.submitReports"), "/reports/submit", <UploadOutlined />)
-    // );
-
-    // // Supervisors and above can view reports
-    // if (isSupervisorOrHigher) {
-    //   reportsChildren.push(
-    //     getItem(t("navigation.viewReports"), "/reports/view", <FileTextOutlined />)
-    //   );
-    // }
-
-    // menuItems.push(
-    //   getItem(
-    //     t("navigation.reports"),
-    //     "/reports",
-    //     <FileTextOutlined />,
-    //     reportsChildren
-    //   )
-    // );
-
-    // Documents and Files - All users
+    // Documents - All users
     menuItems.push(
       getItem(t("navigation.documents"), "/documents", <FileOutlined />)
     );
@@ -189,15 +128,47 @@ const SiderPage = () => {
       getItem(t("navigation.libraries"), "/libraries", <FolderOutlined />)
     );
 
-    // Scanner - All users can scan documents
-    menuItems.push(
-      getItem(t("navigation.scan"), "/scanner", <ScanOutlined />)
-    );
+    // Management section - Admin, Supervisor, Super Admin, Developer
+    if (isAdmin || isSupervisor || isSuperAdmin || isDeveloper) {
+      const managementChildren: MenuItem[] = [];
 
-    // Digitalize - All users
-    menuItems.push(
-      getItem(t("navigation.digitalize"), "/digitalize", <FileTextOutlined />)
-    );
+      // Users management - Admin, Supervisor (only users from their department), Super Admin, Developer
+      if (isAdmin || isSupervisor || isSuperAdmin || isDeveloper) {
+        managementChildren.push(
+          getItem(t("navigation.users"), "/management/users", <TeamOutlined />)
+        );
+      }
+
+      // Departments - Super Admin, Developer
+      if (isSuperAdmin || isDeveloper) {
+        managementChildren.push(
+          getItem(t("navigation.departments"), "/departments", <TeamOutlined />)
+        );
+      }
+
+      // Requests - Admin, Supervisor, Super Admin, Developer
+      if (isAdmin || isSupervisor || isSuperAdmin || isDeveloper) {
+        managementChildren.push(
+          getItem(t("navigation.requests"), "/management/requests", <UserOutlined />)
+        );
+      }
+
+      // Sucursals - Only Developer
+      if (isDeveloper) {
+        managementChildren.push(
+          getItem(t("navigation.sucursals"), "/sucursals", <GlobalOutlined />)
+        );
+      }
+
+      menuItems.push(
+        getItem(
+          t("navigation.management"),
+          "/management",
+          <SettingOutlined />,
+          managementChildren
+        )
+      );
+    }
 
     // Notifications - All users
     menuItems.push(
