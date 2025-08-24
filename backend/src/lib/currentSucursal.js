@@ -20,7 +20,7 @@ class CurrentSucursal {
   async fetchInfo() {
     try {
       // Get sucursal name from environment variable or use a default
-      const sucursalName = process.env.SUCURSAL_NAME || 'Main Office';
+      const sucursalName = process.env.SUCURSAL_NAME || 'Default Sucursal';
       
       const sucursal = await prisma.sucursal.findUnique({
         where: { name: sucursalName }

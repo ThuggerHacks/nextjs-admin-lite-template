@@ -65,6 +65,9 @@ export interface Dictionary {
     all: string;
     status: string;
     required: string;
+    accessDenied: string;
+    startDate: string;
+    endDate: string;
   };
   auth: {
     welcomeBack: string;
@@ -372,6 +375,74 @@ export interface Dictionary {
     centerDocument: string;
     adjustBorders: string;
   };
+  sucursal: {
+    management: string;
+    manageSucursals: string;
+    addSucursal: string;
+    sucursalName: string;
+    serverUrl: string;
+    description: string;
+    totalSucursals: string;
+    online: string;
+    offline: string;
+    avgUptime: string;
+    responseTime: string;
+    uptime: string;
+    healthStatus: string;
+    serverLogs: string;
+    actions: string;
+    refreshStatus: string;
+    configuration: string;
+    viewInBrowser: string;
+    basicInformation: string;
+    currentStatus: string;
+    createdBy: string;
+    createSucursal: string;
+    editSucursal: string;
+    updateSucursal: string;
+    confirmDelete: string;
+    confirmDeleteMessage: string;
+    cancel: string;
+    // Additional keys for the component
+    addNewSucursal: string;
+    enterSucursalName: string;
+    enterServerUrl: string;
+    enterDescription: string;
+    pleaseEnterSucursalName: string;
+    pleaseEnterServerUrl: string;
+    pleaseEnterDescription: string;
+    pleaseEnterValidUrl: string;
+    pleaseEnterLocation: string;
+    enterLocation: string;
+    sucursalWithNameOrUrlExists: string;
+    refreshStatusTooltip: string;
+    viewDetailsTooltip: string;
+    errorsLogged: string;
+    time: string;
+    details: string;
+    createdAt: string;
+    location: string;
+    status: string;
+    errorCount: string;
+    ping: string;
+    pingSucursal: string;
+    pingSuccess: string;
+    pingFailed: string;
+    serverUnreachable: string;
+    connectionTest: string;
+    testConnection: string;
+    connectionSuccess: string;
+    connectionFailed: string;
+    latency: string;
+    ms: string;
+    percent: string;
+    na: string;
+    accessDenied: string;
+    name: string;
+    url: string;
+    errorType: string;
+    description: string;
+  };
 }
 
 const dictionaries: Record<Locale, Dictionary> = {
@@ -437,6 +508,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       all: 'Todos',
       status: 'Status',
       required: 'Este campo é obrigatório',
+      accessDenied: 'Acesso negado',
+      startDate: 'Data de Início',
+      endDate: 'Data de Fim',
     },
     auth: {
       welcomeBack: 'Bem-vindo de volta',
@@ -643,7 +717,50 @@ const dictionaries: Record<Locale, Dictionary> = {
       currentStatus: 'Status Atual',
       createdBy: 'Criado Por',
       createSucursal: 'Criar Sucursal',
+      editSucursal: 'Editar Sucursal',
+      updateSucursal: 'Atualizar Sucursal',
+      confirmDelete: 'Confirmar Exclusão',
+      confirmDeleteMessage: 'Tem certeza que deseja excluir esta sucursal? Esta ação não pode ser desfeita.',
       cancel: 'Cancelar',
+      // Additional keys for the component
+      addNewSucursal: 'Adicionar Nova Sucursal',
+      enterSucursalName: 'Digite o nome da sucursal',
+      enterServerUrl: 'Digite a URL do servidor',
+      enterDescription: 'Digite a descrição',
+      pleaseEnterSucursalName: 'Por favor, digite o nome da sucursal',
+      pleaseEnterServerUrl: 'Por favor, digite a URL do servidor',
+      pleaseEnterDescription: 'Por favor, digite a descrição',
+      pleaseEnterValidUrl: 'Por favor, digite uma URL válida',
+      pleaseEnterLocation: 'Por favor, digite a localização',
+      enterLocation: 'Digite a localização',
+      sucursalWithNameOrUrlExists: 'Sucursal com este nome ou URL já existe',
+      refreshStatusTooltip: 'Atualizar Status',
+      viewDetailsTooltip: 'Ver Detalhes',
+      errorsLogged: 'erro(s) registrado(s)',
+      time: 'Tempo',
+      details: 'Detalhes',
+      createdAt: 'Criado em',
+      location: 'Localização',
+      status: 'Status',
+      errorCount: 'Contagem de Erros',
+      ping: 'Ping',
+      pingSucursal: 'Ping Sucursal',
+      pingSuccess: 'Ping realizado com sucesso',
+      pingFailed: 'Falha no ping',
+      serverUnreachable: 'Servidor inacessível',
+      connectionTest: 'Teste de Conexão',
+      testConnection: 'Testar Conexão',
+      connectionSuccess: 'Conexão bem-sucedida',
+      connectionFailed: 'Falha na conexão',
+      latency: 'Latência',
+      ms: 'ms',
+      percent: '%',
+      na: 'N/A',
+      accessDenied: 'Acesso negado',
+      name: 'Nome',
+      url: 'URL',
+      errorType: 'Tipo de Erro',
+      description: 'Descrição',
     },
     reports: {
       submitReport: 'Submeter Relatório',
@@ -909,6 +1026,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       all: 'All',
       status: 'Status',
       required: 'This field is required',
+      accessDenied: 'Access denied',
+      startDate: 'Start Date',
+      endDate: 'End Date',
     },
     auth: {
       welcomeBack: 'Welcome Back',
@@ -1114,7 +1234,51 @@ const dictionaries: Record<Locale, Dictionary> = {
       currentStatus: 'Current Status',
       createdBy: 'Created By',
       createSucursal: 'Create Sucursal',
+      editSucursal: 'Edit Sucursal',
+      updateSucursal: 'Update Sucursal',
+      confirmDelete: 'Confirm Delete',
+      confirmDeleteMessage: 'Are you sure you want to delete this sucursal? This action cannot be undone.',
       cancel: 'Cancel',
+      // Additional keys for the component
+      addNewSucursal: 'Add New Sucursal',
+      enterSucursalName: 'Enter sucursal name',
+      enterServerUrl: 'Enter server URL',
+      enterDescription: 'Enter description',
+      pleaseEnterSucursalName: 'Please enter sucursal name',
+      pleaseEnterServerUrl: 'Please enter server URL',
+      pleaseEnterDescription: 'Please enter description',
+      pleaseEnterValidUrl: 'Please enter a valid URL',
+      pleaseEnterLocation: 'Please enter location',
+      enterLocation: 'Enter location',
+      sucursalWithNameOrUrlExists: 'Sucursal with this name or URL already exists',
+      refreshStatusTooltip: 'Refresh Status',
+      viewDetailsTooltip: 'View Details',
+      errorsLogged: 'error(s) logged',
+      time: 'Time',
+      details: 'Details',
+      createdAt: 'Created at',
+      location: 'Location',
+      status: 'Status',
+      errorCount: 'Error Count',
+      ping: 'Ping',
+      pingSucursal: 'Ping Sucursal',
+      pingSuccess: 'Ping successful',
+      pingFailed: 'Ping failed',
+      serverUnreachable: 'Server unreachable',
+      connectionTest: 'Connection Test',
+      testConnection: 'Test Connection',
+      connectionSuccess: 'Connection successful',
+      connectionFailed: 'Connection failed',
+      latency: 'Latency',
+      ms: 'ms',
+      percent: '%',
+      na: 'N/A',
+      accessDenied: 'Access denied',
+      name: 'Name',
+      url: 'URL',
+      errorType: 'Error Type',
+      details: 'Details',
+      description: 'Description',
     },
     reports: {
       submitReport: 'Submit Report',

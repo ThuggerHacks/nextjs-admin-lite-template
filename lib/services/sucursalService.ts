@@ -4,18 +4,31 @@ export interface Sucursal {
   id: string;
   name: string;
   description?: string;
-  location: string;
+  location?: string;
   serverUrl: string;
   createdAt: string;
   updatedAt: string;
-  isActive: boolean;
-  lastPing?: string;
   _count?: {
     users: number;
     departments: number;
-    files: number;
     libraries: number;
-    goals: number;
+  };
+  // Optional fields for diagnostics (can be added later)
+  diagnostics?: {
+    isOnline: boolean;
+    responseTime?: number;
+    uptime: number;
+    errorCount: number;
+    logs: Array<{
+      id: string;
+      timestamp: string;
+      level: 'info' | 'warning' | 'error';
+      message: string;
+      details?: any;
+    }>;
+  };
+  createdBy?: {
+    name: string;
   };
 }
 
@@ -71,7 +84,7 @@ export const sucursalService = {
   // Get all sucursals
   getAll: async (): Promise<Sucursal[]> => {
     const response = await api.get('/sucursals');
-    return response.data.data;
+    return response.data.sucursals;
   },
 
   // Get sucursal by ID
@@ -83,13 +96,13 @@ export const sucursalService = {
   // Create new sucursal
   create: async (data: CreateSucursalRequest): Promise<Sucursal> => {
     const response = await api.post('/sucursals', data);
-    return response.data.data;
+    return response.data.sucursal;
   },
 
   // Update sucursal
   update: async (id: string, data: UpdateSucursalRequest): Promise<Sucursal> => {
     const response = await api.put(`/sucursals/${id}`, data);
-    return response.data.data;
+    return response.data.sucursal;
   },
 
   // Delete sucursal
@@ -173,5 +186,40 @@ export const sucursalService = {
   }> => {
     const response = await api.get(`/sucursals/${id}/health`);
     return response.data.data;
+  },
+
+  // Get error logs for a specific sucursal
+  getErrorLogs: async (
+    sucursalId: string, 
+    page: number = 1, 
+    limit: number = 50,
+    startDate?: string,
+    endDate?: string
+  ): Promise<{
+    errorLogs: Array<{
+      id: string;
+      errorType: string;
+      message: string;
+      details?: any;
+      createdAt: string;
+      sucursal: {
+        id: string;
+        name: string;
+        serverUrl: string;
+      };
+    }>;
+    pagination: {
+      page: number;
+      limit: number;
+      total: number;
+      pages: number;
+    };
+  }> => {
+    let url = `/error-logs?sucursalId=${sucursalId}&page=${page}&limit=${limit}`;
+    if (startDate) url += `&startDate=${startDate}`;
+    if (endDate) url += `&endDate=${endDate}`;
+    
+    const response = await api.get(url);
+    return response.data;
   },
 };

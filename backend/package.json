@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "SUCURSAL_NAME='Main Office' node src/index.js",
+    "start": "SUCURSAL_NAME='Default Sucursal' node src/index.js",
     "init": "node src/scripts/initSucursalAndDepartments.js",
     "prisma:migrate": "prisma migrate dev",
     "prisma:generate": "prisma generate",

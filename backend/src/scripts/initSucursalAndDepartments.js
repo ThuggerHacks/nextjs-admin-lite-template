@@ -7,14 +7,14 @@ async function initSucursalAndDepartments() {
 
     // Check if sucursal already exists
     let sucursal = await prisma.sucursal.findUnique({
-      where: { name: 'Main Office' }
+      where: { name: 'Default Sucursal' }
     });
 
     if (!sucursal) {
       // Create default sucursal
       sucursal = await prisma.sucursal.create({
         data: {
-          name: 'Main Office',
+          name: 'Default Sucursal',
           description: 'Main company office',
           location: 'Headquarters',
           serverUrl: 'http://localhost:3003'

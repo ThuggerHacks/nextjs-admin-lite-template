@@ -106,7 +106,7 @@ The backend provides comprehensive REST APIs for:
 ```env
 DATABASE_URL="file:./dev.db"
 JWT_SECRET="your-super-secret-jwt-key-change-this-in-production"
-SUCURSAL_NAME="Main Office"
+SUCURSAL_NAME="Default Sucursal"
 PORT=3003
 NODE_ENV="development"
 ```

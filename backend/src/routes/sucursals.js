@@ -85,11 +85,11 @@ router.get('/:sucursalId', authenticateToken, requireRole(['DEVELOPER', 'SUPER_A
 });
 
 // Create sucursal (Developer only)
-router.post('/', authenticateToken, requireRole(['DEVELOPER']), [
+router.post('/', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), [
   body('name').notEmpty().withMessage('Sucursal name is required'),
   body('description').optional().isString().withMessage('Description must be a string'),
   body('location').optional().isString().withMessage('Location must be a string'),
-  body('serverUrl').isURL().withMessage('Valid server URL is required'),
+  // body('serverUrl').isURL().withMessage('Valid server URL is required'),
   body('connectedSucursalIds').optional().isArray().withMessage('Connected sucursal IDs must be an array')
 ], async (req, res) => {
   try {
@@ -232,11 +232,11 @@ router.post('/notify-new', async (req, res) => {
 });
 
 // Update sucursal
-router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), [
+router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), [
   body('name').optional().notEmpty().withMessage('Sucursal name cannot be empty'),
   body('description').optional().isString().withMessage('Description must be a string'),
   body('location').optional().isString().withMessage('Location must be a string'),
-  body('serverUrl').optional().isURL().withMessage('Valid server URL is required')
+  // body('serverUrl').optional().isURL().withMessage('Valid server URL is required')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);

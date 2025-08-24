@@ -6,7 +6,7 @@ const { logError } = require('../utils/errorLogger');
 const router = express.Router();
 
 // Get all error logs (Developer only)
-router.get('/', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
+router.get('/', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), async (req, res) => {
   try {
     const { page = 1, limit = 10, errorType, sucursalId, startDate, endDate } = req.query;
     const offset = (page - 1) * limit;
