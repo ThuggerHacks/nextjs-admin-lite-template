@@ -2,18 +2,16 @@ import api from './api';
 
 export interface Goal {
   id: string;
-  title: string;
+  name: string; // Backend uses 'name' not 'title'
   description: string;
-  departmentId?: string;
+  departmentId: string;
   createdById: string;
   sucursalId: string;
-  startDate: string;
-  endDate: string;
+  startDate: string; // Backend uses 'startDate'
+  endDate: string; // Backend uses 'endDate'
   status: string;
   priority?: string;
-  currentValue?: number;
-  targetValue?: number;
-  isPublished: boolean;
+  progress?: number; // Backend has progress field
   createdAt: string;
   updatedAt: string;
   department?: {
@@ -24,6 +22,7 @@ export interface Goal {
     id: string;
     name: string;
     email: string;
+    role: string;
   };
   assignments?: GoalAssignment[];
   reports?: GoalReport[];
@@ -37,6 +36,7 @@ export interface GoalAssignment {
     id: string;
     name: string;
     email: string;
+    role: string;
   };
 }
 
@@ -47,6 +47,9 @@ export interface GoalReport {
   title: string;
   description: string;
   fileId?: string;
+  fileName?: string;
+  fileSize?: number;
+  fileUrl?: string;
   isCompletion: boolean;
   createdAt: string;
   submittedBy: {
@@ -63,6 +66,7 @@ export interface GoalFilters {
   priority?: string;
   startDate?: string;
   endDate?: string;
+  departmentId?: string;
 }
 
 export interface GoalListResponse {
@@ -76,21 +80,28 @@ export interface GoalListResponse {
 }
 
 export interface CreateGoalRequest {
-  title: string;
+  name: string; // Backend expects 'name'
   description: string;
-  departmentId?: string;
-  startDate: string;
-  endDate: string;
-  assignedUserIds?: string[];
+  departmentId: string;
+  startDate: string; // Backend expects 'startDate'
+  endDate: string; // Backend expects 'endDate'
+  timeline?: string; // Backend also accepts 'timeline' as endDate
+  priority?: string;
+  userIds: string[]; // Backend expects 'userIds'
+  isDepartmentGoal?: boolean; // New field for department goals
 }
 
 export interface UpdateGoalRequest {
-  title?: string;
+  name?: string;
   description?: string;
   departmentId?: string;
   startDate?: string;
   endDate?: string;
+  timeline?: string; // Backend also accepts 'timeline' as endDate
+  priority?: string;
   status?: string;
+  userIds?: string[];
+  isDepartmentGoal?: boolean;
 }
 
 export interface CreateGoalReportRequest {
@@ -98,6 +109,11 @@ export interface CreateGoalReportRequest {
   description: string;
   fileId?: string;
   isCompletion?: boolean;
+}
+
+export interface UpdateGoalProgressRequest {
+  progress: number;
+  status: string;
 }
 
 export const goalService = {
@@ -110,6 +126,7 @@ export const goalService = {
     if (filters?.priority) params.append('priority', filters.priority);
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.departmentId) params.append('departmentId', filters.departmentId);
     
     const queryString = params.toString();
     const url = queryString ? `/goals?${queryString}` : '/goals';
@@ -121,19 +138,19 @@ export const goalService = {
   // Get goal by ID
   getById: async (id: string): Promise<Goal> => {
     const response = await api.get(`/goals/${id}`);
-    return response.data.data;
+    return response.data.goal || response.data;
   },
 
   // Create new goal
   create: async (data: CreateGoalRequest): Promise<Goal> => {
     const response = await api.post('/goals', data);
-    return response.data.data;
+    return response.data;
   },
 
   // Update goal
   update: async (id: string, data: UpdateGoalRequest): Promise<Goal> => {
     const response = await api.put(`/goals/${id}`, data);
-    return response.data.data;
+    return response.data;
   },
 
   // Delete goal
@@ -144,13 +161,13 @@ export const goalService = {
   // Publish goal
   publish: async (id: string): Promise<Goal> => {
     const response = await api.post(`/goals/${id}/publish`);
-    return response.data.data;
+    return response.data;
   },
 
   // Unpublish goal
   unpublish: async (id: string): Promise<Goal> => {
     const response = await api.post(`/goals/${id}/unpublish`);
-    return response.data.data;
+    return response.data;
   },
 
   // Assign users to goal
@@ -166,30 +183,46 @@ export const goalService = {
   // Get goal assignments
   getAssignments: async (id: string): Promise<GoalAssignment[]> => {
     const response = await api.get(`/goals/${id}/assignments`);
-    return response.data.data;
+    return response.data;
   },
 
   // Submit goal report
   submitReport: async (id: string, data: CreateGoalReportRequest): Promise<GoalReport> => {
     const response = await api.post(`/goals/${id}/reports`, data);
-    return response.data.data;
+    return response.data;
   },
 
   // Get goal reports
   getReports: async (id: string): Promise<GoalReport[]> => {
     const response = await api.get(`/goals/${id}/reports`);
-    return response.data.data;
+    return response.data;
   },
 
   // Get user's assigned goals
   getMyGoals: async (): Promise<Goal[]> => {
     const response = await api.get('/goals/my');
-    return response.data.data;
+    return response.data;
   },
 
   // Mark goal as completed
   markCompleted: async (id: string): Promise<Goal> => {
     const response = await api.post(`/goals/${id}/complete`);
-    return response.data.data;
+    return response.data;
+  },
+
+  // Update goal progress
+  updateProgress: async (id: string, data: UpdateGoalProgressRequest): Promise<Goal> => {
+    const response = await api.put(`/goals/${id}/progress`, data);
+    return response.data.goal || response.data;
+  },
+
+  // Upload goal report with file
+  uploadReport: async (id: string, data: FormData): Promise<GoalReport> => {
+    const response = await api.post(`/goals/${id}/reports/upload`, data, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data.report || response.data;
   },
 };

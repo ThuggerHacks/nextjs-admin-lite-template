@@ -98,13 +98,14 @@ model User {
   libraries       Library[]
   libraryMembers  LibraryMember[]
   goals           GoalAssignment[]
-  reports         Report[]
   notifications   Notification[]
   scans           Scan[]
   createdGoals    Goal[]     @relation("GoalCreator")
   submittedReports GeneralReport[] @relation("SubmittedReports")
   receivedReports GeneralReport[] @relation("ReceivedReports")
   respondedReports GeneralReport[] @relation("RespondedReports")
+  goalReports     GoalReport[] @relation("GoalReportSubmitter")
+  reports         Report[]
 
   @@map("users")
 }
@@ -149,6 +150,7 @@ model File {
   sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
   reports     ReportFile[]
   generalReports GeneralReportFile[]
+  goalReports GoalReportFile[]
 
   @@map("files")
 }
@@ -186,8 +188,11 @@ model Goal {
   id          String     @id @default(cuid())
   name        String
   description String?
-  timeline    DateTime
+  startDate   DateTime @default(now())
+  endDate     DateTime @default(now())
   status      String     @default("DRAFT")
+  priority    String     @default("MEDIUM")
+  progress    Int        @default(0)
   departmentId String
   createdById String
   sucursalId  String
@@ -198,9 +203,40 @@ model Goal {
   createdBy   User       @relation("GoalCreator", fields: [createdById], references: [id])
   sucursal    Sucursal   @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
   assignments GoalAssignment[]
-  reports     Report[]
+  reports     GoalReport[]
+  generalReports Report[]
 
   @@map("goals")
+}
+
+model GoalReport {
+  id            String    @id @default(cuid())
+  title         String
+  description   String
+  goalId        String
+  submittedById String
+  isCompletion  Boolean   @default(false)
+  status        String    @default("PENDING")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  goal          Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  submittedBy   User      @relation("GoalReportSubmitter", fields: [submittedById], references: [id], onDelete: Cascade)
+  files         GoalReportFile[]
+
+  @@map("goal_reports")
+}
+
+model GoalReportFile {
+  id            String      @id @default(cuid())
+  goalReportId  String
+  fileId        String
+
+  goalReport    GoalReport  @relation(fields: [goalReportId], references: [id], onDelete: Cascade)
+  file          File        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([goalReportId, fileId])
+  @@map("goal_report_files")
 }
 
 model GoalAssignment {

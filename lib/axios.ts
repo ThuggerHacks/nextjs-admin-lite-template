@@ -249,4 +249,5 @@ const apiService = {
 
 // Export both the configured axios instance and the service
 export default axiosInstance;
-export { apiService };
+const baseUrl = API_BASE_URL;
+export { apiService, baseUrl };

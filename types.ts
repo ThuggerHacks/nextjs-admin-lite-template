@@ -31,11 +31,11 @@ export enum ReportStatus {
 
 export enum GoalStatus {
   PENDING = "pending",
-  ACTIVE = "active",
-  COMPLETED = "completed",
-  OVERDUE = "overdue",
+  IN_PROGRESS = "in_progress",
   ON_HOLD = "on_hold",
-  CANCELLED = "cancelled",
+  AWAITING = "awaiting",
+  DONE = "done",
+  COMPLETED = "completed",
 }
 
 export enum GoalPriority {
@@ -68,7 +68,7 @@ export interface User {
   avatar?: string;
   phone?: string;
   address?: string;
-  createdAt: string;
+  createdAt: Date;
   lastLogin?: string;
   isDepartmentAdmin?: boolean; // New field for department admin role
   managedDepartments?: string[]; // Departments this user can manage

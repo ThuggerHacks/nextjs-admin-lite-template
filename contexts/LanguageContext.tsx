@@ -67,7 +67,7 @@ export function useLanguage() {
 export function useTranslation() {
   const { dictionary, loading } = useLanguage();
   
-  const t = (key: string): string => {
+  const t = (key: string, params?: Record<string, any>): string => {
     if (!dictionary || loading) {
       return key;
     }
@@ -83,7 +83,17 @@ export function useTranslation() {
       }
     }
     
-    return typeof value === 'string' ? value : key;
+    let result = typeof value === 'string' ? value : key;
+    
+    // Replace parameters if provided
+    if (params && typeof result === 'string') {
+      Object.keys(params).forEach(paramKey => {
+        const regex = new RegExp(`{${paramKey}}`, 'g');
+        result = result.replace(regex, String(params[paramKey]));
+      });
+    }
+    
+    return result;
   };
 
   return { t, loading };

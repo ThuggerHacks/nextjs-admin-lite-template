@@ -19,6 +19,7 @@ import {
   Spin,
   Alert,
 } from 'antd';
+import dayjs from 'dayjs';
 import {
   PlusOutlined,
   SaveOutlined,
@@ -36,6 +37,7 @@ import { useRouter } from 'next/navigation';
 import { userService } from '@/lib/services/userService';
 import { departmentService } from '@/lib/services/departmentService';
 import { goalService } from '@/lib/services/goalService';
+import { CreateGoalRequest } from '@/lib/services/goalService';
 
 const { TextArea } = Input;
 const { Title } = Typography;
@@ -52,6 +54,8 @@ export default function CreateGoalPage() {
   const [users, setUsers] = useState<User[]>([]);
   const [filteredUsers, setFilteredUsers] = useState<User[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
   
   const { user } = useUser();
   const { t } = useTranslation();
@@ -62,12 +66,194 @@ export default function CreateGoalPage() {
     loadInitialData();
   }, []);
 
+  // Check if we're in edit mode
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const editId = urlParams.get('edit');
+    if (editId) {
+      setIsEditMode(true);
+      setEditingGoalId(editId);
+      loadGoalForEdit(editId);
+    }
+  }, [form]); // Add form dependency
+
+  // Initialize form with default values
+  useEffect(() => {
+    if (!isEditMode && !editingGoalId) {
+      // Set default date range for new goals (1 month from now)
+      form.setFieldsValue({
+        dateRange: [dayjs(), dayjs().add(1, 'month')],
+        priority: GoalPriority.MEDIUM
+      });
+    }
+  }, [isEditMode, editingGoalId, form]);
+
   // Filter users when department changes
   useEffect(() => {
     if (selectedDepartment) {
       filterUsersByDepartment();
     }
   }, [selectedDepartment, users]);
+
+  // Re-evaluate goal type and user selection when users are loaded (for edit mode)
+  useEffect(() => {
+    if (isEditMode && editingGoalId && users.length > 0 && selectedDepartment) {
+      const storedGoal = sessionStorage.getItem(`goal_${editingGoalId}`);
+      if (storedGoal) {
+        try {
+          const goal = JSON.parse(storedGoal);
+          const departmentUsers = users.filter(u => u.departmentId === goal.departmentId);
+          const assignedUserIds = goal.assignments?.map((a: any) => a.userId) || [];
+
+          if (departmentUsers.length > 0 && assignedUserIds.length === departmentUsers.length) {
+            setGoalType('department');
+          } else if (assignedUserIds.length > 0) {
+            setGoalType('individual');
+          }
+
+          filterUsersByDepartment(); // Re-filter users now that they're loaded
+        } catch (error) {
+          console.error('Failed to re-evaluate goal type:', error);
+        }
+      }
+    }
+  }, [users, isEditMode, editingGoalId, selectedDepartment]);
+
+  // Re-evaluate goal type when users are loaded (for edit mode)
+  useEffect(() => {
+    if (isEditMode && editingGoalId && users.length > 0 && selectedDepartment) {
+      const storedGoal = sessionStorage.getItem(`goal_${editingGoalId}`);
+      if (storedGoal) {
+        try {
+          const goal = JSON.parse(storedGoal);
+          const departmentUsers = users.filter(u => u.departmentId === goal.departmentId);
+          const assignedUserIds = goal.assignments?.map((a: any) => a.userId) || [];
+          
+          if (departmentUsers.length > 0 && assignedUserIds.length === departmentUsers.length) {
+            setGoalType('department');
+          } else if (assignedUserIds.length > 0) {
+            setGoalType('individual');
+          }
+          
+          // Re-filter users now that they're loaded
+          filterUsersByDepartment();
+        } catch (error) {
+          console.error('Failed to re-evaluate goal type:', error);
+        }
+      }
+    }
+  }, [users, isEditMode, editingGoalId, selectedDepartment]);
+
+  const loadGoalForEdit = async (goalId: string) => {
+    try {
+      setLoadingData(true);
+      
+      // Try to get goal from sessionStorage first
+      const storedGoal = sessionStorage.getItem(`goal_${goalId}`);
+      let goal;
+      
+      if (storedGoal) {
+        goal = JSON.parse(storedGoal);
+        console.log('Loaded goal from sessionStorage:', goal);
+      } else {
+        // Fetch from backend
+        goal = await goalService.getById(goalId);
+        // Store in sessionStorage for future use
+        sessionStorage.setItem(`goal_${goalId}`, JSON.stringify(goal));
+      }
+      
+      // Validate and create dayjs objects for dates
+      let startDate, endDate;
+      try {
+        startDate = goal.startDate ? dayjs(goal.startDate) : dayjs();
+        endDate = goal.endDate ? dayjs(goal.endDate) : dayjs().add(1, 'month');
+        
+        // Validate that dates are valid
+        if (!startDate.isValid() || !endDate.isValid()) {
+          console.warn('Invalid dates received from backend, using fallback dates');
+          startDate = dayjs();
+          endDate = dayjs().add(1, 'month');
+        }
+      } catch (dateError) {
+        console.warn('Error parsing dates, using fallback dates:', dateError);
+        startDate = dayjs();
+        endDate = dayjs().add(1, 'month');
+      }
+      
+      // Pre-fill the form with goal data
+      const formData = {
+        title: goal.name, // Backend uses 'name', frontend expects 'title'
+        description: goal.description,
+        department: goal.departmentId,
+        dateRange: [startDate, endDate],
+        assignedTo: goal.assignments?.map((a: any) => a.userId) || [],
+        priority: goal.priority?.toLowerCase() || GoalPriority.MEDIUM // Convert to lowercase
+      };
+      
+      console.log('Setting form data:', formData);
+      form.setFieldsValue(formData);
+      
+      setSelectedDepartment(goal.departmentId);
+      setSelectedUsers(goal.assignments?.map((a: any) => a.userId) || []);
+      
+      // Set goal type based on assignments
+      // If all users in the department are assigned, it's likely a department goal
+      const departmentUsers = users.filter(u => u.departmentId === goal.departmentId);
+      const assignedUserIds = goal.assignments?.map((a: any) => a.userId) || [];
+      
+      if (departmentUsers.length > 0 && assignedUserIds.length === departmentUsers.length) {
+        // All department users are assigned - likely a department goal
+        setGoalType('department');
+      } else if (assignedUserIds.length > 0) {
+        // Some specific users are assigned - individual goal
+        setGoalType('individual');
+      } else {
+        // No assignments - default to individual
+        setGoalType('individual');
+      }
+      
+          // Ensure filtered users are populated for the selected department
+      // Wait for users to be loaded before filtering
+      if (users.length > 0) {
+        filterUsersByDepartment();
+      } else {
+        // If users aren't loaded yet, wait and try again
+        setTimeout(() => {
+          filterUsersByDepartment();
+        }, 500);
+      }
+      
+      // Store goal data in sessionStorage for fallback
+      sessionStorage.setItem(`goal_${goalId}`, JSON.stringify(goal));
+      
+    } catch (error) {
+      console.error('Failed to load goal for edit:', error);
+      message.error(t('goals.failedToLoadGoal'));
+      
+      // Try to load from sessionStorage as fallback
+      const storedGoal = sessionStorage.getItem(`goal_${goalId}`);
+      if (storedGoal) {
+        try {
+          const goal = JSON.parse(storedGoal);
+          console.log('Loading from sessionStorage fallback:', goal);
+          
+          // Set basic form data
+          form.setFieldsValue({
+            title: goal.name,
+            description: goal.description,
+            department: goal.departmentId,
+            priority: goal.priority || GoalPriority.MEDIUM
+          });
+          
+          setSelectedDepartment(goal.departmentId);
+        } catch (storageError) {
+          console.error('Failed to parse stored goal:', storageError);
+        }
+      }
+    } finally {
+      setLoadingData(false);
+    }
+  };
 
   const loadInitialData = async () => {
     setLoadingData(true);
@@ -125,14 +311,43 @@ export default function CreateGoalPage() {
   const handleSubmit = async (values: any) => {
     setLoading(true);
     try {
+      // Validate dateRange
+      if (!values.dateRange || !values.dateRange[0] || !values.dateRange[1]) {
+        message.error(t('goals.timelineRequired'));
+        setLoading(false);
+        return;
+      }
+
+      // Ensure we have valid dayjs objects
+      let startDate, endDate;
+      try {
+        startDate = dayjs.isDayjs(values.dateRange[0]) ? values.dateRange[0] : dayjs(values.dateRange[0]);
+        endDate = dayjs.isDayjs(values.dateRange[1]) ? values.dateRange[1] : dayjs(values.dateRange[1]);
+        
+        // Validate that dates are valid
+        if (!startDate.isValid() || !endDate.isValid()) {
+          message.error(t('goals.invalidDates'));
+          setLoading(false);
+          return;
+        }
+      } catch (dateError) {
+        console.error('Error parsing dates:', dateError);
+        message.error(t('goals.invalidDates'));
+        setLoading(false);
+        return;
+      }
+
       // Transform data to match backend API expectations
-      const goalData = {
+      const goalData: CreateGoalRequest = {
         name: values.title, // Backend expects 'name' not 'title'
         description: values.description,
         departmentId: values.department,
-        timeline: values.dateRange[1].toISOString(), // Backend expects 'timeline' as end date
-        priority: values.priority,
-        userIds: goalType === 'individual' ? values.assignedTo : [] // Backend expects 'userIds' not 'assignedUserIds'
+        startDate: startDate.toISOString(), // Backend expects 'startDate'
+        endDate: endDate.toISOString(), // Backend expects 'endDate'
+        timeline: endDate.toISOString(), // Backend also accepts 'timeline' as endDate
+        priority: values.priority?.toUpperCase() || 'MEDIUM', // Backend expects uppercase
+        userIds: goalType === 'individual' ? values.assignedTo : [], // Backend expects 'userIds' not 'assignedUserIds'
+        isDepartmentGoal: goalType === 'department' // Add flag to indicate department goal
       };
 
       console.log('Sending goal data to backend:', goalData);
@@ -143,26 +358,20 @@ export default function CreateGoalPage() {
         goalData.userIds = deptUsers.map(u => u.id);
       }
 
-      // Send to backend with transformed field names
-      const response = await fetch('/goals', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-        body: JSON.stringify(goalData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to create goal');
+      let response;
+      if (isEditMode && editingGoalId) {
+        // Update existing goal
+        response = await goalService.update(editingGoalId, goalData);
+      } else {
+        // Create new goal
+        response = await goalService.create(goalData);
       }
       
-      message.success(t('goals.goalCreatedSuccessfully'));
+      message.success(isEditMode ? t('goals.goalUpdatedSuccessfully') : t('goals.goalCreatedSuccessfully'));
       router.push('/goals/view');
     } catch (error) {
-      console.error('Failed to create goal:', error);
-      message.error(t('goals.goalCreationFailed'));
+      console.error('Failed to save goal:', error);
+      message.error(isEditMode ? t('goals.goalUpdateFailed') : t('goals.goalCreationFailed'));
     } finally {
       setLoading(false);
     }
@@ -190,10 +399,10 @@ export default function CreateGoalPage() {
       {/* Header */}
       <Card>
         <Title level={3} className="mb-2">
-          🎯 {t("navigation.createGoals")}
+          🎯 {isEditMode ? t("goals.editGoal") : t("navigation.createGoals")}
         </Title>
         <p className="text-gray-600">
-          {t('goals.createGoalDescription')}
+          {isEditMode ? t('goals.editGoalDescription') : t('goals.createGoalDescription')}
         </p>
       </Card>
 
@@ -220,18 +429,18 @@ export default function CreateGoalPage() {
             />
           </Form.Item>
 
-                        <Form.Item
-                label={t('goals.goalDescriptionText')}
-                name="description"
-                rules={[
-                  { required: true, message: t('goals.descriptionRequired') }
-                ]}
-              >
-                <TextArea
-                  rows={4}
-                  placeholder={t('goals.descriptionPlaceholder')}
-                />
-              </Form.Item>
+          <Form.Item
+            label={t('goals.goalDescriptionText')}
+            name="description"
+            rules={[
+              { required: true, message: t('goals.descriptionRequired') }
+            ]}
+          >
+            <TextArea
+              rows={4}
+              placeholder={t('goals.descriptionPlaceholder')}
+            />
+          </Form.Item>
 
           <Form.Item label={t('goals.goalAssignment')}>
             <Radio.Group
@@ -290,15 +499,15 @@ export default function CreateGoalPage() {
                     onChange={setSelectedUsers}
                     value={selectedUsers}
                   >
-                                            {filteredUsers.map(user => (
-                          <Option key={user.id} value={user.id}>
-                            <Space>
-                              <UserOutlined />
-                              {user.name}
-                              <Tag color="blue">{user.role}</Tag>
-                            </Space>
-                          </Option>
-                        ))}
+                    {filteredUsers.map(user => (
+                      <Option key={user.id} value={user.id}>
+                        <Space>
+                          <UserOutlined />
+                          {user.name}
+                          <Tag color="blue">{user.role}</Tag>
+                        </Space>
+                      </Option>
+                    ))}
                   </Select>
                 </Form.Item>
               </Col>
@@ -379,7 +588,7 @@ export default function CreateGoalPage() {
                 icon={<SaveOutlined />}
                 size="large"
               >
-                {t('goals.createGoal')}
+                {isEditMode ? t('goals.updateGoal') : t('goals.createGoal')}
               </Button>
               <Button 
                 size="large"
@@ -394,3 +603,4 @@ export default function CreateGoalPage() {
     </div>
   );
 }
+

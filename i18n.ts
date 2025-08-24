@@ -229,6 +229,9 @@ export interface Dictionary {
     status: string;
     submittedBy: string;
     submittedAt: string;
+    type: string;
+    blocked: string;
+    onHold: string;
     respondedAt: string;
     viewReports: string;
     // New translations
@@ -321,7 +324,91 @@ export interface Dictionary {
     titlePlaceholder: string;
     descriptionPlaceholder: string;
     goalCreatedSuccessfully: string;
+    goalUpdatedSuccessfully: string;
     goalCreationFailed: string;
+    goalUpdateFailed: string;
+    updateGoal: string;
+    editGoalDescription: string;
+    failedToLoadGoal: string;
+    // Additional translations for goals view page
+    trackAndManageGoals: string;
+    totalGoals: string;
+    activeGoals: string;
+    pendingReportsWarning: string;
+    searchGoals: string;
+    filterByStatus: string;
+    filterByPriority: string;
+    filterByDepartment: string;
+    pending: string;
+    active: string;
+    overdue: string;
+    onHold: string;
+    cancelled: string;
+    of: string;
+    goals: string;
+    viewDetails: string;
+    uploadReport: string;
+    updateProgress: string;
+    updateStatus: string;
+    selectStatus: string;
+    uploading: string;
+    deleteGoal: string;
+    goalDeletedSuccessfully: string;
+    failedToDeleteGoal: string;
+    failedToLoadGoals: string;
+    reportRequired: string;
+    usersAssigned: string;
+    notAssigned: string;
+    daysOverdue: string;
+    daysRemaining: string;
+    viewReports: string;
+    reports: string;
+    submittedBy: string;
+    viewFile: string;
+    download: string;
+    reportTitle: string;
+    reportDescription: string;
+    pleaseSelectFile: string;
+    reportUploadedSuccessfully: string;
+    failedToUploadReport: string;
+    reportTitleRequired: string;
+    enterReportTitle: string;
+    invalidDates: string;
+    reportDescriptionRequired: string;
+    enterReportDescription: string;
+    uploadFiles: string;
+    filesRequired: string;
+    selectFiles: string;
+    isCompletionReport: string;
+    progressUpdatedSuccessfully: string;
+    failedToUpdateProgress: string;
+    progressRequired: string;
+    statusRequired: string;
+    // Additional missing keys for goals view page
+    goal: string;
+    actions: string;
+    createdByMe: string;
+    lastUpdated: string;
+    close: string;
+    pendingReports: string;
+          // Status and other missing keys
+      status: string;
+      assignedTo: string;
+      createdAt: string;
+      createdBy: string;
+      // Status values
+      statusEmProgresso: string;
+      statusPendente: string;
+      statusFeito: string;
+      statusConcluido: string;
+      statusBloqueado: string;
+             statusEmEspera: string;
+       statusOutro: string;
+       blocked: string;
+       uploadNewReport: string;
+       completionReport: string;
+       attachedFiles: string;
+       noReportsYet: string;
   };
   files: {
     myFiles: string;
@@ -811,6 +898,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       status: 'Status',
       submittedBy: 'Submetido por',
       submittedAt: 'Submetido em',
+      type: 'Tipo',
+      blocked: 'Bloqueado',
+      onHold: 'Em Espera',
       respondedAt: 'Respondido em',
       viewReports: 'Ver Relatórios',
       // New translations
@@ -906,7 +996,119 @@ const dictionaries: Record<Locale, Dictionary> = {
       titlePlaceholder: 'Digite um título claro e específico para a meta',
       descriptionPlaceholder: 'Descreva sua meta em detalhes, incluindo como o sucesso se parece',
       goalCreatedSuccessfully: 'Meta criada com sucesso!',
+      goalUpdatedSuccessfully: 'Meta atualizada com sucesso!',
       goalCreationFailed: 'Falha ao criar meta',
+      goalUpdateFailed: 'Falha ao atualizar meta',
+      updateGoal: 'Atualizar Meta',
+      editGoalDescription: 'Edite os detalhes da meta existente',
+      failedToLoadGoal: 'Falha ao carregar meta',
+      // Additional translations for goals view page
+      trackAndManageGoals: 'Acompanhe e gerencie suas metas e objetivos',
+      totalGoals: 'Total de Metas',
+      activeGoals: 'Metas Ativas',
+      pendingReportsWarning: '{count} meta(s) precisa(m) de relatórios de conclusão antes de serem marcadas como finalizadas.',
+      searchGoals: 'Pesquisar metas...',
+      filterByStatus: 'Filtrar por Status',
+      filterByPriority: 'Filtrar por Prioridade',
+      filterByDepartment: 'Filtrar por Departamento',
+      pending: 'Pendente',
+      active: 'Ativo',
+      overdue: 'Atrasado',
+      onHold: 'Em Espera',
+      cancelled: 'Cancelado',
+      of: 'de',
+      goals: 'Metas',
+      viewDetails: 'Ver Detalhes',
+      uploadReport: 'Carregar Relatório',
+      updateProgress: 'Atualizar Progresso',
+      updateStatus: 'Atualizar Status',
+      selectStatus: 'Selecionar Status',
+      uploading: 'Carregando...',
+      deleteGoal: 'Excluir Meta',
+      goalDeletedSuccessfully: 'Meta excluída com sucesso!',
+      failedToDeleteGoal: 'Falha ao excluir meta',
+      failedToLoadGoals: 'Falha ao carregar metas',
+      reportRequired: 'Relatório Necessário',
+      usersAssigned: 'usuários atribuídos',
+      notAssigned: 'Não atribuído',
+      daysOverdue: 'dias atrasado',
+      daysRemaining: 'dias restantes',
+      viewReports: 'Ver Relatórios',
+      reports: 'Relatórios',
+      submittedBy: 'Submetido por',
+      viewFile: 'Ver Arquivo',
+      download: 'Baixar',
+      reportTitle: 'Título do Relatório',
+      reportDescription: 'Descrição do Relatório',
+      pleaseSelectFile: 'Por favor selecione um arquivo',
+      reportUploadedSuccessfully: 'Relatório carregado com sucesso!',
+      failedToUploadReport: 'Falha ao carregar relatório',
+      reportTitleRequired: 'Título do relatório é obrigatório',
+      enterReportTitle: 'Digite o título do relatório',
+      invalidDates: 'Datas inválidas selecionadas',
+      reportDescriptionRequired: 'Descrição do relatório é obrigatória',
+      enterReportDescription: 'Digite a descrição do relatório',
+      uploadFiles: 'Carregar Arquivos',
+      filesRequired: 'Arquivos são obrigatórios',
+      selectFiles: 'Selecionar Arquivos',
+      isCompletionReport: 'Relatório de Conclusão',
+      progressUpdatedSuccessfully: 'Progresso atualizado com sucesso!',
+      failedToUpdateProgress: 'Falha ao atualizar progresso',
+      progressRequired: 'Progresso é obrigatório',
+      statusRequired: 'Status é obrigatório',
+      // Additional missing keys for goals view page
+      goal: 'Meta',
+      actions: 'Ações',
+      createdByMe: 'Criadas por Mim',
+      lastUpdated: 'Última Atualização',
+      // Status and other missing keys
+      status: 'Status',
+      assignedTo: 'Atribuído a',
+      createdAt: 'Criado em',
+      createdBy: 'Criado por',
+      close: 'Fechar',
+      pendingReports: 'Relatórios Pendentes',
+      // Status values
+      statusEmProgresso: 'Em Progresso',
+      statusPendente: 'Pendente',
+      statusFeito: 'Feito',
+      statusConcluido: 'Concluído',
+      statusBloqueado: 'Bloqueado',
+             statusEmEspera: 'Em Espera',
+       statusOutro: 'Outro',
+       blocked: 'Bloqueado',
+      uploadNewReport: 'Upload Novo Relatório',
+      completionReport: 'Relatório de Conclusão',
+      attachedFiles: 'Ficheiros Anexados',
+      noReportsYet: 'Ainda não há relatórios',
+      uploadFirstReport: 'Faça upload do primeiro relatório',
+      // Additional missing keys for goal reports
+      description: 'Descrição',
+      submittedAt: 'Submetido em',
+      type: 'Tipo',
+      fileDownloadedSuccessfully: 'Ficheiro descarregado com sucesso',
+      downloadFailed: 'Falha no download',
+      noFilesAttached: 'Nenhum ficheiro anexado',
+      uploadComplete: 'Upload Concluído',
+      uploadingFiles: 'A Carregar Ficheiros',
+      // Status update related keys
+      statusUpdatedSuccessfully: 'Status atualizado com sucesso!',
+      failedToUpdateStatus: 'Falha ao atualizar status',
+      noStatusChange: 'Nenhuma mudança de status detectada',
+      currentStatus: 'Status Atual',
+      newStatus: 'Novo Status',
+      selectNewStatus: 'Selecionar novo status',
+      updating: 'Atualizando...',
+      // New status values
+      pending: 'Pendente',
+      inProgress: 'Em Progresso',
+      onHold: 'Em Espera',
+      awaiting: 'Aguardando',
+      done: 'Concluído',
+      // Additional missing keys
+      departmentGoals: 'Metas do Departamento',
+      manageAndTrackGoals: 'Gerir e acompanhar as suas metas e objetivos',
+      searchGoals: 'Pesquisar metas',
     },
     files: {
       myFiles: 'Meus Arquivos',
@@ -1360,6 +1562,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       status: 'Status',
       submittedBy: 'Submitted by',
       submittedAt: 'Submitted at',
+      type: 'Type',
+      blocked: 'Blocked',
+      onHold: 'On Hold',
       respondedAt: 'Responded at',
       viewReports: 'View Reports',
       // New translations
@@ -1455,7 +1660,121 @@ const dictionaries: Record<Locale, Dictionary> = {
       titlePlaceholder: 'Enter a clear and specific goal title',
       descriptionPlaceholder: 'Describe your goal in detail, including what success looks like',
       goalCreatedSuccessfully: 'Goal created successfully!',
+      goalUpdatedSuccessfully: 'Goal updated successfully!',
       goalCreationFailed: 'Failed to create goal',
+      goalUpdateFailed: 'Failed to update goal',
+      updateGoal: 'Update Goal',
+      editGoalDescription: 'Edit the details of the existing goal',
+      failedToLoadGoal: 'Failed to load goal',
+      // Additional translations for goals view page
+      trackAndManageGoals: 'Track and manage your goals and objectives',
+      totalGoals: 'Total Goals',
+      activeGoals: 'Active Goals',
+      pendingReportsWarning: '{count} goal(s) need completion reports before they can be marked as finished.',
+      searchGoals: 'Search goals...',
+      filterByStatus: 'Filter by Status',
+      filterByPriority: 'Filter by Priority',
+      filterByDepartment: 'Filter by Department',
+      pending: 'Pending',
+      active: 'Active',
+      overdue: 'Overdue',
+      onHold: 'On Hold',
+      cancelled: 'Cancelled',
+      of: 'of',
+      goals: 'Goals',
+      viewDetails: 'View Details',
+      uploadReport: 'Upload Report',
+      updateProgress: 'Update Progress',
+      updateStatus: 'Update Status',
+      selectStatus: 'Select Status',
+      uploading: 'Uploading...',
+      deleteGoal: 'Delete Goal',
+      goalDeletedSuccessfully: 'Goal deleted successfully!',
+      failedToDeleteGoal: 'Failed to delete goal',
+      failedToLoadGoals: 'Failed to load goals',
+      reportRequired: 'Report Required',
+      usersAssigned: 'users assigned',
+      notAssigned: 'Not assigned',
+      daysOverdue: 'days overdue',
+      daysRemaining: 'days remaining',
+      viewReports: 'View Reports',
+      reports: 'Reports',
+      submittedBy: 'Submitted by',
+      viewFile: 'View File',
+      download: 'Download',
+      reportTitle: 'Report Title',
+      reportDescription: 'Report Description',
+      pleaseSelectFile: 'Please select a file',
+      reportUploadedSuccessfully: 'Report uploaded successfully!',
+      failedToUploadReport: 'Failed to upload report',
+      reportTitleRequired: 'Report title is required',
+      enterReportTitle: 'Enter report title',
+      invalidDates: 'Invalid dates selected',
+      reportDescriptionRequired: 'Report description is required',
+      enterReportDescription: 'Enter report description',
+      uploadFiles: 'Upload Files',
+      filesRequired: 'Files are required',
+      selectFiles: 'Select Files',
+      isCompletionReport: 'Completion Report',
+      progressUpdatedSuccessfully: 'Progress updated successfully!',
+      failedToUpdateProgress: 'Failed to update progress',
+      progressRequired: 'Progress is required',
+      statusRequired: 'Status is required',
+      // Additional missing keys for goals view page
+      goal: 'Goal',
+      actions: 'Actions',
+      createdByMe: 'Created by Me',
+      lastUpdated: 'Last Updated',
+      // Status and other missing keys
+      status: 'Status',
+      assignedTo: 'Assigned to',
+      createdAt: 'Created at',
+      createdBy: 'Created by',
+      close: 'Close',
+      pendingReports: 'Pending Reports',
+      // Status values
+      statusEmProgresso: 'In Progress',
+      statusPendente: 'Pending',
+      statusFeito: 'Done',
+      statusConcluido: 'Completed',
+      statusBloqueado: 'Blocked',
+      statusEmEspera: 'On Hold',
+      statusOutro: 'Other',
+      uploadNewReport: 'Upload New Report',
+      completionReport: 'Completion Report',
+      attachedFiles: 'Attached Files',
+      noReportsYet: 'No reports yet',
+      uploadFirstReport: 'Upload the first report',
+      // Additional missing keys for goal reports
+      description: 'Description',
+      submittedAt: 'Submitted at',
+      type: 'Type',
+      completionReport: 'Completion Report',
+      attachedFiles: 'Attached Files',
+      noReportsYet: 'No reports yet',
+      fileDownloadedSuccessfully: 'File downloaded successfully',
+      downloadFailed: 'Download failed',
+      noFilesAttached: 'No files attached',
+      uploadComplete: 'Upload Complete',
+      uploadingFiles: 'Uploading Files',
+      // Status update related keys
+      statusUpdatedSuccessfully: 'Status updated successfully!',
+      failedToUpdateStatus: 'Failed to update status',
+      noStatusChange: 'No status change detected',
+      currentStatus: 'Current Status',
+      newStatus: 'New Status',
+      selectNewStatus: 'Select new status',
+      updating: 'Updating...',
+      // New status values
+      pending: 'Pending',
+      inProgress: 'In Progress',
+      onHold: 'On Hold',
+      awaiting: 'Awaiting',
+      done: 'Done',
+      // Additional missing keys
+      departmentGoals: 'Department Goals',
+      manageAndTrackGoals: 'Manage and track your goals and objectives',
+      searchGoals: 'Search goals',
     },
     files: {
       myFiles: 'My Files',

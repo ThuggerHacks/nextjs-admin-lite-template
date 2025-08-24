@@ -20,6 +20,7 @@ import {
   Dropdown,
   message,
   Spin,
+  Tabs,
 } from 'antd';
 import {
   PlusOutlined,
@@ -43,148 +44,144 @@ import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
 import { Goal, GoalStatus, GoalPriority, UserRole, UserStatus } from '@/types';
 import { useRouter } from 'next/navigation';
+import { goalService } from '@/lib/services/goalService';
 
 const { Title, Text } = Typography;
 const { Search } = Input;
 const { RangePicker } = DatePicker;
 
-// Mock data for goals
-const mockGoals: Goal[] = [
-  {
-    id: '1',
-    title: 'Implement User Authentication System',
-    description: 'Develop a comprehensive user authentication system with role-based access control.',
-    startDate: new Date('2024-01-15'),
-    endDate: new Date('2024-12-31'),
-    status: GoalStatus.ACTIVE,
-    priority: GoalPriority.HIGH,
-    department: 'IT',
-    assignedTo: [
-      { id: '1', name: 'João Silva', email: 'joao@tonelizer.com', role: UserRole.USER, department: 'IT', status: UserStatus.ACTIVE, createdAt: new Date() },
-      { id: '2', name: 'Maria Santos', email: 'maria@tonelizer.com', role: UserRole.USER, department: 'IT', status: UserStatus.ACTIVE, createdAt: new Date() }
-    ],
-    createdBy: { id: 'admin', name: 'Admin User', email: 'admin@tonelizer.com', role: UserRole.ADMIN, department: 'IT', status: UserStatus.ACTIVE, createdAt: new Date() },
-    createdAt: new Date('2024-01-15'),
-    updatedAt: new Date('2024-01-15'),
-    progress: 65,
-    reports: [],
-    isCompleted: false,
-    requiresReportOnCompletion: true,
-    completionReportSubmitted: false,
-  },
-  {
-    id: '2',
-    title: 'Improve Customer Service Response Time',
-    description: 'Reduce average customer service response time to under 2 hours.',
-    startDate: new Date('2024-02-01'),
-    endDate: new Date('2024-11-30'),
-    status: GoalStatus.ACTIVE,
-    priority: GoalPriority.MEDIUM,
-    department: 'Customer Service',
-    assignedTo: [
-      { id: '3', name: 'Pedro Costa', email: 'pedro@tonelizer.com', role: UserRole.USER, department: 'Customer Service', status: UserStatus.ACTIVE, createdAt: new Date() },
-      { id: '4', name: 'Ana Oliveira', email: 'ana@tonelizer.com', role: UserRole.USER, department: 'Customer Service', status: UserStatus.ACTIVE, createdAt: new Date() }
-    ],
-    createdBy: { id: 'manager', name: 'Manager User', email: 'manager@tonelizer.com', role: UserRole.SUPERVISOR, department: 'Customer Service', status: UserStatus.ACTIVE, createdAt: new Date() },
-    createdAt: new Date('2024-02-01'),
-    updatedAt: new Date('2024-02-01'),
-    progress: 40,
-    reports: [],
-    isCompleted: false,
-    requiresReportOnCompletion: true,
-    completionReportSubmitted: false,
-  },
-  {
-    id: '3',
-    title: 'Complete Q4 Financial Audit',
-    description: 'Conduct comprehensive financial audit for Q4 2024.',
-    startDate: new Date('2024-03-01'),
-    endDate: new Date('2024-12-15'),
-    status: GoalStatus.COMPLETED,
-    priority: GoalPriority.HIGH,
-    department: 'Finance',
-    assignedTo: [
-      { id: '5', name: 'Carlos Silva', email: 'carlos@tonelizer.com', role: UserRole.USER, department: 'Finance', status: UserStatus.ACTIVE, createdAt: new Date() }
-    ],
-    createdBy: { id: 'finance', name: 'Finance Director', email: 'finance@tonelizer.com', role: UserRole.ADMIN, department: 'Finance', status: UserStatus.ACTIVE, createdAt: new Date() },
-    createdAt: new Date('2024-03-01'),
-    updatedAt: new Date('2024-03-01'),
-    progress: 100,
-    reports: [],
-    isCompleted: true,
-    requiresReportOnCompletion: true,
-    completionReportSubmitted: true,
-  },
-  {
-    id: '4',
-    title: 'Launch Marketing Campaign',
-    description: 'Execute Q1 2025 marketing campaign across all channels.',
-    startDate: new Date('2024-03-15'),
-    endDate: new Date('2025-03-31'),
-    status: GoalStatus.PENDING,
-    priority: GoalPriority.MEDIUM,
-    department: 'Marketing',
-    assignedTo: [
-      { id: '6', name: 'Marketing Team Lead', email: 'marketing@tonelizer.com', role: UserRole.SUPERVISOR, department: 'Marketing', status: UserStatus.ACTIVE, createdAt: new Date() }
-    ],
-    createdBy: { id: 'marketing', name: 'Marketing Director', email: 'marketing.director@tonelizer.com', role: UserRole.ADMIN, department: 'Marketing', status: UserStatus.ACTIVE, createdAt: new Date() },
-    createdAt: new Date('2024-03-15'),
-    updatedAt: new Date('2024-03-15'),
-    progress: 15,
-    reports: [],
-    isCompleted: false,
-    requiresReportOnCompletion: true,
-    completionReportSubmitted: false,
-  },
-  {
-    id: '5',
-    title: 'Upgrade Server Infrastructure',
-    description: 'Migrate to new server infrastructure with improved performance and security.',
-    startDate: new Date('2024-04-01'),
-    endDate: new Date('2024-10-31'),
-    status: GoalStatus.ON_HOLD,
-    priority: GoalPriority.HIGH,
-    department: 'IT',
-    assignedTo: [
-      { id: '7', name: 'Tech Team Lead', email: 'tech@tonelizer.com', role: UserRole.SUPERVISOR, department: 'IT', status: UserStatus.ACTIVE, createdAt: new Date() }
-    ],
-    createdBy: { id: 'cto', name: 'CTO', email: 'cto@tonelizer.com', role: UserRole.ADMIN, department: 'IT', status: UserStatus.ACTIVE, createdAt: new Date() },
-    createdAt: new Date('2024-04-01'),
-    updatedAt: new Date('2024-04-01'),
-    progress: 25,
-    reports: [],
-    isCompleted: false,
-    requiresReportOnCompletion: true,
-    completionReportSubmitted: false,
-  },
-];
+// Goals data is now loaded from backend via goalService
 
 const GoalsPage: React.FC = () => {
   const { t } = useTranslation();
   const { user, hasRole } = useUser();
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [goals, setGoals] = useState<Goal[]>(mockGoals);
-  const [filteredGoals, setFilteredGoals] = useState<Goal[]>(mockGoals);
+  const [loading, setLoading] = useState(true);
+  const [goals, setGoals] = useState<Goal[]>([]);
+  const [filteredGoals, setFilteredGoals] = useState<Goal[]>([]);
   const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const [modalVisible, setModalVisible] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
+  const [activeTab, setActiveTab] = useState<string>('all');
 
-  // Filter goals based on user role and department
+  // Load goals from backend
+  useEffect(() => {
+    loadGoals();
+  }, []);
+
+  const loadGoals = async () => {
+    try {
+      setLoading(true);
+      const response = await goalService.getAll();
+      
+      // Transform backend data to frontend format
+      const transformedGoals: Goal[] = response.goals.map((goal: any) => ({
+        id: goal.id,
+        title: goal.name, // Backend uses 'name', frontend expects 'title'
+        description: goal.description || '',
+        startDate: new Date(goal.startDate),
+        endDate: new Date(goal.endDate),
+        status: mapBackendStatusToFrontend(goal.status),
+        priority: mapBackendPriorityToFrontend(goal.priority),
+        department: goal.department?.name || '',
+        assignedTo: goal.assignments?.map((assignment: any) => ({
+          id: assignment.user.id,
+          name: assignment.user.name,
+          email: assignment.user.email,
+          role: assignment.user.role as UserRole,
+          department: goal.department?.name || '',
+          status: UserStatus.ACTIVE,
+          createdAt: new Date(),
+        })) || [],
+        createdBy: {
+          id: goal.createdBy.id,
+          name: goal.createdBy.name,
+          email: goal.createdBy.email,
+          role: goal.createdBy.role as UserRole,
+          department: goal.department?.name || '',
+          status: UserStatus.ACTIVE,
+          createdAt: new Date(),
+        },
+        createdAt: new Date(goal.createdAt),
+        updatedAt: new Date(goal.updatedAt),
+        progress: goal.progress || 0,
+        reports: goal.reports || [],
+        isCompleted: goal.status === 'COMPLETED',
+        requiresReportOnCompletion: true,
+        completionReportSubmitted: goal.reports?.some((r: any) => r.isCompletion) || false,
+      }));
+      
+      setGoals(transformedGoals);
+    } catch (error) {
+      console.error('Failed to load goals:', error);
+      message.error('Failed to load goals');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Helper functions to map backend values to frontend enums
+  const mapBackendStatusToFrontend = (status: string): GoalStatus => {
+    switch (status?.toUpperCase()) {
+      case 'DRAFT': return GoalStatus.PENDING;
+      case 'PUBLISHED': return GoalStatus.ACTIVE;
+      case 'IN_PROGRESS': return GoalStatus.ACTIVE;
+      case 'COMPLETED': return GoalStatus.COMPLETED;
+      case 'CANCELLED': return GoalStatus.CANCELLED;
+      default: return GoalStatus.PENDING;
+    }
+  };
+
+  const mapBackendPriorityToFrontend = (priority: string): GoalPriority => {
+    switch (priority?.toLowerCase()) {
+      case 'high': return GoalPriority.HIGH;
+      case 'medium': return GoalPriority.MEDIUM;
+      case 'low': return GoalPriority.LOW;
+      default: return GoalPriority.MEDIUM;
+    }
+  };
+
+  // Filter goals based on active tab and other filters
   useEffect(() => {
     let filtered = goals;
 
-    // Role-based filtering
-    if (!hasRole(UserRole.ADMIN) && !hasRole(UserRole.SUPER_ADMIN)) {
-      if (user?.department) {
-        filtered = filtered.filter(goal => goal.department === user.department?.name);
-      }
+    // Apply tab filter first
+    switch (activeTab) {
+      case 'my':
+        filtered = goals.filter(goal => 
+          goal.assignedTo.some(user => user.id === user?.id) ||
+          goal.createdBy.id === user?.id
+        );
+        break;
+      case 'team':
+        filtered = goals.filter(goal => 
+          goal.department === user?.department
+        );
+        break;
+      case 'department':
+        filtered = goals.filter(goal => 
+          goal.department === user?.department
+        );
+        break;
+      case 'all':
+      default:
+        // Show all goals for admins/supervisors, or filtered by user's access
+        if (hasRole(UserRole.ADMIN) || hasRole(UserRole.SUPER_ADMIN)) {
+          filtered = goals;
+        } else {
+          filtered = goals.filter(goal => 
+            goal.assignedTo.some(user => user.id === user?.id) ||
+            goal.createdBy.id === user?.id ||
+            goal.department === user?.department
+          );
+        }
+        break;
     }
 
-    // Search filter
+    // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(goal =>
         goal.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -193,23 +190,23 @@ const GoalsPage: React.FC = () => {
       );
     }
 
-    // Status filter
+    // Apply status filter
     if (statusFilter !== 'all') {
       filtered = filtered.filter(goal => goal.status === statusFilter);
     }
 
-    // Priority filter
+    // Apply priority filter
     if (priorityFilter !== 'all') {
       filtered = filtered.filter(goal => goal.priority === priorityFilter);
     }
 
-    // Department filter
+    // Apply department filter
     if (departmentFilter !== 'all') {
       filtered = filtered.filter(goal => goal.department === departmentFilter);
     }
 
     setFilteredGoals(filtered);
-  }, [goals, searchTerm, statusFilter, priorityFilter, departmentFilter, user, hasRole]);
+  }, [goals, activeTab, searchTerm, statusFilter, priorityFilter, departmentFilter, user]);
 
   const getStatusColor = (status: GoalStatus) => {
     switch (status) {
@@ -259,14 +256,30 @@ const GoalsPage: React.FC = () => {
       okText: 'Delete',
       okType: 'danger',
       cancelText: 'Cancel',
-      onOk() {
-        setGoals(prev => prev.filter(g => g.id !== goal.id));
-        message.success('Goal deleted successfully');
+      async onOk() {
+        try {
+          await goalService.delete(goal.id);
+          setGoals(prev => prev.filter(g => g.id !== goal.id));
+          message.success('Goal deleted successfully');
+        } catch (error) {
+          console.error('Failed to delete goal:', error);
+          message.error('Failed to delete goal');
+        }
       },
     });
   };
 
   const canManageGoals = hasRole(UserRole.ADMIN) || hasRole(UserRole.SUPER_ADMIN) || hasRole(UserRole.SUPERVISOR);
+
+  // Handle tab change
+  const handleTabChange = (key: string) => {
+    setActiveTab(key);
+    // Reset other filters when changing tabs
+    setSearchTerm('');
+    setStatusFilter('all');
+    setPriorityFilter('all');
+    setDepartmentFilter('all');
+  };
 
   const columns = [
     {
@@ -455,6 +468,54 @@ const GoalsPage: React.FC = () => {
           </Card>
         </Col>
       </Row>
+
+      {/* Tabs */}
+      <Card className="mb-4">
+        <Tabs
+          activeKey={activeTab}
+          onChange={handleTabChange}
+          items={[
+            {
+              key: 'all',
+              label: (
+                <Space>
+                  <AimOutlined />
+                  {t?.('goals.allGoals') || 'All Goals'}
+                </Space>
+              ),
+            },
+            {
+              key: 'my',
+              label: (
+                <Space>
+                  <UserOutlined />
+                  {t?.('goals.myGoals') || 'My Goals'}
+                </Space>
+              ),
+            },
+            {
+              key: 'team',
+              label: (
+                <Space>
+                  <TeamOutlined />
+                  {t?.('goals.teamGoals') || 'Team Goals'}
+                </Space>
+              ),
+            },
+            ...(hasRole(UserRole.ADMIN) || hasRole(UserRole.SUPER_ADMIN) ? [
+              {
+                key: 'department',
+                label: (
+                  <Space>
+                    <TeamOutlined />
+                    {t?.('goals.departmentGoals') || 'Department Goals'}
+                  </Space>
+                ),
+              },
+            ] : []),
+          ]}
+        />
+      </Card>
 
       {/* Filters */}
       <Card className="mb-4">
