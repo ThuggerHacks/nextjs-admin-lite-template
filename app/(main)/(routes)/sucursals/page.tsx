@@ -120,6 +120,7 @@ export default function SucursalManagementPage() {
   };
 
   const handleCreateSucursal = async (values: any) => {
+    console.log('Form values submitted:', values);
     setLoading(true);
     try {
       const newSucursal = await sucursalService.create({
@@ -133,9 +134,10 @@ export default function SucursalManagementPage() {
       setModalVisible(false);
       form.resetFields();
       message.success(t('common.success'));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to create sucursal:', error);
-      message.error(t('common.error'));
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message || t('common.error');
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -144,6 +146,7 @@ export default function SucursalManagementPage() {
   const handleEditSucursal = async (values: any) => {
     if (!selectedSucursal) return;
     
+    console.log('Edit form values submitted:', values);
     setLoading(true);
     try {
       const updatedSucursal = await sucursalService.update(selectedSucursal.id, {
@@ -159,9 +162,10 @@ export default function SucursalManagementPage() {
       setSelectedSucursal(null);
       editForm.resetFields();
       message.success(t('common.success'));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to update sucursal:', error);
-      message.error(t('common.error'));
+      const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message || t('common.error');
+      message.error(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -322,44 +326,8 @@ export default function SucursalManagementPage() {
     return 'exception';
   };
 
-  const logColumns = [
-    {
-      title: t('sucursal.time'),
-      dataIndex: 'timestamp',
-      key: 'timestamp',
-      width: 150,
-      render: (timestamp: string) => new Date(timestamp).toLocaleTimeString(),
-    },
-    {
-      title: t('sucursal.status'),
-      dataIndex: 'level',
-      key: 'level',
-      width: 80,
-      render: (level: string) => {
-        const colors = {
-          info: 'blue',
-          warning: 'orange',
-          error: 'red',
-        };
-        return <Tag color={colors[level as keyof typeof colors]}>{level.toUpperCase()}</Tag>;
-      },
-    },
-    {
-      title: t('files.description'),
-      dataIndex: 'description',
-      key: 'description',
-    },
-    {
-      title: t('sucursal.details'),
-      dataIndex: 'errorDetails',
-      key: 'errorDetails',
-      render: (errorDetails: any) => (
-        <Tooltip title={<pre>{JSON.stringify(errorDetails, null, 2)}</pre>}>
-          <Button size="small" icon={<InfoCircleOutlined />} />
-        </Tooltip>
-      ),
-    },
-  ];
+  // This logColumns array is not used anymore - the table columns are defined inline in the drawer
+  // Keeping it for reference but it's not needed
 
   if (!canManageSucursals()) {
     return (

@@ -93,8 +93,11 @@ router.post('/', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), [
   body('connectedSucursalIds').optional().isArray().withMessage('Connected sucursal IDs must be an array')
 ], async (req, res) => {
   try {
+    console.log('Create sucursal request body:', req.body);
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -113,26 +116,30 @@ router.post('/', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), [
       return res.status(400).json({ error: 'Sucursal with this name or server URL already exists' });
     }
 
-    const sucursal = await prisma.sucursal.create({
-      data: {
-        name,
-        description,
-        location,
-        serverUrl,
-        connections: {
-          create: connectedSucursalIds.map(connectedId => ({
-            targetSucursalId: connectedId
-          }))
-        }
-      },
-      include: {
-        connections: {
-          include: {
-            targetSucursal: true
-          }
-        }
-      }
-    });
+    console.log('Creating sucursal with data:', { name, description, location, serverUrl, connectedSucursalIds });
+    
+         const sucursal = await prisma.sucursal.create({
+       data: {
+         name,
+         description,
+         location,
+         serverUrl,
+         sourceConnections: {
+           create: connectedSucursalIds.map(connectedId => ({
+             targetSucursalId: connectedId
+           }))
+         }
+       },
+       include: {
+         sourceConnections: {
+           include: {
+             targetSucursal: true
+           }
+         }
+       }
+     });
+    
+    console.log('Sucursal created successfully:', sucursal.id);
 
     // Notify other sucursals about the new sucursal
     if (connectedSucursalIds.length > 0) {
@@ -144,8 +151,29 @@ router.post('/', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), [
       sucursal
     });
   } catch (error) {
+    console.error('Create sucursal error:', error);
+    
+    // Handle Prisma-specific errors
+    if (error.code === 'P2002') {
+      return res.status(400).json({ 
+        error: 'Sucursal with this name or server URL already exists',
+        details: 'Unique constraint violation'
+      });
+    }
+    
+    if (error.code === 'P2003') {
+      return res.status(400).json({ 
+        error: 'Invalid foreign key reference',
+        details: error.message
+      });
+    }
+    
     await logError('DATABASE_ERROR', 'Create sucursal failed', error);
-    res.status(500).json({ error: 'Failed to create sucursal' });
+    res.status(500).json({ 
+      error: 'Failed to create sucursal',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
@@ -239,8 +267,11 @@ router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER','SUPER_AD
   // body('serverUrl').optional().isURL().withMessage('Valid server URL is required')
 ], async (req, res) => {
   try {
+    console.log('Update sucursal request:', { sucursalId: req.params.sucursalId, body: req.body });
+    
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Update validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
@@ -251,33 +282,80 @@ router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER','SUPER_AD
       where: { id: sucursalId }
     });
 
-    if (!existingSucursal) {
+        if (!existingSucursal) {
       return res.status(404).json({ error: 'Sucursal not found' });
+    }
+
+    // Check if name or serverUrl already exists (excluding current sucursal)
+    if (name || serverUrl) {
+      const duplicateCheck = await prisma.sucursal.findFirst({
+        where: {
+          OR: [
+            ...(name ? [{ name }] : []),
+            ...(serverUrl ? [{ serverUrl }] : [])
+          ],
+          NOT: { id: sucursalId }
+        }
+      });
+
+      if (duplicateCheck) {
+        const conflicts = [];
+        if (duplicateCheck.name === name) conflicts.push('name');
+        if (duplicateCheck.serverUrl === serverUrl) conflicts.push('serverUrl');
+        return res.status(400).json({ 
+          error: `Sucursal with this ${conflicts.join(' and ')} already exists` 
+        });
+      }
     }
 
     const updateData = {};
     if (name) updateData.name = name;
     if (description !== undefined) updateData.description = description;
     if (location !== undefined) updateData.location = location;
-    if (serverUrl) updateData.serverUrl = serverUrl;
+    if (serverUrl !== undefined) updateData.serverUrl = serverUrl;
+
+    console.log('Updating sucursal with data:', updateData);
 
     const updatedSucursal = await prisma.sucursal.update({
       where: { id: sucursalId },
       data: updateData
     });
+    
+    console.log('Sucursal updated successfully:', updatedSucursal.id);
 
     res.json({
       message: 'Sucursal updated successfully',
       sucursal: updatedSucursal
     });
   } catch (error) {
+    console.error('Update sucursal error:', error);
+    
+    // Handle Prisma-specific errors
+    if (error.code === 'P2002') {
+      return res.status(400).json({ 
+        error: 'Sucursal with this name or server URL already exists',
+        details: 'Unique constraint violation'
+      });
+    }
+    
+    if (error.code === 'P2003') {
+      return res.status(400).json({ 
+        error: 'Invalid foreign key reference',
+        details: error.message
+      });
+    }
+    
     await logError('DATABASE_ERROR', 'Update sucursal failed', error);
-    res.status(500).json({ error: 'Failed to update sucursal' });
+    res.status(500).json({ 
+      error: 'Failed to update sucursal',
+      details: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    });
   }
 });
 
 // Delete sucursal
-router.delete('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
+router.delete('/:sucursalId', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), async (req, res) => {
   try {
     const { sucursalId } = req.params;
 
