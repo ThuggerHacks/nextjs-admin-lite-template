@@ -61,10 +61,12 @@ export default function CreateGoalPage() {
   const { t } = useTranslation();
   const router = useRouter();
 
-  // Load departments and users on component mount
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+         // Load departments and users on component mount
+       useEffect(() => {
+         if (user) {
+           loadInitialData();
+         }
+       }, [user]);
 
   // Check if we're in edit mode
   useEffect(() => {
@@ -88,12 +90,44 @@ export default function CreateGoalPage() {
     }
   }, [isEditMode, editingGoalId, form]);
 
-  // Filter users when department changes
-  useEffect(() => {
-    if (selectedDepartment) {
-      filterUsersByDepartment();
-    }
-  }, [selectedDepartment, users]);
+     // Filter users when department changes
+   useEffect(() => {
+     if (selectedDepartment && users.length > 0) {
+       filterUsersByDepartment();
+     } else if (selectedDepartment && users.length === 0) {
+       // If we have a department selected but no users, try filtering again after a delay
+       setTimeout(() => {
+         if (selectedDepartment && users.length > 0) {
+           filterUsersByDepartment();
+         }
+       }, 500);
+     }
+   }, [selectedDepartment, users]);
+
+     // Ensure form is updated when department is auto-selected for supervisors
+   useEffect(() => {
+     if (user?.role === UserRole.SUPERVISOR && user.departmentId && selectedDepartment === user.departmentId) {
+       form.setFieldsValue({ department: user.departmentId });
+       
+       // Also trigger filtering if users are loaded
+       if (users.length > 0) {
+         filterUsersByDepartment();
+       }
+     }
+   }, [user, selectedDepartment, form, users]);
+
+     // Force filtering when both users and department are available for supervisors
+   useEffect(() => {
+     if (user?.role === UserRole.SUPERVISOR && 
+         user.departmentId && 
+         selectedDepartment === user.departmentId && 
+         users.length > 0 && 
+         filteredUsers.length === 0) {
+       setTimeout(() => {
+         filterUsersByDepartment();
+       }, 100);
+     }
+   }, [user, selectedDepartment, users, filteredUsers]);
 
   // Re-evaluate goal type and user selection when users are loaded (for edit mode)
   useEffect(() => {
@@ -269,25 +303,59 @@ export default function CreateGoalPage() {
         // Admin can see all users from all departments
         const usersResponse = await userService.getAll();
         allUsers = usersResponse.users || [];
-      } else if (user?.role === UserRole.SUPERVISOR) {
-        // Supervisor can only see users from their department
-        if (user.departmentId) {
-          const deptUsers = await userService.getByDepartment(user.departmentId);
-          allUsers = deptUsers;
-          // Auto-select supervisor's department
-          setSelectedDepartment(user.departmentId);
-          form.setFieldsValue({ department: user.departmentId });
-        }
-      }
+             } else if (user?.role === UserRole.SUPERVISOR) {
+         // Supervisor can only see users from their department
+         if (user.departmentId) {
+           try {
+             const deptUsers = await userService.getByDepartment(user.departmentId);
+             
+             // Check if the response has the expected structure
+             if (Array.isArray(deptUsers)) {
+               allUsers = deptUsers;
+             } else if (deptUsers && typeof deptUsers === 'object' && 'users' in deptUsers) {
+               allUsers = (deptUsers as any).users || [];
+             } else {
+               console.warn('Unexpected API response structure:', deptUsers);
+               allUsers = [];
+             }
+             
+             // Auto-select supervisor's department
+             setSelectedDepartment(user.departmentId);
+             form.setFieldsValue({ department: user.departmentId });
+             
+             // Also filter users immediately for this department
+             setTimeout(() => {
+               filterUsersByDepartment();
+             }, 100);
+           } catch (error) {
+             message.error('Failed to load users for your department');
+             // Try to load all users as fallback
+             try {
+               const usersResponse = await userService.getAll();
+               allUsers = usersResponse.users || [];
+             } catch (fallbackError) {
+               // Fallback failed, continue with empty users
+             }
+           }
+         } else {
+           message.error('Supervisor must be assigned to a department to create goals');
+         }
+       }
       
-      setUsers(allUsers);
-    } catch (error) {
-      console.error('Failed to load initial data:', error);
-      message.error(t('common.error'));
-    } finally {
-      setLoadingData(false);
-    }
-  };
+             setUsers(allUsers);
+       
+       // Force filtering for supervisors after users are loaded
+       if (user?.role === UserRole.SUPERVISOR && user.departmentId && allUsers.length > 0) {
+         setTimeout(() => {
+           filterUsersByDepartment();
+         }, 200);
+       }
+     } catch (error) {
+       message.error(t('common.error'));
+     } finally {
+       setLoadingData(false);
+     }
+   };
 
   const filterUsersByDepartment = () => {
     if (!selectedDepartment) {
@@ -303,6 +371,11 @@ export default function CreateGoalPage() {
     } else if (user?.role === UserRole.SUPERVISOR) {
       // Supervisor can only assign to users in their department
       filtered = users.filter(u => u.departmentId === selectedDepartment);
+      
+      // If no users found for supervisor, show all users as fallback
+      if (filtered.length === 0 && users.length > 0) {
+        filtered = users;
+      }
     }
 
     setFilteredUsers(filtered);
@@ -406,6 +479,8 @@ export default function CreateGoalPage() {
         </p>
       </Card>
 
+      
+
       {/* Goal Form */}
       <Card title={t('goals.goalDetails')}>
         <Form
@@ -442,24 +517,30 @@ export default function CreateGoalPage() {
             />
           </Form.Item>
 
-          <Form.Item label={t('goals.goalAssignment')}>
-            <Radio.Group
-              value={goalType}
-              onChange={(e) => {
-                setGoalType(e.target.value);
-                form.setFieldsValue({ assignedTo: [], department: undefined });
-                setSelectedUsers([]);
-              }}
-              style={{ width: '100%' }}
-            >
-              <Radio value="individual">
-                <UserOutlined /> {t('goals.individualGoal')}
-              </Radio>
-              <Radio value="department">
-                <TeamOutlined /> {t('goals.departmentGoal')}
-              </Radio>
-            </Radio.Group>
-          </Form.Item>
+                     <Form.Item label={t('goals.goalAssignment')}>
+             <Radio.Group
+               value={goalType}
+               onChange={(e) => {
+                 setGoalType(e.target.value);
+                 if (e.target.value === 'department' && user?.role === UserRole.SUPERVISOR && user.departmentId) {
+                   // Auto-select supervisor's department for department goals
+                   form.setFieldsValue({ assignedTo: [], department: user.departmentId });
+                   setSelectedDepartment(user.departmentId);
+                 } else {
+                   form.setFieldsValue({ assignedTo: [], department: undefined });
+                   setSelectedUsers([]);
+                 }
+               }}
+               style={{ width: '100%' }}
+             >
+               <Radio value="individual">
+                 <UserOutlined /> {t('goals.individualGoal')}
+               </Radio>
+               <Radio value="department">
+                 <TeamOutlined /> {t('goals.departmentGoal')}
+               </Radio>
+             </Radio.Group>
+           </Form.Item>
 
           {goalType === 'individual' && (
             <Row gutter={16}>
@@ -472,6 +553,7 @@ export default function CreateGoalPage() {
                   <Select
                     size="large"
                     placeholder={t('goals.selectDepartment')}
+                    disabled={user?.role === UserRole.SUPERVISOR} // Disable for supervisors
                     onChange={(value) => {
                       setSelectedDepartment(value);
                       form.setFieldsValue({ assignedTo: [] });
@@ -520,7 +602,11 @@ export default function CreateGoalPage() {
               name="department"
               rules={[{ required: true, message: t('goals.departmentRequired') }]}
             >
-              <Select size="large" placeholder={t('goals.selectDepartmentForGoal')}>
+              <Select 
+                size="large" 
+                placeholder={t('goals.selectDepartmentForGoal')}
+                disabled={user?.role === UserRole.SUPERVISOR} // Disable for supervisors
+              >
                 {departments.map(dept => (
                   <Option key={dept.id} value={dept.id}>
                     <TeamOutlined /> {dept.name}

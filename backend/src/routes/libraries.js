@@ -813,7 +813,7 @@ router.post('/:libraryId/files', authenticateToken, upload.single('file'), async
 router.post('/:libraryId/upload-session', authenticateToken, async (req, res) => {
   try {
     const { libraryId } = req.params;
-    const { fileName, fileSize } = req.body;
+    const { fileName, fileSize, folderId } = req.body;
     
     if (!fileName || !fileSize) {
       return res.status(400).json({ error: 'FileName and fileSize are required' });
@@ -845,7 +845,8 @@ router.post('/:libraryId/upload-session', authenticateToken, async (req, res) =>
       }
     });
 
-    const canWrite = isMember || library.userId === req.user.id || ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+    const canWrite = isMember || library.userId === req.user.id 
+    // || ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
 
     if (!canWrite) {
       return res.status(403).json({ error: 'Access denied' });
@@ -864,6 +865,7 @@ router.post('/:libraryId/upload-session', authenticateToken, async (req, res) =>
       fileName,
       fileSize: parseInt(fileSize),
       libraryId,
+      folderId: folderId || null, // Store folderId if provided
       userId: req.user.id,
       createdAt: new Date(),
       chunks: [],
@@ -1083,7 +1085,7 @@ router.post('/:libraryId/upload-complete', authenticateToken, async (req, res) =
           type: path.extname(sessionInfo.fileName).substring(1) || 'unknown',
           mimeType: 'application/octet-stream',
           libraryId,
-          folderId: null,
+          folderId: sessionInfo.folderId || null, // Use folderId from session
           userId: req.user.id,
           sucursalId: req.user.sucursalId
         },

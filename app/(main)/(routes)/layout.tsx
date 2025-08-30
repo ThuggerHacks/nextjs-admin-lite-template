@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 import { FloatButton, Drawer, Card, Typography, List } from "antd";
 import { QuestionCircleOutlined, BulbOutlined, FileTextOutlined, PhoneOutlined } from "@ant-design/icons";
 import NavBreadcrumb from "@/components/nav-breadcrumb/page";
@@ -59,7 +60,15 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
-          <div className="text-4xl mb-4">📊</div>
+          <div className="mb-4">
+            <Image
+              src="/icon.png"
+              alt="Platform Logo"
+              width={64}
+              height={64}
+              className="rounded-lg shadow-lg"
+            />
+          </div>
           <div className="text-lg">Loading Totalizer Platform...</div>
         </div>
       </div>

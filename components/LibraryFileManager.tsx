@@ -75,6 +75,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
   const [currentFolderId, setCurrentFolderId] = useState<string | undefined>();
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
   const [fileSystem, setFileSystem] = useState<(FileItem | FolderItem)[]>([]);
+  const [completeFileSystem, setCompleteFileSystem] = useState<(FileItem | FolderItem)[]>([]); // Store complete tree
   const [loading, setLoading] = useState(false);
   
   // Modals
@@ -96,62 +97,23 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     console.log('Converting backend data:', { folders, files, currentFolderId });
     console.log('Current path:', currentPath);
     
-    // If we're in a specific folder, just return the direct contents
-    if (currentFolderId) {
-      console.log('In folder mode, returning direct contents');
-      
-      const items: (FileItem | FolderItem)[] = [];
-      
-      // Add folders in this folder
-      const childFolders = folders.filter(folder => folder.parentId === currentFolderId);
-      console.log(`Folders in current folder ${currentFolderId}:`, childFolders);
-      
-      childFolders.forEach(folder => {
-        const folderItem: FolderItem = {
-          id: folder.id,
-          name: folder.name,
-          description: folder.description,
-          parentId: folder.parentId,
-          libraryId: libraryId,
-          createdBy: folder.user || { id: folder.userId, name: folder.user?.name || 'Unknown', email: folder.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
-          createdAt: new Date(folder.createdAt),
-          path: currentPath + `/${folder.name}`,
-          children: [],
-          permissions: [],
-        };
-        items.push(folderItem);
-      });
-      
-      // Add files in this folder
-      const childFiles = files.filter(file => file.folderId === currentFolderId);
-      console.log(`Files in current folder ${currentFolderId}:`, childFiles);
-      console.log(`Filtering files where file.folderId (${childFiles.map(f => f.folderId)}) === currentFolderId (${currentFolderId})`);
-      
-      childFiles.forEach(file => {
-        const fileItem: FileItem = {
-          id: file.id,
-          name: file.name,
-          description: file.description,
-          size: file.size,
-          type: file.mimeType || file.type || 'application/octet-stream',
-          url: file.url,
-          libraryId: libraryId,
-          uploadedBy: file.user || { id: file.userId, name: file.user?.name || 'Unknown', email: file.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
-          uploadedAt: new Date(file.updatedAt),
-          parentFolderId: file.folderId,
-          path: currentPath + `/${file.name}`,
-          isFolder: false,
-          permissions: [],
-        };
-        items.push(fileItem);
-      });
-      
-      console.log('Final folder contents:', items);
-      return items;
-    }
+    // Always build complete folder hierarchy for navigation
+    console.log('Building complete tree for navigation');
     
-    // If we're at root, build complete folder hierarchy
-    console.log('In root mode, building complete tree');
+    // Create maps for quick lookup
+    const folderMap = new Map<string, LibraryFolder>();
+    const fileMap = new Map<string, LibraryFile[]>();
+    
+    folders.forEach(folder => folderMap.set(folder.id, folder));
+    
+    // Group files by folderId for efficient lookup
+    files.forEach(file => {
+      const folderId = file.folderId || 'root';
+      if (!fileMap.has(folderId)) {
+        fileMap.set(folderId, []);
+      }
+      fileMap.get(folderId)!.push(file);
+    });
     
     const buildFolderTree = (parentId: string | null): (FileItem | FolderItem)[] => {
       const children: (FileItem | FolderItem)[] = [];
@@ -161,6 +123,9 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
       console.log(`Building tree for parentId ${parentId}:`, { childFolders });
       
       childFolders.forEach(folder => {
+        // Recursively build children for this folder
+        const folderChildren = buildFolderTree(folder.id);
+        
         const folderItem: FolderItem = {
           id: folder.id,
           name: folder.name,
@@ -170,14 +135,14 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           createdBy: folder.user || { id: folder.userId, name: folder.user?.name || 'Unknown', email: folder.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
           createdAt: new Date(folder.createdAt),
           path: '', // Will be set later
-          children: buildFolderTree(folder.id),
+          children: folderChildren, // Use the recursively built children
           permissions: [],
         };
         children.push(folderItem);
       });
       
       // Find all files with this parentId
-      const childFiles = files.filter(file => file.folderId === parentId);
+      const childFiles = fileMap.get(parentId || 'root') || [];
       console.log(`Files for parentId ${parentId}:`, { childFiles });
       
       childFiles.forEach(file => {
@@ -227,36 +192,91 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     try {
       setLoading(true);
       
-      console.log('Loading data for library:', libraryId, 'currentFolderId:', currentFolderId);
+      console.log('=== LOAD DATA ===');
+      console.log('Loading data for library:', libraryId, 'currentFolderId:', currentFolderId, 'currentPath:', currentPath);
       
-      // Get library-specific data for the current folder context
-      const libraryData = await libraryFileService.getLibraryContent(libraryId, currentFolderId);
+      // Always load the complete tree for navigation purposes
+      const completeLibraryData = await libraryFileService.getLibraryContent(libraryId, undefined);
+      const completeFolders = completeLibraryData.folders || [];
+      const completeFiles = completeLibraryData.files || [];
       
-      console.log('Received library data:', libraryData);
+      console.log('Complete library data:', { folders: completeFolders.length, files: completeFiles.length });
       
-      // Convert the response to our expected format
-      const folders = libraryData.folders || [];
-      const files = libraryData.files || [];
+      // Convert to complete tree structure
+      const completeTree = convertToFileSystem(completeFolders, completeFiles);
+      console.log('Complete tree built:', completeTree);
+      setCompleteFileSystem(completeTree);
       
-      console.log('Processing folders:', folders);
-      console.log('Processing files:', files);
-      
-      const convertedData = convertToFileSystem(folders, files);
-      console.log('Converted file system data:', convertedData);
-      
-      setFileSystem(convertedData);
+      // If we're in a specific folder, show only its direct contents
+      if (currentFolderId) {
+        console.log('Loading folder contents for folderId:', currentFolderId);
+        
+        // Get the folder contents directly from the API for the current folder
+        const folderData = await libraryFileService.getLibraryContent(libraryId, currentFolderId);
+        const folders = folderData.folders || [];
+        const files = folderData.files || [];
+        
+        console.log('Folder contents:', { folders: folders.length, files: files.length });
+        
+        // Convert to file system format for the current folder
+        const items: (FileItem | FolderItem)[] = [];
+        
+                 // Add folders in this folder
+         folders.forEach(folder => {
+           const folderItem: FolderItem = {
+             id: folder.id,
+             name: folder.name,
+             description: folder.description,
+             parentId: folder.parentId,
+             libraryId: libraryId,
+             createdBy: folder.user || { id: folder.userId, name: folder.user?.name || 'Unknown', email: folder.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
+             createdAt: new Date(folder.createdAt),
+             path: currentPath + `/${folder.name}`,
+             children: [], // Empty children for display items
+             permissions: [],
+           };
+           items.push(folderItem);
+         });
+         
+         // Add files in this folder
+         files.forEach(file => {
+           const fileItem: FileItem = {
+             id: file.id,
+             name: file.name,
+             description: file.description,
+             size: file.size,
+             type: file.mimeType || file.type || 'application/octet-stream',
+             url: file.url,
+             libraryId: libraryId,
+             uploadedBy: file.user || { id: file.userId, name: file.user?.name || 'Unknown', email: file.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
+             uploadedAt: new Date(file.updatedAt),
+             parentFolderId: file.folderId,
+             path: currentPath + `/${file.name}`,
+             isFolder: false,
+             permissions: [],
+           };
+           items.push(fileItem);
+         });
+        
+        console.log('Setting fileSystem to folder items:', items);
+        setFileSystem(items);
+      } else {
+        console.log('At root, setting fileSystem to complete tree');
+        // At root, use the complete tree
+        setFileSystem(completeTree);
+      }
     } catch (error) {
       console.error('Error loading library file data:', error);
       message.error('Failed to load library files and folders');
     } finally {
       setLoading(false);
     }
-  }, [libraryId, currentFolderId]);
+  }, [libraryId, currentFolderId, currentPath]);
 
   // Load data on component mount and when key dependencies change
   useEffect(() => {
     loadData();
-  }, [loadData]);
+  }, [libraryId, currentFolderId]);
 
   // Reset folder context when library changes
   useEffect(() => {
@@ -265,13 +285,19 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
   }, [libraryId]);
 
   // Helper functions
-  const findItemByPath = (path: string, items: (FileItem | FolderItem)[] = fileSystem): FileItem | FolderItem | null => {
+  const findItemByPath = (path: string, items: (FileItem | FolderItem)[] = completeFileSystem): FileItem | FolderItem | null => {
+    console.log('=== findItemByPath ===');
+    console.log('Searching for path:', path);
+    console.log('Available items:', items);
+    
     // Handle root path
     if (path === '/' || path === '') {
+      console.log('Root path requested, returning null');
       return null;
     }
     
     const pathParts = path.split('/').filter(Boolean);
+    console.log('Path parts:', pathParts);
     
     // Navigate through the path parts to find the target item
     let currentItems = items;
@@ -279,23 +305,51 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     
     for (let i = 0; i < pathParts.length; i++) {
       const partName = pathParts[i];
+      console.log(`Looking for part ${i}: "${partName}" in currentItems:`, currentItems.map(item => item.name));
+      
       targetItem = currentItems.find(item => item.name === partName) || null;
+      console.log(`Found item for "${partName}":`, targetItem);
       
       if (!targetItem) {
+        console.log(`Item not found for "${partName}"`);
         return null;
       }
       
       if (i < pathParts.length - 1) {
         // Not the last part, so we need to go deeper
         if ('children' in targetItem && targetItem.children) {
+          console.log(`Going deeper into children of "${partName}":`, targetItem.children);
           currentItems = targetItem.children;
         } else {
+          console.log(`Cannot go deeper, "${partName}" has no children`);
           return null;
         }
       }
     }
     
+    console.log('Final target item:', targetItem);
     return targetItem;
+  };
+
+  // Find item by ID in the complete file system
+  const findItemById = (id: string, items: (FileItem | FolderItem)[] = completeFileSystem): FileItem | FolderItem | null => {
+    console.log('=== findItemById ===');
+    console.log('Searching for ID:', id);
+    console.log('Searching in items count:', items.length);
+    
+    for (const item of items) {
+      if (item.id === id) {
+        console.log('Found item by ID:', item);
+        return item;
+      }
+      if ('children' in item && item.children && item.children.length > 0) {
+        console.log(`Searching in children of "${item.name}" (${item.children.length} children)`);
+        const found = findItemById(id, item.children);
+        if (found) return found;
+      }
+    }
+    console.log('Item not found by ID:', id);
+    return null;
   };
 
   const getCurrentFolderContents = (): (FileItem | FolderItem)[] => {
@@ -305,29 +359,8 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     console.log('fileSystem length:', fileSystem.length);
     console.log('fileSystem content:', fileSystem);
     
-    // If we're in a specific folder, return the fileSystem directly
-    if (currentFolderId) {
-      console.log('In folder mode, returning fileSystem directly:', fileSystem);
-      return fileSystem;
-    }
-    
-    // If we're at root, return the fileSystem
-    if (currentPath === '/') {
-      console.log('At root, returning fileSystem:', fileSystem);
-      return fileSystem;
-    }
-    
-    // This case should not happen with the current logic, but keeping it for safety
-    const currentFolder = findItemByPath(currentPath);
-    console.log('Current folder found:', currentFolder);
-    
-    if (currentFolder && 'children' in currentFolder) {
-      console.log('Returning folder children:', currentFolder.children);
-      return currentFolder.children || [];
-    }
-    
-    console.log('No folder found or no children, returning empty array');
-    return [];
+    // Always return the fileSystem - it's already filtered to show current folder contents
+    return fileSystem;
   };
 
   const getBreadcrumbItems = () => {
@@ -355,8 +388,10 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           />
         ),
         onClick: () => {
+          console.log('Navigating to root');
           setCurrentPath('/');
           setCurrentFolderId(undefined);
+          // loadData will be called automatically by useEffect when currentFolderId changes
         },
       },
     ];
@@ -390,15 +425,19 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           </span>
         ),
         onClick: () => {
+          console.log('Breadcrumb navigation to:', accumulatedPath);
           setCurrentPath(accumulatedPath);
           
-          // Find the folder ID for this path
-          const targetFolder = findItemByPath(accumulatedPath);
+          // Find the folder ID for this path using the complete file system
+          const targetFolder = findItemByPath(accumulatedPath, completeFileSystem);
           if (targetFolder && 'children' in targetFolder) {
+            console.log('Setting currentFolderId to:', targetFolder.id);
             setCurrentFolderId(targetFolder.id);
           } else {
+            console.log('Setting currentFolderId to undefined (root)');
             setCurrentFolderId(undefined);
           }
+          // loadData will be called automatically by useEffect when currentFolderId changes
         },
       });
     });
@@ -491,11 +530,70 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
 
   // Event handlers
   const handleFolderDoubleClick = (folderPath: string) => {
-    setCurrentPath(folderPath);
-    // Find the folder by path to get its ID
-    const folder = findItemByPath(folderPath);
-    if (folder && 'children' in folder) {
-      setCurrentFolderId(folder.id);
+    console.log('=== FOLDER DOUBLE CLICK ===');
+    console.log('Double-clicking folder:', folderPath);
+    console.log('Current completeFileSystem:', completeFileSystem);
+    console.log('Current currentFolderId:', currentFolderId);
+    console.log('Current currentPath:', currentPath);
+    
+    // First try to find the folder by path
+    let folder = findItemByPath(folderPath, completeFileSystem);
+    
+    // If path-based search fails, try to extract the folder name and search in current items
+    if (!folder) {
+      console.log('Path-based search failed, trying alternative approach...');
+      const pathParts = folderPath.split('/').filter(Boolean);
+      const folderName = pathParts[pathParts.length - 1]; // Get the last part (folder name)
+      
+      console.log('Looking for folder by name:', folderName);
+      
+      // Search in current fileSystem items by name
+      const currentItem = fileSystem.find(item => item.name === folderName && 'children' in item);
+      if (currentItem) {
+        console.log('Found folder in current items by name:', currentItem);
+        folder = currentItem;
+      } else {
+        console.log('Folder not found in current items, searching in completeFileSystem by name...');
+        // Search recursively in completeFileSystem by name
+        const searchByName = (items: (FileItem | FolderItem)[]): FileItem | FolderItem | null => {
+          for (const item of items) {
+            if (item.name === folderName && 'children' in item) {
+              return item;
+            }
+            if ('children' in item && item.children && item.children.length > 0) {
+              const found = searchByName(item.children);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        folder = searchByName(completeFileSystem);
+        if (folder) {
+          console.log('Found folder in completeFileSystem by name:', folder);
+        }
+      }
+    }
+    
+    console.log('Final found folder:', folder);
+    
+    if (folder) {
+      console.log('Folder has children:', 'children' in folder && folder.children);
+      console.log('Folder children count:', 'children' in folder ? folder.children.length : 'N/A');
+      
+      if ('children' in folder) {
+        console.log('Setting currentFolderId to:', folder.id);
+        console.log('Setting currentPath to:', folderPath);
+        setCurrentFolderId(folder.id);
+        setCurrentPath(folderPath);
+        // loadData will be called automatically by useEffect when currentFolderId changes
+      } else {
+        console.error('Item found but is not a folder:', folder);
+      }
+    } else {
+      console.error('Folder not found for path:', folderPath);
+      console.log('Available paths in completeFileSystem:', completeFileSystem.map(item => item.path));
+      console.log('Current fileSystem items:', fileSystem.map(item => ({ name: item.name, path: item.path, isFolder: 'children' in item })));
     }
   };
 
@@ -554,10 +652,13 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         let folderId: string | undefined;
         if (currentFolderId) {
           folderId = currentFolderId;
+          console.log('Uploading to folder ID:', folderId);
+        } else {
+          console.log('Uploading to root of library');
         }
         
         // Upload file to library with progress tracking
-        console.log('Uploading file to library:', { libraryId, folderId, fileName: file.name });
+        console.log('Uploading file to library:', { libraryId, folderId, fileName: file.name, currentFolderId });
         
         const response = await libraryFileService.uploadLargeFile(
           libraryId, 
@@ -599,17 +700,37 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     try {
       setLoading(true);
       
-      // Find the item in current folder contents or globally
-      let item = getCurrentFolderContents().find(item => item.id === itemId);
+      // First try to find the item in the current fileSystem (display items)
+      let item = fileSystem.find(item => item.id === itemId);
+      
+      // If not found in current display, search in the complete file system recursively
       if (!item) {
-        // If not found in current folder, search globally
-        item = fileSystem.find(item => item.id === itemId);
+        console.log('Item not found in current fileSystem, searching in completeFileSystem...');
+        const findItemRecursively = (items: (FileItem | FolderItem)[], targetId: string): FileItem | FolderItem | null => {
+          for (const item of items) {
+            if (item.id === targetId) {
+              return item;
+            }
+            if ('children' in item && item.children) {
+              const found = findItemRecursively(item.children, targetId);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        item = findItemRecursively(completeFileSystem, itemId);
       }
       
       if (!item) {
+        console.error('Item not found anywhere for ID:', itemId);
+        console.log('Current fileSystem items:', fileSystem.map(item => ({ id: item.id, name: item.name })));
+        console.log('Complete file system count:', completeFileSystem.length);
         message.error('Item not found');
         return;
       }
+      
+      console.log('Found item to delete:', item);
       
       if ('children' in item) {
         // Delete folder from library
@@ -638,26 +759,37 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
       const itemId = renameForm.getFieldValue('itemId');
       const newName = values.name;
       
-      // Search for the item in the entire fileSystem recursively
-      const findItemRecursively = (items: (FileItem | FolderItem)[], targetId: string): FileItem | FolderItem | null => {
-        for (const item of items) {
-          if (item.id === targetId) {
-            return item;
-          }
-          if ('children' in item && item.children) {
-            const found = findItemRecursively(item.children, targetId);
-            if (found) return found;
-          }
-        }
-        return null;
-      };
+      // First try to find the item in the current fileSystem (display items)
+      let item = fileSystem.find(item => item.id === itemId);
       
-      const item = findItemRecursively(fileSystem, itemId);
+      // If not found in current display, search in the complete file system recursively
+      if (!item) {
+        console.log('Item not found in current fileSystem, searching in completeFileSystem...');
+        const findItemRecursively = (items: (FileItem | FolderItem)[], targetId: string): FileItem | FolderItem | null => {
+          for (const item of items) {
+            if (item.id === targetId) {
+              return item;
+            }
+            if ('children' in item && item.children) {
+              const found = findItemRecursively(item.children, targetId);
+              if (found) return found;
+            }
+          }
+          return null;
+        };
+        
+        item = findItemRecursively(completeFileSystem, itemId);
+      }
       
       if (!item) {
+        console.error('Item not found anywhere for ID:', itemId);
+        console.log('Current fileSystem items:', fileSystem.map(item => ({ id: item.id, name: item.name })));
+        console.log('Complete file system count:', completeFileSystem.length);
         message.error('Item not found');
         return;
       }
+      
+      console.log('Found item to rename:', item);
       
       if ('children' in item) {
         // Rename folder in library

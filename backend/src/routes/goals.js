@@ -611,6 +611,41 @@ router.post('/:goalId/assign', authenticateToken, requireRole(['SUPERVISOR', 'AD
   }
 });
 
+// Unassign user from goal
+router.delete('/:goalId/assign/:userId', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+  try {
+    const { goalId, userId } = req.params;
+
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId }
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    if (goal.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    if (req.user.role === 'SUPERVISOR' && goal.departmentId !== req.user.departmentId) {
+      return res.status(403).json({ error: 'Can only unassign users from goals in your department' });
+    }
+
+    await prisma.goalAssignment.deleteMany({
+      where: {
+        goalId,
+        userId
+      }
+    });
+
+    res.json({ message: 'User unassigned from goal successfully' });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Unassign user from goal failed', error);
+    res.status(500).json({ error: 'Failed to unassign user from goal' });
+  }
+});
+
 // Get goal reports
 router.get('/:goalId/reports', authenticateToken, async (req, res) => {
   try {
@@ -1500,6 +1535,185 @@ router.get('/users/shareable', authenticateToken, async (req, res) => {
     console.error('Get shareable users error:', error);
     await logError('GET_SHAREABLE_USERS_ERROR', 'Failed to get shareable users', error);
     res.status(500).json({ error: 'Failed to get users' });
+  }
+});
+
+// Get user's assigned goals
+router.get('/my', authenticateToken, async (req, res) => {
+  try {
+    const { page = 1, limit = 10 } = req.query;
+    const offset = (page - 1) * limit;
+
+    const goals = await prisma.goal.findMany({
+      where: {
+        sucursalId: req.user.sucursalId,
+        assignments: {
+          some: {
+            userId: req.user.id
+          }
+        }
+      },
+      include: {
+        department: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        assignments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+              }
+            }
+          }
+        }
+      },
+      skip: parseInt(offset),
+      take: parseInt(limit),
+      orderBy: { createdAt: 'desc' }
+    });
+
+    const total = await prisma.goal.count({
+      where: {
+        sucursalId: req.user.sucursalId,
+        assignments: {
+          some: {
+            userId: req.user.id
+          }
+        }
+      }
+    });
+
+    res.json({
+      goals,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total,
+        pages: Math.ceil(total / limit)
+      }
+    });
+  } catch (error) {
+    console.error('Get my goals error:', error);
+    await logError('DATABASE_ERROR', 'Get my goals failed', error);
+    res.status(500).json({ error: 'Failed to get my goals' });
+  }
+});
+
+// Get goal assignments
+router.get('/:goalId/assignments', authenticateToken, async (req, res) => {
+  try {
+    const { goalId } = req.params;
+
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId }
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    if (goal.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const assignments = await prisma.goalAssignment.findMany({
+      where: { goalId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            role: true
+          }
+        }
+      }
+    });
+
+    res.json(assignments);
+  } catch (error) {
+    console.error('Get goal assignments error:', error);
+    await logError('DATABASE_ERROR', 'Get goal assignments failed', error);
+    res.status(500).json({ error: 'Failed to get goal assignments' });
+  }
+});
+
+// Mark goal as completed
+router.post('/:goalId/complete', authenticateToken, async (req, res) => {
+  try {
+    const { goalId } = req.params;
+
+    const goal = await prisma.goal.findUnique({
+      where: { id: goalId },
+      include: {
+        assignments: {
+          where: { userId: req.user.id }
+        }
+      }
+    });
+
+    if (!goal) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+
+    if (goal.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Check if user is assigned to this goal or is admin/supervisor
+    const isAssigned = goal.assignments.length > 0;
+    const isAdminOrSupervisor = ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+    
+    if (!isAssigned && !isAdminOrSupervisor) {
+      return res.status(403).json({ error: 'You can only complete goals assigned to you' });
+    }
+
+    const updatedGoal = await prisma.goal.update({
+      where: { id: goalId },
+      data: { 
+        status: 'COMPLETED',
+        completedAt: new Date()
+      },
+      include: {
+        department: true,
+        createdBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        assignments: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+              }
+            }
+          }
+        }
+      }
+    });
+
+    res.json({
+      message: 'Goal marked as completed successfully',
+      goal: updatedGoal
+    });
+  } catch (error) {
+    console.error('Complete goal error:', error);
+    await logError('DATABASE_ERROR', 'Complete goal failed', error);
+    res.status(500).json({ error: 'Failed to complete goal' });
   }
 });
 

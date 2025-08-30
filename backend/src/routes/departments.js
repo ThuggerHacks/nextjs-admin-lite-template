@@ -99,6 +99,43 @@ router.get('/:departmentId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get users in a specific department
+router.get('/:departmentId/users', authenticateToken, async (req, res) => {
+  try {
+    const { departmentId } = req.params;
+    
+    const department = await prisma.department.findUnique({
+      where: { id: departmentId }
+    });
+
+    if (!department) {
+      return res.status(404).json({ error: 'Department not found' });
+    }
+
+    if (department.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const users = await prisma.user.findMany({
+      where: { departmentId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        departmentId: true
+      }
+    });
+
+    res.json({ users });
+  } catch (error) {
+    await logError('DATABASE_ERROR', 'Get department users failed', error);
+    res.status(500).json({ error: 'Failed to get department users' });
+  }
+});
+
 // Create department (Admin/Developer only)
 router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), [
   body('name').notEmpty().withMessage('Department name is required'),
