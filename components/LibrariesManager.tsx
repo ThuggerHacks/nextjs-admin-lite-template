@@ -75,6 +75,7 @@ export default function LibrariesManager({
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [loading, setLoading] = useState(false);
   const [selectedLibrary, setSelectedLibrary] = useState<Library | null>(null);
+  const [libraryForModal, setLibraryForModal] = useState<Library | null>(null);
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isEditModalVisible, setIsEditModalVisible] = useState(false);
   const [isMembersModalVisible, setIsMembersModalVisible] = useState(false);
@@ -134,11 +135,31 @@ export default function LibrariesManager({
     }
   }, [user?.id]); // Only depend on user ID, not functions
 
+
+
   // Check if user can manage library
   const canManageLibrary = useCallback((library: Library) => {
     if (!user) return false;
     if (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN) return true;
     return library.userId === user.id; // Only creator can manage
+  }, [user]);
+
+  // Check if user can write to library (includes being a member)
+  const canWriteToLibrary = useCallback((library: Library) => {
+    if (!user) return false;
+    if (user.role === UserRole.ADMIN || user.role === UserRole.SUPER_ADMIN) return true;
+    if (library.userId === user.id) return true; // Creator can write
+    // Check if user is a member of the library
+    const isMember = library.members?.some(member => member.userId === user.id) || false;
+    console.log('canWriteToLibrary check:', {
+      userId: user.id,
+      libraryId: library.id,
+      libraryCreatorId: library.userId,
+      userRole: user.role,
+      isMember,
+      members: library.members?.map(m => m.userId)
+    });
+    return isMember;
   }, [user]);
 
   // Get member count from library
@@ -208,8 +229,10 @@ export default function LibrariesManager({
             <Button
               icon={<EditOutlined />}
               size="small"
-              onClick={() => {
-                setSelectedLibrary(library);
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setLibraryForModal(library);
                 editForm.setFieldsValue({
                   name: library.name,
                   description: library.description,
@@ -223,8 +246,10 @@ export default function LibrariesManager({
             <Button
               icon={<TeamOutlined />}
               size="small"
-              onClick={() => {
-                setSelectedLibrary(library);
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                setLibraryForModal(library);
                 setIsMembersModalVisible(true);
               }}
             />
@@ -270,11 +295,14 @@ export default function LibrariesManager({
     try {
       setLoading(true);
       
+      // Automatically include current user as a member
+      const userIds = [user!.id, ...(values.userIds || [])];
+      
       // Create library with API
       const newLibrary = await libraryService.create({
         name: values.name,
         description: values.description,
-        userIds: values.userIds || [],
+        userIds: userIds,
       });
 
       // Refresh libraries list
@@ -293,18 +321,19 @@ export default function LibrariesManager({
 
   // Handle library update
   const handleUpdateLibrary = async (values: { name?: string; description?: string }) => {
-    if (!selectedLibrary) return;
+    if (!libraryForModal) return;
 
     try {
       setLoading(true);
       
       // Update library with API
-      await libraryService.update(selectedLibrary.id, values);
+      await libraryService.update(libraryForModal.id, values);
       
       // Refresh libraries list
       await loadLibraries();
       
       setIsEditModalVisible(false);
+      setLibraryForModal(null);
       editForm.resetFields();
       message.success(t('libraries.libraryUpdateSuccess'));
     } catch (error) {
@@ -340,13 +369,13 @@ export default function LibrariesManager({
 
   // Handle adding member
   const handleAddMember = async (values: { userId: string }) => {
-    if (!selectedLibrary) return;
+    if (!libraryForModal) return;
 
     try {
       setLoading(true);
       
       // Add member with API
-      await libraryService.addMember(selectedLibrary.id, { userId: values.userId });
+      await libraryService.addMember(libraryForModal.id, { userId: values.userId });
       
       // Refresh libraries list to get updated member count
       await loadLibraries();
@@ -364,13 +393,13 @@ export default function LibrariesManager({
 
   // Handle removing member
   const handleRemoveMember = async (memberId: string) => {
-    if (!selectedLibrary) return;
+    if (!libraryForModal) return;
 
     try {
       setLoading(true);
       
       // Remove member with API
-      await libraryService.removeMember(selectedLibrary.id, memberId);
+      await libraryService.removeMember(libraryForModal.id, memberId);
       
       // Refresh libraries list to get updated member count
       await loadLibraries();
@@ -400,18 +429,25 @@ export default function LibrariesManager({
         <Card>
           <Row justify="space-between" align="middle">
             <Col>
-          <Button 
+              <Button 
                 icon={<FolderOutlined />} 
-                onClick={() => setSelectedLibrary(null)}
+                onClick={() => {
+                  setSelectedLibrary(null);
+                  // Reset modal states when going back
+                  setIsEditModalVisible(false);
+                  setIsMembersModalVisible(false);
+                  setIsAddMemberModalVisible(false);
+                }}
                 style={{ marginBottom: '16px' }}
               >
                 ← {t('libraries.backToLibraries')}
-          </Button>
+              </Button>
               <Title level={2}>{selectedLibrary.name}</Title>
               {selectedLibrary.description && (
                 <Text type="secondary">{selectedLibrary.description}</Text>
               )}
             </Col>
+
           </Row>
         </Card>
 
@@ -419,7 +455,7 @@ export default function LibrariesManager({
           <LibraryFileManager
             libraryId={selectedLibrary.id}
             libraryName={selectedLibrary.name}
-            canWrite={true}
+            canWrite={canWriteToLibrary(selectedLibrary)}
             canDelete={canManageLibrary(selectedLibrary)}
           />
         </Card>
@@ -543,9 +579,10 @@ export default function LibrariesManager({
               placeholder={t('libraries.selectUsersPlaceholder')}
               loading={loadingUsers}
               showSearch
-              filterOption={(input, option) =>
-                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
-              }
+              filterOption={(input, option) => {
+                const optionText = option?.label || option?.children || '';
+                return String(optionText).toLowerCase().includes(input.toLowerCase());
+              }}
             >
               {users
                 .filter(u => u.id !== user.id) // Don't show current user
@@ -573,10 +610,11 @@ export default function LibrariesManager({
 
       {/* Edit Library Modal */}
       <Modal
-        title={t('libraries.libraryUpdate')}
+        title={libraryForModal ? `${t('libraries.edit')} - ${libraryForModal.name}` : t('libraries.libraryUpdate')}
         open={isEditModalVisible}
         onCancel={() => {
           setIsEditModalVisible(false);
+          setLibraryForModal(null);
         }}
         footer={null}
         width={600}
@@ -619,38 +657,42 @@ export default function LibrariesManager({
 
       {/* Library Members Modal */}
       <Modal
-        title={selectedLibrary ? `${selectedLibrary.name} - ${t('libraries.libraryMembers')}` : t('libraries.libraryMembers')}
+        title={libraryForModal ? `${libraryForModal.name} - ${t('libraries.libraryMembers')}` : t('libraries.libraryMembers')}
         open={isMembersModalVisible}
         onCancel={() => {
           setIsMembersModalVisible(false);
+          setLibraryForModal(null);
         }}
         footer={null}
         width={800}
       >
-        {selectedLibrary ? (
+
+
+
+        {libraryForModal ? (
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <Text strong>{t('libraries.members')}: {getMemberCount(selectedLibrary)}</Text>
-              {canManageLibrary(selectedLibrary) && (
+              <Text strong>{t('libraries.members')}: {getMemberCount(libraryForModal)}</Text>
+              {canManageLibrary(libraryForModal) && (
                 <Button
                   type="primary"
                   icon={<UserAddOutlined />}
                   onClick={() => setIsAddMemberModalVisible(true)}
                 >
                   {t('libraries.addMember')}
-              </Button>
+                </Button>
               )}
             </div>
 
             <Divider />
 
-            {selectedLibrary.members && selectedLibrary.members.length > 0 ? (
+            {libraryForModal.members && libraryForModal.members.length > 0 ? (
               <List
-                dataSource={selectedLibrary.members}
-                renderItem={(member) => (
+                dataSource={libraryForModal.members}
+                renderItem={(member: any) => (
                   <List.Item
                     actions={
-                      canManageLibrary(selectedLibrary) && member.userId !== selectedLibrary.userId ? (
+                      canManageLibrary(libraryForModal) && member.userId !== libraryForModal.userId ? (
                         [
                           <Popconfirm
                             key="remove"
@@ -666,7 +708,7 @@ export default function LibrariesManager({
                               danger
                             >
                               {t('libraries.remove')}
-              </Button>
+                            </Button>
                           </Popconfirm>
                         ]
                       ) : []
@@ -677,7 +719,7 @@ export default function LibrariesManager({
                       title={
                         <div className="flex items-center space-x-2">
                           <span>{member.user.name}</span>
-                          {member.userId === selectedLibrary.userId && (
+                          {member.userId === libraryForModal.userId && (
                             <Tag color="blue">{t('libraries.creator')}</Tag>
                           )}
                           <Tag color="green">{member.user.role}</Tag>
@@ -720,14 +762,15 @@ export default function LibrariesManager({
             <Select
               placeholder={t('libraries.selectUser')}
               showSearch
-              filterOption={(input, option) =>
-                (option?.children as unknown as string)?.toLowerCase().includes(input.toLowerCase())
-              }
+              filterOption={(input, option) => {
+                const optionText = option?.label || option?.children || '';
+                return String(optionText).toLowerCase().includes(input.toLowerCase());
+              }}
             >
               {users
                 .filter(u => 
                   u.id !== user.id && // Don't show current user
-                  !selectedLibrary?.members?.some(m => m.userId === u.id) // Don't show existing members
+                  !libraryForModal?.members?.some((m: any) => m.userId === u.id) // Don't show existing members
                 )
                 .map(u => (
                   <Select.Option key={u.id} value={u.id}>

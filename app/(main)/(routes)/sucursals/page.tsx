@@ -116,7 +116,7 @@ export default function SucursalManagementPage() {
   }, []);
 
   const canManageSucursals = () => {
-    return user?.role === UserRole.SUPER_ADMIN;
+    return user?.role === UserRole.DEVELOPER;
   };
 
   const handleCreateSucursal = async (values: any) => {

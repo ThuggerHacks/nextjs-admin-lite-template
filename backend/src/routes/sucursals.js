@@ -9,7 +9,7 @@ const currentSucursal = require('../lib/currentSucursal');
 const router = express.Router();
 
 // Get all sucursals
-router.get('/', authenticateToken, requireRole(['DEVELOPER', 'SUPER_ADMIN']), async (req, res) => {
+router.get('/', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
   try {
     const sucursals = await prisma.sucursal.findMany({
       include: {
@@ -32,7 +32,7 @@ router.get('/', authenticateToken, requireRole(['DEVELOPER', 'SUPER_ADMIN']), as
 });
 
 // Get sucursal by ID
-router.get('/:sucursalId', authenticateToken, requireRole(['DEVELOPER', 'SUPER_ADMIN']), async (req, res) => {
+router.get('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
   try {
     const { sucursalId } = req.params;
     const sucursal = await prisma.sucursal.findUnique({
@@ -85,7 +85,7 @@ router.get('/:sucursalId', authenticateToken, requireRole(['DEVELOPER', 'SUPER_A
 });
 
 // Create sucursal (Developer only)
-router.post('/', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), [
+router.post('/', authenticateToken, requireRole(['DEVELOPER']), [
   body('name').notEmpty().withMessage('Sucursal name is required'),
   body('description').optional().isString().withMessage('Description must be a string'),
   body('location').optional().isString().withMessage('Location must be a string'),
@@ -260,7 +260,7 @@ router.post('/notify-new', async (req, res) => {
 });
 
 // Update sucursal
-router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), [
+router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), [
   body('name').optional().notEmpty().withMessage('Sucursal name cannot be empty'),
   body('description').optional().isString().withMessage('Description must be a string'),
   body('location').optional().isString().withMessage('Location must be a string'),
@@ -355,7 +355,7 @@ router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER','SUPER_AD
 });
 
 // Delete sucursal
-router.delete('/:sucursalId', authenticateToken, requireRole(['DEVELOPER','SUPER_ADMIN']), async (req, res) => {
+router.delete('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
   try {
     const { sucursalId } = req.params;
 

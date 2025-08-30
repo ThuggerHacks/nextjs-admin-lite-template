@@ -77,24 +77,7 @@ export interface UsersResponse {
   };
 }
 
-export interface UserStats {
-  total: number;
-  active: number;
-  inactive: number;
-  pending: number;
-  byRole: {
-    USER: number;
-    SUPERVISOR: number;
-    ADMIN: number;
-    SUPER_ADMIN: number;
-    DEVELOPER: number;
-  };
-  byDepartment: Array<{
-    departmentId: string;
-    departmentName: string;
-    count: number;
-  }>;
-}
+
 
 export const userService = {
   // Get all users with pagination and filters
@@ -189,7 +172,7 @@ export const userService = {
   // Change password
   changePassword: async (data: ChangePasswordRequest): Promise<void> => {
     try {
-      await api.post('/users/change-password', data);
+      await api.put('/users/profile/password', data);
     } catch (error) {
       console.error('Failed to change password:', error);
       throw error;
@@ -293,16 +276,7 @@ export const userService = {
     }
   },
 
-  // Get user statistics
-  getStats: async (): Promise<UserStats> => {
-    try {
-      const response = await api.get('/users/stats');
-      return response.data;
-    } catch (error) {
-      console.error('Failed to fetch user statistics:', error);
-      throw error;
-    }
-  },
+
 
   // Get users by department
   getByDepartment: async (departmentId: string): Promise<User[]> => {
@@ -332,7 +306,7 @@ export const userService = {
       const formData = new FormData();
       formData.append('avatar', file);
 
-      const response = await api.post('/users/upload-avatar', formData, {
+      const response = await api.post('/users/profile/avatar', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },

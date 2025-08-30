@@ -90,15 +90,30 @@ router.get('/profile', authenticateToken, async (req, res) => {
 
 // Update user profile (current user)
 router.put('/profile', authenticateToken, [
-  body('name').optional().notEmpty().withMessage('Name cannot be empty'),
-  body('email').optional().isEmail().withMessage('Valid email is required'),
+  body('name').optional().custom((value) => {
+    if (value === null || value === undefined || value === '') return true;
+    return typeof value === 'string' && value.trim().length > 0;
+  }).withMessage('Name cannot be empty'),
+  body('email').optional().custom((value) => {
+    if (value === null || value === undefined || value === '') return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+  }).withMessage('Valid email is required'),
   body('phone').optional().custom((value) => {
     if (value === null || value === undefined) return true;
     return typeof value === 'string';
   }).withMessage('Phone must be a string or null'),
-  body('address').optional().isString().withMessage('Address must be a string'),
-  body('departmentId').optional().isString().withMessage('Department ID must be a string'),
-  body('avatar').optional().isString().withMessage('Avatar must be a string')
+  body('address').optional().custom((value) => {
+    if (value === null || value === undefined || value === '') return true;
+    return typeof value === 'string';
+  }).withMessage('Address must be a string'),
+  body('departmentId').optional().custom((value) => {
+    if (value === null || value === undefined || value === '') return true;
+    return typeof value === 'string';
+  }).withMessage('Department ID must be a string'),
+  body('avatar').optional().custom((value) => {
+    if (value === null || value === undefined || value === '') return true;
+    return typeof value === 'string';
+  }).withMessage('Avatar must be a string')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -288,9 +303,9 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELO
   body('status').optional().isIn(['ACTIVE', 'INACTIVE', 'PENDING']).withMessage('Invalid status'),
   body('departmentId').notEmpty().withMessage('Department is required'),
   body('phone').optional().custom((value) => {
-    if (value === null || value === undefined) return true;
+    if (value === null || value === undefined || value === '') return true;
     return typeof value === 'string';
-  }).withMessage('Phone must be a string or null'),
+  }).withMessage('Phone must be a string'),
   body('isDepartmentAdmin').optional().isBoolean().withMessage('isDepartmentAdmin must be a boolean')
 ], async (req, res) => {
   try {
@@ -906,5 +921,7 @@ router.post('/:userId/folders', authenticateToken, requireRole(['ADMIN', 'SUPER_
     res.status(500).json({ error: 'Failed to create folder' });
   }
 });
+
+
 
 module.exports = router; 

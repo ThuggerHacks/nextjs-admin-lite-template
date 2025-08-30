@@ -33,14 +33,11 @@ router.get('/', authenticateToken, async (req, res) => {
       sucursalId: req.user.sucursalId
     };
 
-    // Users can only see libraries they're members of, unless they're admin/supervisor
-    if (!['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role)) {
-      where.members = {
-        some: {
-          userId: req.user.id
-        }
-      };
-    }
+    where.members = {
+      some: {
+        userId: req.user.id
+      }
+    };
 
     const libraries = await prisma.library.findMany({
       where,

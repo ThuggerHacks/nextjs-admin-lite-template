@@ -32,9 +32,9 @@ import {
   SaveOutlined, 
   UploadOutlined,
   MailOutlined,
-  PhoneOutlined,
-  HomeOutlined,
-  BankOutlined,
+  // PhoneOutlined,
+  // HomeOutlined,
+  // BankOutlined,
   CrownOutlined,
   LockOutlined,
   EyeOutlined,
@@ -54,9 +54,9 @@ import { useUser } from "@/contexts/UserContext";
 import { useTranslation } from "@/contexts/LanguageContext";
 import { UserRole, UserStatus } from "@/types";
 import { userService } from "@/lib/services/userService";
-import { departmentService } from "@/lib/services/departmentService";
+// import { departmentService } from "@/lib/services/departmentService";
 
-const { Option } = Select;
+// const { Option } = Select;
 const { TextArea } = Input;
 const { Text, Title } = Typography;
 const { TabPane } = Tabs;
@@ -76,35 +76,35 @@ export default function ProfilePage() {
     new: false,
     confirm: false
   });
-  const [departments, setDepartments] = useState<Array<{id: string, name: string}>>([]);
+  // const [departments, setDepartments] = useState<Array<{id: string, name: string}>>([]);
   
   const { user, updateCurrentUser } = useUser();
   const { t } = useTranslation();
 
-  useEffect(() => {
-    // Fetch departments from the backend
-    const fetchDepartments = async () => {
-      try {
-        const deps = await departmentService.getAllDepartments();
-        setDepartments(deps.map(dept => ({ id: dept.id, name: dept.name })));
-      } catch (error) {
-        console.error('Failed to fetch departments:', error);
-        // Fallback to hardcoded departments if API fails
-        setDepartments([
-          { id: '1', name: 'Administração Geral' },
-          { id: '2', name: 'Recursos Humanos' },
-          { id: '3', name: 'Vendas' },
-          { id: '4', name: 'Marketing' },
-          { id: '5', name: 'TI' },
-          { id: '6', name: 'Financeiro' },
-          { id: '7', name: 'Operações' },
-          { id: '8', name: 'Jurídico' }
-        ]);
-      }
-    };
+  // useEffect(() => {
+  //   // Fetch departments from the backend
+  //   const fetchDepartments = async () => {
+  //     try {
+  //       const deps = await departmentService.getAllDepartments();
+  //       setDepartments(deps.map(dept => ({ id: dept.id, name: dept.name })));
+  //     } catch (error) {
+  //       console.error('Failed to fetch departments:', error);
+  //       // Fallback to hardcoded departments if API fails
+  //       setDepartments([
+  //         { id: '1', name: 'Administração Geral' },
+  //         { id: '2', name: 'Recursos Humanos' },
+  //         { id: '3', name: 'Vendas' },
+  //         { id: '4', name: 'Marketing' },
+  //         { id: '5', name: 'TI' },
+  //         { id: '6', name: 'Financeiro' },
+  //         { id: '7', name: 'Operações' },
+  //         { id: '8', name: 'Jurídico' }
+  //       ]);
+  //     }
+  //   };
 
-    fetchDepartments();
-  }, []);
+  //   fetchDepartments();
+  // }, []);
 
   if (!user) {
     return (
@@ -187,19 +187,19 @@ export default function ProfilePage() {
       const updatedUser = await userService.updateProfile({
         name: values.name,
         email: values.email,
-        phone: values.phone,
-        address: values.address,
-        departmentId: values.department
+        // phone: values.phone,
+        // address: values.address,
+        // departmentId: values.department
       });
       
       // Update user context
       updateCurrentUser({
         name: updatedUser.name,
         email: updatedUser.email,
-        phone: updatedUser.phone,
-        address: updatedUser.address,
-        departmentId: updatedUser.departmentId,
-        department: updatedUser.department
+        // phone: updatedUser.phone,
+        // address: updatedUser.address,
+        // departmentId: updatedUser.departmentId,
+        // department: updatedUser.department
       });
       setIsEditing(false);
       
@@ -250,9 +250,9 @@ export default function ProfilePage() {
     form.setFieldsValue({
       name: user.name,
       email: user.email,
-      phone: user.phone || '',
-      address: user.address || '',
-      department: user.departmentId || '',
+      // phone: user.phone || '',
+      // address: user.address || '',
+      // department: user.departmentId || '',
     });
     setIsEditing(false);
   };
@@ -355,15 +355,15 @@ export default function ProfilePage() {
         <Divider />
 
         <Space direction="vertical" align="start" className="w-full text-left">
-          <div className="flex items-center gap-2 text-sm">
+          {/* <div className="flex items-center gap-2 text-sm">
             <BankOutlined className="text-gray-500" />
             <span>{user.department?.name || t("profile.noDepartment")}</span>
-          </div>
+          </div> */}
           <div className="flex items-center gap-2 text-sm">
             <MailOutlined className="text-gray-500" />
             <span className="break-all">{user.email}</span>
           </div>
-          {user.phone && (
+          {/* {user.phone && (
             <div className="flex items-center gap-2 text-sm">
               <PhoneOutlined className="text-gray-500" />
               <span>{user.phone}</span>
@@ -374,7 +374,7 @@ export default function ProfilePage() {
               <HomeOutlined className="text-gray-500" />
               <span className="break-words">{user.address}</span>
             </div>
-          )}
+          )} */}
         </Space>
 
         {!isEditing && (
@@ -392,21 +392,7 @@ export default function ProfilePage() {
     </Card>
   );
 
-  const renderAccountInfo = () => (
-    <Card title={t("profile.accountInfo")} className="mt-4">
-      <Descriptions column={1} size="small">
-        <Descriptions.Item label={t("profile.memberSince")}>
-          {new Date(user.createdAt).toLocaleDateString()}
-        </Descriptions.Item>
-        <Descriptions.Item label={t("profile.lastLogin")}>
-          {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : t("profile.never")}
-        </Descriptions.Item>
-        <Descriptions.Item label={t("profile.userId")}>
-          <Text code className="text-xs">{user.id}</Text>
-        </Descriptions.Item>
-      </Descriptions>
-    </Card>
-  );
+
 
   const renderPersonalInfoForm = () => (
     <Card 
@@ -417,7 +403,7 @@ export default function ProfilePage() {
         </div>
       }
     >
-      {user.role === UserRole.USER && (
+      {/* {user.role === UserRole.USER && (
         <Alert
           message={t("profile.departmentChangeInfo")}
           description={t("profile.departmentChangeDescription")}
@@ -425,7 +411,7 @@ export default function ProfilePage() {
           showIcon
           className="mb-6"
         />
-      )}
+      )} */}
 
       <Form
         form={form}
@@ -433,9 +419,9 @@ export default function ProfilePage() {
         initialValues={{
           name: user.name,
           email: user.email,
-          phone: user.phone || '',
-          address: user.address || '',
-          department: user.departmentId || '',
+          // phone: user.phone || '',
+          // address: user.address || '',
+          // department: user.departmentId || '',
         }}
         onFinish={handleSave}
       >
@@ -471,7 +457,7 @@ export default function ProfilePage() {
             </Form.Item>
           </Col>
 
-          <Col xs={24} sm={12}>
+          {/* <Col xs={24} sm={12}>
             <Form.Item
               label={t("profile.phone")}
               name="phone"
@@ -512,7 +498,7 @@ export default function ProfilePage() {
                 placeholder={t("profile.enterAddress")}
               />
             </Form.Item>
-          </Col>
+          </Col> */}
         </Row>
 
         {isEditing && (
@@ -676,10 +662,9 @@ export default function ProfilePage() {
       </div>
 
       <Row gutter={[24, 24]}>
-        {/* Left Column - Profile Overview & Account Info */}
+        {/* Left Column - Profile Overview */}
         <Col xs={24} lg={8}>
           {renderProfileOverview()}
-          {renderAccountInfo()}
         </Col>
 
         {/* Right Column - Forms */}

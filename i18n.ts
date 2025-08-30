@@ -1156,6 +1156,79 @@ const dictionaries: Record<Locale, Dictionary> = {
       reportsResponseRate: 'Taxa de Resposta de Relatórios',
       libraries: 'Bibliotecas',
       documents: 'Documentos',
+      // Additional dashboard keys
+      title: 'Painel',
+      welcomeBack: 'Bem-vindo de volta, {name}! Aqui está o que está acontecendo no seu sistema.',
+      statistics: {
+        totalUsers: 'Total de Usuários',
+        activeUsers: 'Usuários Ativos',
+        adminUsers: 'Usuários Admin (Admin + Super Admin)',
+        pendingUsers: 'Usuários Pendentes'
+      },
+      quickActions: {
+        title: 'Ações Rápidas',
+        goToDocuments: 'Ir para Documentos',
+        goToLibraries: 'Ir para Bibliotecas',
+        scanner: 'Scanner'
+      },
+      systemInfo: {
+        title: 'Informações do Sistema',
+        platformVersion: 'Versão da Plataforma',
+        databaseStatus: 'Status do Banco',
+        lastBackup: 'Último Backup',
+        systemHealth: 'Saúde do Sistema',
+        activeSessions: 'Sessões Ativas'
+      },
+      notifications: {
+        title: 'Notificações Recentes',
+        refresh: 'Atualizar',
+        noNotifications: 'Nenhuma notificação encontrada',
+        columns: {
+          type: 'Tipo',
+          title: 'Título',
+          description: 'Descrição',
+          date: 'Data',
+          status: 'Status'
+        },
+        status: {
+          read: 'Lida',
+          unread: 'Não lida'
+        }
+      },
+      userStats: {
+        title: 'Usuários por Função',
+        regularUsers: 'Usuários Regulares',
+        supervisors: 'Supervisores',
+        admins: 'Admins',
+        superAdmins: 'Super Admins',
+        developers: 'Desenvolvedores'
+      },
+      systemOverview: {
+        title: 'Visão Geral do Sistema',
+        totalDepartments: 'Total de Departamentos',
+        inactiveUsers: 'Usuários Inativos',
+        userGrowth: 'Crescimento de Usuários',
+        systemLoad: 'Carga do Sistema'
+      },
+      systemStatus: {
+        connected: 'Conectado',
+        version: 'v1.0.0',
+        backupTime: 'Hoje 02:00 AM'
+      },
+      recentDocuments: {
+        title: 'Documentos Recentes',
+        refresh: 'Atualizar',
+        noDocuments: 'Nenhum documento recente encontrado',
+        uploadedBy: 'Enviado por',
+        columns: {
+          name: 'Nome',
+          uploadedBy: 'Enviado por',
+          date: 'Data',
+          actions: 'Ações'
+        },
+        openFolder: 'Abrir Pasta',
+        downloadFile: 'Baixar Arquivo'
+      }
     },
     departments: {
       title: 'Departamentos',
@@ -2336,6 +2409,79 @@ const dictionaries: Record<Locale, Dictionary> = {
       reportsResponseRate: 'Reports Response Rate',
       libraries: 'Libraries',
       documents: 'Documents',
+      // Additional dashboard keys
+      title: 'Dashboard',
+      welcomeBack: 'Welcome back, {name}! Here\'s what\'s happening in your system.',
+      statistics: {
+        totalUsers: 'Total Users',
+        activeUsers: 'Active Users',
+        adminUsers: 'Admin Users (Admin + Super Admin)',
+        pendingUsers: 'Pending Users'
+      },
+      quickActions: {
+        title: 'Quick Actions',
+        goToDocuments: 'Go to Documents',
+        goToLibraries: 'Go to Libraries',
+        scanner: 'Scanner'
+      },
+      systemInfo: {
+        title: 'System Information',
+        platformVersion: 'Platform Version',
+        databaseStatus: 'Database Status',
+        lastBackup: 'Last Backup',
+        systemHealth: 'System Health',
+        activeSessions: 'Active Sessions'
+      },
+      notifications: {
+        title: 'Recent Notifications',
+        refresh: 'Refresh',
+        noNotifications: 'No notifications found',
+        columns: {
+          type: 'Type',
+          title: 'Title',
+          description: 'Description',
+          date: 'Date',
+          status: 'Status'
+        },
+        status: {
+          read: 'Read',
+          unread: 'Unread'
+        }
+      },
+      userStats: {
+        title: 'Users by Role',
+        regularUsers: 'Regular Users',
+        supervisors: 'Supervisors',
+        admins: 'Admins',
+        superAdmins: 'Super Admins',
+        developers: 'Developers'
+      },
+      systemOverview: {
+        title: 'System Overview',
+        totalDepartments: 'Total Departments',
+        inactiveUsers: 'Inactive Users',
+        userGrowth: 'User Growth',
+        systemLoad: 'System Load'
+      },
+      systemStatus: {
+        connected: 'Connected',
+        version: 'v1.0.0',
+        backupTime: 'Today 02:00 AM'
+      },
+      recentDocuments: {
+        title: 'Recent Documents',
+        refresh: 'Refresh',
+        noDocuments: 'No recent documents found',
+        uploadedBy: 'Uploaded by',
+        columns: {
+          name: 'Name',
+          uploadedBy: 'Uploaded by',
+          date: 'Date',
+          actions: 'Actions'
+        },
+        openFolder: 'Open Folder',
+        downloadFile: 'Download File'
+      }
     },
     departments: {
       title: 'Departments',

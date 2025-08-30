@@ -830,13 +830,15 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
   };
 
   const openCopyModal = (item: DocumentItem) => {
-    copyForm.setFieldsValue({ itemId: item.id });
-    setCopyModalVisible(true);
+    // For single items, work directly like bulk operations
+    setClipboard({ action: 'copy', item, bulkItems: [item] });
+    message.success(`${item.name} copied to clipboard`);
   };
 
   const openMoveModal = (item: DocumentItem) => {
-    moveForm.setFieldsValue({ itemId: item.id });
-    setMoveModalVisible(true);
+    // For single items, work directly like bulk operations
+    setClipboard({ action: 'cut', item, bulkItems: [item] });
+    message.success(`${item.name} cut to clipboard`);
   };
 
   const handleCopyItem = async (values: any) => {
@@ -1071,7 +1073,20 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
     }
 
     return (
-      <Breadcrumb items={breadcrumbItems} style={{ marginBottom: 16 }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Breadcrumb items={breadcrumbItems} />
+        {clipboard && (
+          <Button
+            icon={<CopyOutlined />}
+            onClick={handlePasteItem}
+            disabled={!currentFolderId}
+            size="small"
+            type="primary"
+          >
+            Paste {clipboard.action === 'copy' ? 'Copy' : 'Cut'} Here
+          </Button>
+        )}
+      </div>
     );
   };
 
@@ -1375,7 +1390,44 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
           </div>
         )}
         
-                 <div className="table-responsive">
+        {/* Clipboard Toolbar */}
+        {clipboard && (
+          <div style={{ 
+            marginBottom: '16px', 
+            padding: '12px', 
+            backgroundColor: '#fff7e6', 
+            border: '1px solid #ffd591',
+            borderRadius: '6px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            <span style={{ fontWeight: '500', color: '#d46b08' }}>
+              {clipboard.action === 'copy' ? '📋' : '✂️'} {clipboard.bulkItems ? `${clipboard.bulkItems.length} item(s)` : clipboard.item.name} {clipboard.action === 'copy' ? 'copied' : 'cut'} to clipboard
+            </span>
+            <Space>
+              <Button
+                icon={<CopyOutlined />}
+                onClick={handlePasteItem}
+                size="small"
+                type="primary"
+                disabled={!currentFolderId}
+              >
+                Paste Here
+              </Button>
+              <Button
+                onClick={() => setClipboard(null)}
+                size="small"
+              >
+                Clear Clipboard
+              </Button>
+            </Space>
+          </div>
+        )}
+        
+        <div className="table-responsive">
            <Table
              columns={columns}
              dataSource={items}
@@ -1457,9 +1509,46 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
               </Button>
             </Space>
           </div>
+                )}
+        
+        {/* Clipboard Toolbar */}
+        {clipboard && (
+          <div style={{ 
+            marginBottom: '16px', 
+            padding: '12px', 
+            backgroundColor: '#fff7e6', 
+            border: '1px solid #ffd591',
+            borderRadius: '6px',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            <span style={{ fontWeight: '500', color: '#d46b08' }}>
+              {clipboard.action === 'copy' ? '📋' : '✂️'} {clipboard.bulkItems ? `${clipboard.bulkItems.length} item(s)` : clipboard.item.name} {clipboard.action === 'copy' ? 'copied' : 'cut'} to clipboard
+            </span>
+            <Space>
+              <Button
+                icon={<CopyOutlined />}
+                onClick={handlePasteItem}
+                size="small"
+                type="primary"
+                disabled={!currentFolderId}
+              >
+                Paste Here
+              </Button>
+              <Button
+                onClick={() => setClipboard(null)}
+                size="small"
+              >
+                Clear Clipboard
+              </Button>
+            </Space>
+          </div>
         )}
-
-                 <div className="grid-responsive">
+        
+        <div className="grid-responsive">
            {items.map(item => (
              <Card
                key={item.id}
@@ -1900,13 +1989,7 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
                        {clipboard.bulkItems && clipboard.bulkItems.length > 1 && ` (${clipboard.bulkItems.length})`}
                      </Button>
                    )}
-                   {/* Debug clipboard state */}
-                   {clipboard && (
-                     <div style={{ fontSize: '10px', color: '#666', marginTop: '4px' }}>
-                       Clipboard: {clipboard.action} - {clipboard.item.name}
-                       {clipboard.bulkItems && ` (${clipboard.bulkItems.length} items)`}
-                     </div>
-                   )}
+
                 </>
               )}
             </Space>
@@ -2252,7 +2335,8 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
                 defaultExpandAll
                 height={300}
                 showLine
-                showIcon
+                showIcon={false}
+                switcherIcon={null}
                 style={{ 
                   border: '1px solid #d9d9d9', 
                   borderRadius: '8px', 
@@ -2303,7 +2387,8 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
                 defaultExpandAll
                 height={300}
                 showLine
-                showIcon
+                showIcon={false}
+                switcherIcon={null}
                 style={{ 
                   border: '1px solid #d9d9d9', 
                   borderRadius: '8px', 

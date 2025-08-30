@@ -168,7 +168,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       '/libraries': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
       '/scanner': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
 
-      '/sucursals': [UserRole.SUPER_ADMIN, UserRole.DEVELOPER],
+      '/sucursals': [UserRole.DEVELOPER],
       '/homepage': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
       '/profile': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],
       '/notifications': [UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.SUPERVISOR, UserRole.USER, UserRole.DEVELOPER],

@@ -44,7 +44,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     },
     {
       title: "Sucursal Management",
-      description: "Monitor branch servers and diagnostics (Super Admin only)", 
+      description: "Monitor branch servers and diagnostics (Developer only)", 
       icon: <PhoneOutlined />
     }
   ];

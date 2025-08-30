@@ -77,15 +77,15 @@ const SiderPage = () => {
 
     const menuItems: MenuProps["items"] = [];
 
-    // Role-based access control
-    const isSuperAdmin = hasRole(UserRole.SUPER_ADMIN);
-    const isDeveloper = hasRole(UserRole.DEVELOPER);
-    const isAdmin = hasRole(UserRole.ADMIN);
-    const isSupervisor = hasRole(UserRole.SUPERVISOR);
-    const isUser = hasRole(UserRole.USER);
+    // Role-based access control - use direct role comparison for more precise control
+    const isSuperAdmin = user.role === UserRole.SUPER_ADMIN;
+    const isDeveloper = user.role === UserRole.DEVELOPER;
+    const isAdmin = user.role === UserRole.ADMIN;
+    const isSupervisor = user.role === UserRole.SUPERVISOR;
+    const isUser = user.role === UserRole.USER;
 
-    // Dashboard - Admin, Supervisor, Super Admin, Developer
-    if (isAdmin || isSupervisor || isSuperAdmin || isDeveloper) {
+    // Dashboard - Admin, Super Admin, Developer (Supervisors cannot access)
+    if (isAdmin || isSuperAdmin || isDeveloper) {
       menuItems.push(
         getItem(t("navigation.dashboard"), "/management/dashboard", <DashboardOutlined />)
       );

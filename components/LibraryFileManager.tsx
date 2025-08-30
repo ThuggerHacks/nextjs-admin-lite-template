@@ -112,7 +112,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           description: folder.description,
           parentId: folder.parentId,
           libraryId: libraryId,
-          createdBy: user as any,
+          createdBy: folder.user || { id: folder.userId, name: folder.user?.name || 'Unknown', email: folder.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
           createdAt: new Date(folder.createdAt),
           path: currentPath + `/${folder.name}`,
           children: [],
@@ -135,7 +135,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           type: file.mimeType || file.type || 'application/octet-stream',
           url: file.url,
           libraryId: libraryId,
-          uploadedBy: user as any,
+          uploadedBy: file.user || { id: file.userId, name: file.user?.name || 'Unknown', email: file.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
           uploadedAt: new Date(file.updatedAt),
           parentFolderId: file.folderId,
           path: currentPath + `/${file.name}`,
@@ -166,7 +166,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           description: folder.description,
           parentId: folder.parentId,
           libraryId: libraryId,
-          createdBy: user as any,
+          createdBy: folder.user || { id: folder.userId, name: folder.user?.name || 'Unknown', email: folder.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
           createdAt: new Date(folder.createdAt),
           path: '', // Will be set later
           children: buildFolderTree(folder.id),
@@ -188,7 +188,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           type: file.mimeType || file.type || 'application/octet-stream',
           url: file.url,
           libraryId: libraryId,
-          uploadedBy: user as any,
+          uploadedBy: file.user || { id: file.userId, name: file.user?.name || 'Unknown', email: file.user?.email || 'unknown@example.com', role: 'USER' as any, status: 'ACTIVE' as any, createdAt: new Date() },
           uploadedAt: new Date(file.updatedAt),
           parentFolderId: file.folderId,
           path: '', // Will be set later
@@ -756,7 +756,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                 </a>
               </Tooltip>
             )}
-            {canWrite && (
+            {(user && ('createdBy' in record ? record.createdBy?.id === user.id : record.uploadedBy?.id === user.id)) && (
               <Tooltip title={t('files.rename')}>
                 <Button 
                   type="text" 
@@ -766,7 +766,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                 />
               </Tooltip>
             )}
-            {canDelete && (
+            {(canDelete || (user && ('createdBy' in record ? record.createdBy?.id === user.id : record.uploadedBy?.id === user.id))) && (
               <Tooltip title={t('files.delete')}>
                 <Popconfirm
                   title={t('files.deleteConfirm')}
@@ -879,7 +879,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                     </a>
                   </Tooltip>
                 ),
-                canWrite && (
+                (user && ('createdBy' in item ? item.createdBy?.id === user.id : item.uploadedBy?.id === user.id)) && (
                   <Tooltip title={t('files.rename')}>
                     <EditOutlined 
                       style={{ 
@@ -895,7 +895,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                     />
                   </Tooltip>
                 ),
-                canDelete && (
+                (canDelete || (user && ('createdBy' in item ? item.createdBy?.id === user.id : item.uploadedBy?.id === user.id))) && (
                   <Tooltip title={t('files.delete')}>
                     <Popconfirm
                       title={t('files.deleteConfirm')}
