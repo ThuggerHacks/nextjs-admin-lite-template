@@ -10,7 +10,7 @@ const upload = require('../middleware/upload'); // Added for avatar upload
 const router = express.Router();
 
 // Get all users (Admin/Supervisor only)
-router.get('/', authenticateToken, requireRole(['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), async (req, res) => {
+router.get('/', authenticateToken, async (req, res) => {
   try {
     const { page = 1, limit = 10, role, status, departmentId } = req.query;
     const offset = (page - 1) * limit;

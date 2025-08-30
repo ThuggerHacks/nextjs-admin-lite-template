@@ -63,8 +63,8 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
   // Enhanced toolbar with maximum features
   const customToolbar = [
     [{ 'header': [1, 2, 3, 4, 5, 6, false] }],
-    [{ 'font': ['Arial', 'Times New Roman', 'Courier New', 'Georgia', 'Verdana', 'Helvetica', 'Comic Sans MS', 'Impact', 'Tahoma', 'Trebuchet MS'] }],
-    [{ 'size': ['8px', '10px', '12px', '14px', '16px', '18px', '20px', '24px', '28px', '32px', '36px', '48px', '72px'] }],
+    [{ 'font': [] }],
+    [{ 'size': [] }],
     ['bold', 'italic', 'underline', 'strike'],
     [{ 'color': [] }, { 'background': [] }],
     [{ 'script': 'sub'}, { 'script': 'super' }],
@@ -72,22 +72,14 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
     [{ 'align': [] }],
     [{ 'indent': '-1'}, { 'indent': '+1' }],
     [{ 'direction': 'rtl' }],
-    [{ 'list': 'ordered'}, { 'list': 'bullet' }, { 'list': 'check' }],
+    [{ 'list': 'ordered'}, { 'list': 'bullet' }],
     ['link', 'image', 'video', 'formula'],
-    ['table'],
-    ['clean'],
-    ['fullscreen', 'save', 'print']
+    ['clean']
   ];
 
   // Advanced modules configuration - will be defined after functions
   let modules: any = {
-    toolbar: {
-      container: customToolbar,
-      handlers: {
-        fullscreen: () => setIsFullscreen(!isFullscreen)
-      }
-    },
-    table: true,
+    toolbar: customToolbar,
     keyboard: {
       bindings: {
         tab: {
@@ -110,16 +102,15 @@ const RichTextEditor: React.FC<RichTextEditorProps> = ({
 
   // All available formats
   const formats = [
-    'header', 'font', 'size',
-    'bold', 'italic', 'underline', 'strike',
-    'color', 'background',
-    'script',
-    'blockquote', 'code-block',
-    'align', 'indent', 'direction',
-    'list', 'bullet',
-    'link', 'image', 'video', 'formula',
-    'table', 'table-cell', 'table-row',
-    'clean'
+  'header', 'font', 'size',
+  'bold', 'italic', 'underline', 'strike',
+  'color', 'background',
+  'script',
+  'blockquote', 'code-block',
+  'align', 'indent', 'direction',
+  'list', 'bullet',
+  'link', 'image', 'video', 'formula',
+  'clean'
   ];
 
   useEffect(() => {

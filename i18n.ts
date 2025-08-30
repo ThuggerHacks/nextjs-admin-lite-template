@@ -538,6 +538,112 @@ export interface Dictionary {
     // Private storage description
     privateDocumentStorage: string;
   };
+  libraries: {
+    libraryManagementSystem: string;
+    organizeAndAccessLibraries: string;
+    allLibraries: string;
+    myLibraries: string;
+    companyWideLibraries: string;
+    privateLibraryStorage: string;
+    createLibrary: string;
+    libraryName: string;
+    libraryDescription: string;
+    libraryMembers: string;
+    includeMyself: string;
+    selectUsers: string;
+    selectDepartments: string;
+    noMembers: string;
+    permissionDenied: string;
+    libraryNotFound: string;
+    uploadFile: string;
+    createFolder: string;
+    deleteFile: string;
+    editFile: string;
+    downloadFile: string;
+    copyFile: string;
+    moveFile: string;
+    renameFile: string;
+    fileProperties: string;
+    bulkOperations: string;
+    searchFiles: string;
+    sortBy: string;
+    viewMode: string;
+    listView: string;
+    gridView: string;
+    refresh: string;
+    loading: string;
+    noFiles: string;
+    selectLibrary: string;
+    chooseLibraryMessage: string;
+    newLibrary: string;
+    enterLibraryName: string;
+    enterLibraryDescription: string;
+    files: string;
+    createdBy: string;
+    members: string;
+    departments: string;
+    loadingLibraries: string;
+    noLibrariesFound: string;
+    createFirstLibrary: string;
+    libraryCreated: string;
+    libraryCreationFailed: string;
+    pleaseEnterLibraryName: string;
+    selectUsersPlaceholder: string;
+    selectDepartmentsPlaceholder: string;
+    librarySettings: string;
+    libraryPermissions: string;
+    libraryAccess: string;
+    publicLibrary: string;
+    privateLibrary: string;
+    sharedLibrary: string;
+    libraryType: string;
+    libraryVisibility: string;
+    librarySharing: string;
+    libraryBackup: string;
+    libraryArchive: string;
+    libraryRestore: string;
+    libraryDelete: string;
+    libraryDeleteConfirm: string;
+    libraryDeleteWarning: string;
+    libraryDeleteSuccess: string;
+    libraryDeleteFailed: string;
+    libraryUpdate: string;
+    libraryUpdateSuccess: string;
+    libraryUpdateFailed: string;
+    libraryDuplicate: string;
+    libraryExport: string;
+    libraryImport: string;
+    librarySync: string;
+    libraryBackupSuccess: string;
+    libraryBackupFailed: string;
+    libraryRestoreSuccess: string;
+    libraryRestoreFailed: string;
+    libraryArchiveSuccess: string;
+    libraryArchiveFailed: string;
+    filesUploadedSuccess: string;
+    failedToUploadFiles: string;
+    successfullyDeletedItems: string;
+    failedToDeleteSomeItems: string;
+    itemsCopiedToClipboard: string;
+    itemsCutToClipboard: string;
+    addMember: string;
+    selectUser: string;
+    pleaseSelectUser: string;
+    confirmRemoveMember: string;
+    noResultsFound: string;
+    search: string;
+    edit: string;
+    delete: string;
+    create: string;
+    update: string;
+    cancel: string;
+    add: string;
+    yes: string;
+    no: string;
+    success: string;
+    error: string;
+    actions: string;
+  };
   files: {
     myFiles: string;
     libraries: string;
@@ -1536,7 +1642,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       inProgress: 'Em Progresso',
       onHold: 'Em Espera',
       awaiting: 'Aguardando',
-      done: 'Concluído',
+      done: 'Feito',
       // Additional missing keys
       departmentGoals: 'Metas do Departamento',
       manageAndTrackGoals: 'Gerir e acompanhar as suas metas e objetivos',
@@ -1578,13 +1684,154 @@ const dictionaries: Record<Locale, Dictionary> = {
       
       // Tab titles
       allDocumentsTitle: 'Todos os Documentos - Disponível para Todos os Usuários',
-      myDocumentsTitle: 'Meus Documentos - Seu Armazenamento Privado',
+      myDocumentsTitle: 'Meus Documentos - Seus Documentos',
       
       // Company-wide description
       companyWideDocuments: 'Documentos da empresa acessíveis a todos os funcionários',
       
       // Private storage description
       privateDocumentStorage: 'Armazenamento privado de documentos para usuários individuais',
+    },
+    libraries: {
+      libraryManagementSystem: 'Sistema de Gerenciamento de Bibliotecas',
+      organizeAndAccessLibraries: 'Organize e acesse suas bibliotecas de documentos com controle de acesso baseado em permissões',
+      allLibraries: 'Todas as Bibliotecas',
+      myLibraries: 'Minhas Bibliotecas',
+      companyWideLibraries: 'Acesse bibliotecas que você tem permissão para visualizar',
+      privateLibraryStorage: 'Suas bibliotecas',
+      createLibrary: 'Criar Nova Biblioteca',
+      libraryName: 'Nome da Biblioteca',
+      libraryDescription: 'Descrição da Biblioteca',
+      libraryMembers: 'Membros da Biblioteca',
+      includeMyself: 'Incluir-me como membro',
+      selectUsers: 'Selecionar Usuários',
+      selectDepartments: 'Selecionar Departamentos',
+      noMembers: 'Sem membros',
+      permissionDenied: 'Você não tem permissão para acessar esta biblioteca',
+      libraryNotFound: 'Biblioteca não encontrada',
+      uploadFile: 'Enviar Arquivo',
+      createFolder: 'Criar Pasta',
+      deleteFile: 'Excluir Arquivo',
+      editFile: 'Editar Arquivo',
+      downloadFile: 'Baixar Arquivo',
+      copyFile: 'Copiar Arquivo',
+      moveFile: 'Mover Arquivo',
+      renameFile: 'Renomear Arquivo',
+      fileProperties: 'Propriedades do Arquivo',
+      bulkOperations: 'Operações em Lote',
+      searchFiles: 'Pesquisar arquivos...',
+      sortBy: 'Ordenar por',
+      viewMode: 'Modo de Visualização',
+      listView: 'Visualização em Lista',
+      gridView: 'Visualização em Grade',
+      refresh: 'Atualizar',
+      loading: 'Carregando...',
+      noFiles: 'Nenhum arquivo neste local',
+      selectLibrary: 'Selecione uma Biblioteca',
+      chooseLibraryMessage: 'Escolha uma biblioteca da lista para visualizar e gerenciar seus arquivos',
+      newLibrary: 'Nova Biblioteca',
+      enterLibraryName: 'Digite o nome da biblioteca',
+      enterLibraryDescription: 'Digite a descrição da biblioteca (opcional)',
+      files: 'arquivos',
+      createdBy: 'Criado por',
+      members: 'membros',
+      departments: 'departamentos',
+      loadingLibraries: 'Carregando bibliotecas...',
+      noLibrariesFound: 'Nenhuma biblioteca encontrada',
+      createFirstLibrary: 'Crie sua primeira biblioteca para começar',
+      libraryCreated: 'Biblioteca criada com sucesso',
+      libraryCreationFailed: 'Falha ao criar biblioteca',
+      pleaseEnterLibraryName: 'Por favor, digite o nome da biblioteca',
+      selectUsersPlaceholder: 'Selecione usuários para adicionar à biblioteca',
+      selectDepartmentsPlaceholder: 'Selecione departamentos para adicionar à biblioteca',
+      librarySettings: 'Configurações da Biblioteca',
+      libraryPermissions: 'Permissões da Biblioteca',
+      libraryAccess: 'Acesso da Biblioteca',
+      publicLibrary: 'Biblioteca Pública',
+      privateLibrary: 'Biblioteca Privada',
+      sharedLibrary: 'Biblioteca Compartilhada',
+      libraryType: 'Tipo de Biblioteca',
+      libraryVisibility: 'Visibilidade da Biblioteca',
+      librarySharing: 'Compartilhamento da Biblioteca',
+      libraryBackup: 'Backup da Biblioteca',
+      libraryArchive: 'Arquivar Biblioteca',
+      libraryRestore: 'Restaurar Biblioteca',
+      libraryDelete: 'Excluir Biblioteca',
+      libraryDeleteConfirm: 'Tem certeza de que deseja excluir esta biblioteca?',
+      libraryDeleteWarning: 'Esta ação não pode ser desfeita. Todos os arquivos serão permanentemente excluídos.',
+      libraryDeleteSuccess: 'Biblioteca excluída com sucesso',
+      libraryDeleteFailed: 'Falha ao excluir biblioteca',
+      libraryUpdate: 'Atualizar Biblioteca',
+      libraryUpdateSuccess: 'Biblioteca atualizada com sucesso',
+      libraryUpdateFailed: 'Falha ao atualizar biblioteca',
+      libraryDuplicate: 'Duplicar Biblioteca',
+      libraryExport: 'Exportar Biblioteca',
+      libraryImport: 'Importar Biblioteca',
+      librarySync: 'Sincronizar Biblioteca',
+      libraryBackupSuccess: 'Biblioteca salva com sucesso',
+      libraryBackupFailed: 'Falha ao salvar biblioteca',
+      libraryRestoreSuccess: 'Biblioteca restaurada com sucesso',
+      libraryRestoreFailed: 'Falha ao restaurar biblioteca',
+      libraryArchiveSuccess: 'Biblioteca arquivada com sucesso',
+      libraryArchiveFailed: 'Falha ao arquivar biblioteca',
+      filesUploadedSuccess: 'Arquivos enviados com sucesso',
+      failedToUploadFiles: 'Falha ao enviar arquivos',
+      successfullyDeletedItems: 'Itens excluídos com sucesso',
+      failedToDeleteSomeItems: 'Falha ao excluir alguns itens',
+      itemsCopiedToClipboard: 'Itens copiados para a área de transferência',
+      itemsCutToClipboard: 'Itens recortados para a área de transferência',
+      addMember: 'Adicionar Membro',
+      selectUser: 'Selecionar Usuário',
+      pleaseSelectUser: 'Por favor, selecione um usuário',
+      confirmRemoveMember: 'Tem certeza de que deseja remover este membro?',
+      noResultsFound: 'Nenhum resultado encontrado',
+      search: 'Pesquisar',
+      edit: 'Editar',
+      delete: 'Excluir',
+      create: 'Criar',
+      update: 'Atualizar',
+      cancel: 'Cancelar',
+      add: 'Adicionar',
+      yes: 'Sim',
+      no: 'Não',
+      success: 'Sucesso',
+      error: 'Erro',
+      actions: 'Ações',
+      memberAddedSuccess: 'Membro adicionado com sucesso',
+      memberAddFailed: 'Falha ao adicionar membro',
+      memberRemovedSuccess: 'Membro removido com sucesso',
+      memberRemoveFailed: 'Falha ao remover membro',
+      removeMemberConfirm: 'Tem certeza de que deseja remover este membro?',
+      removeMemberWarning: 'Esta ação não pode ser desfeita.',
+      remove: 'Remover',
+              creator: 'Criador',
+        overview: 'Visão Geral',
+        backToLibraries: 'Voltar às Bibliotecas',
+        manageMembers: 'Gerenciar Membros',
+        editLibrary: 'Editar Biblioteca',
+        libraryInfo: 'Informações da Biblioteca',
+        files: 'Arquivos',
+        manageFiles: 'Gerenciar Arquivos',
+        fileManagement: 'Gerenciamento de Arquivos',
+        search: 'Pesquisar',
+        refresh: 'Atualizar',
+        noLibrariesFound: 'Nenhuma biblioteca encontrada',
+        noResultsFound: 'Nenhum resultado encontrado',
+        libraryUpdate: 'Atualizar Biblioteca',
+        pleaseEnterLibraryName: 'Por favor, insira o nome da biblioteca',
+        enterLibraryName: 'Insira o nome da biblioteca',
+        libraryDescription: 'Descrição',
+        enterLibraryDescription: 'Insira a descrição da biblioteca',
+        libraryMembers: 'Membros',
+        selectUsersPlaceholder: 'Selecione usuários para adicionar como membros',
+        create: 'Criar',
+        cancel: 'Cancelar',
+        update: 'Atualizar',
+        selectUser: 'Selecionar Usuário',
+        pleaseSelectUser: 'Por favor, selecione um usuário',
+        add: 'Adicionar',
+        noMembers: 'Nenhum membro encontrado',
+        selectLibraryFirst: 'Por favor, selecione uma biblioteca primeiro',
     },
     files: {
       myFiles: 'Meus Arquivos',
@@ -2624,6 +2871,148 @@ const dictionaries: Record<Locale, Dictionary> = {
       
       // Private storage description
       privateDocumentStorage: 'Private document storage for individual users',
+    },
+    libraries: {
+      libraryManagementSystem: 'Library Management System',
+      organizeAndAccessLibraries: 'Organize and access your document libraries with permission-based access control',
+      allLibraries: 'All Libraries',
+      myLibraries: 'My Libraries',
+      companyWideLibraries: 'Access libraries you have permission to view',
+      privateLibraryStorage: 'Libraries you created and manage',
+      createLibrary: 'Create New Library',
+      libraryName: 'Library Name',
+      libraryDescription: 'Library Description',
+      libraryMembers: 'Library Members',
+      includeMyself: 'Include myself as a member',
+      selectUsers: 'Select Users',
+      selectDepartments: 'Select Departments',
+      noMembers: 'No members',
+      permissionDenied: 'You don\'t have permission to access this library',
+      libraryNotFound: 'Library not found',
+      uploadFile: 'Upload File',
+      createFolder: 'Create Folder',
+      deleteFile: 'Delete File',
+      editFile: 'Edit File',
+      downloadFile: 'Download File',
+      copyFile: 'Copy File',
+      moveFile: 'Move File',
+      renameFile: 'Rename File',
+      fileProperties: 'File Properties',
+      bulkOperations: 'Bulk Operations',
+      searchFiles: 'Search files...',
+      sortBy: 'Sort by',
+      viewMode: 'View Mode',
+      listView: 'List View',
+      gridView: 'Grid View',
+      refresh: 'Refresh',
+      loading: 'Loading...',
+      noFiles: 'No files in this location',
+      selectLibrary: 'Select a Library',
+      chooseLibraryMessage: 'Choose a library from the list to view and manage its files',
+      newLibrary: 'New Library',
+      enterLibraryName: 'Enter library name',
+      enterLibraryDescription: 'Enter library description (optional)',
+      files: 'files',
+      createdBy: 'Created by',
+      members: 'members',
+      departments: 'departments',
+      loadingLibraries: 'Loading libraries...',
+      noLibrariesFound: 'No libraries found',
+      createFirstLibrary: 'Create your first library to get started',
+      libraryCreated: 'Library created successfully',
+      libraryCreationFailed: 'Failed to create library',
+      pleaseEnterLibraryName: 'Please enter library name',
+      selectUsersPlaceholder: 'Select users to add to the library',
+      selectDepartmentsPlaceholder: 'Select departments to add to the library',
+      enterLibraryDescription: 'Enter library description',
+      librarySettings: 'Library Settings',
+      libraryPermissions: 'Library Permissions',
+      libraryAccess: 'Library Access',
+      publicLibrary: 'Public Library',
+      privateLibrary: 'Private Library',
+      sharedLibrary: 'Shared Library',
+      libraryType: 'Library Type',
+      libraryVisibility: 'Library Visibility',
+      librarySharing: 'Library Sharing',
+      libraryBackup: 'Library Backup',
+      libraryArchive: 'Archive Library',
+      libraryRestore: 'Restore Library',
+      libraryDelete: 'Delete Library',
+      libraryDeleteConfirm: 'Are you sure you want to delete this library?',
+      libraryDeleteWarning: 'This action cannot be undone. All files will be permanently deleted.',
+      libraryDeleteSuccess: 'Library deleted successfully',
+      libraryDeleteFailed: 'Failed to delete library',
+      libraryUpdate: 'Update Library',
+      libraryUpdateSuccess: 'Library updated successfully',
+      libraryUpdateFailed: 'Failed to update library',
+      libraryDuplicate: 'Duplicate Library',
+      libraryExport: 'Export Library',
+      libraryImport: 'Import Library',
+      librarySync: 'Sync Library',
+      libraryBackupSuccess: 'Library backed up successfully',
+      libraryBackupFailed: 'Failed to backup library',
+      libraryRestoreSuccess: 'Library restored successfully',
+      libraryRestoreFailed: 'Failed to restore library',
+      libraryArchiveSuccess: 'Library archived successfully',
+      libraryArchiveFailed: 'Failed to archive library',
+      filesUploadedSuccess: 'Files uploaded successfully',
+      failedToUploadFiles: 'Failed to upload files',
+      successfullyDeletedItems: 'Items deleted successfully',
+      failedToDeleteSomeItems: 'Failed to delete some items',
+      itemsCopiedToClipboard: 'Items copied to clipboard',
+      itemsCutToClipboard: 'Items cut to clipboard',
+      addMember: 'Add Member',
+      selectUser: 'Select User',
+      pleaseSelectUser: 'Please select a user',
+      confirmRemoveMember: 'Are you sure you want to remove this member?',
+      noResultsFound: 'No results found',
+      search: 'Search',
+      edit: 'Edit',
+      delete: 'Delete',
+      create: 'Create',
+      update: 'Update',
+      cancel: 'Cancel',
+      add: 'Add',
+      yes: 'Yes',
+      no: 'No',
+      success: 'Success',
+      error: 'Error',
+      actions: 'Actions',
+      memberAddedSuccess: 'Member added successfully',
+      memberAddFailed: 'Failed to add member',
+      memberRemovedSuccess: 'Member removed successfully',
+      memberRemoveFailed: 'Failed to remove member',
+      removeMemberConfirm: 'Are you sure you want to remove this member?',
+      removeMemberWarning: 'This action cannot be undone.',
+      remove: 'Remove',
+              creator: 'Creator',
+        overview: 'Overview',
+        backToLibraries: 'Back to Libraries',
+        manageMembers: 'Manage Members',
+        editLibrary: 'Edit Library',
+        libraryInfo: 'Library Information',
+        files: 'Files',
+        manageFiles: 'Manage Files',
+        fileManagement: 'File Management',
+        search: 'Search',
+        refresh: 'Refresh',
+        noLibrariesFound: 'No libraries found',
+        noResultsFound: 'No results found',
+        libraryUpdate: 'Update Library',
+        pleaseEnterLibraryName: 'Please enter library name',
+        enterLibraryName: 'Enter library name',
+        libraryDescription: 'Description',
+        enterLibraryDescription: 'Enter library description',
+        libraryMembers: 'Members',
+        selectUsersPlaceholder: 'Select users to add as members',
+        create: 'Create',
+        cancel: 'Cancel',
+        update: 'Update',
+        selectUser: 'Select User',
+        pleaseSelectUser: 'Please select a user',
+        add: 'Add',
+        noMembers: 'No members found',
+        selectLibraryFirst: 'Please select a library first',
     },
     files: {
       myFiles: 'My Files',

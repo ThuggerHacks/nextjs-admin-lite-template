@@ -52,7 +52,7 @@ export default function DocumentsPage() {
         <DocumentsManager
           mode="all"
           canWrite={canManageDocuments()}
-          canDelete={hasAdminAccess()}
+          canDelete={canManageDocuments()}
           title={t('documents.allDocumentsTitle')}
         />
       ),

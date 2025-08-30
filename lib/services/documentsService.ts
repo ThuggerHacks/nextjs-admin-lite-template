@@ -199,22 +199,12 @@ export const documentsService = {
   // Create folder
   async createFolder(data: CreateDocumentRequest, userId?: string): Promise<DocumentItem> {
     try {
-      let response;
-      if (userId) {
-        // Create folder for specific user (admin only)
-        response = await userService.createFolderForUser(userId, {
-          name: data.name,
-          description: data.description,
-          parentId: data.parentId
-        });
-      } else {
-        // Create folder for current user
-        response = await fileService.createFolder({
-          name: data.name,
-          description: data.description,
-          parentId: data.parentId
-        });
-      }
+      // Create folder for current user
+      const response = await fileService.createFolder({
+        name: data.name,
+        description: data.description,
+        parentId: data.parentId
+      });
 
       const folder = response.folder;
       return {
@@ -262,6 +252,71 @@ export const documentsService = {
       };
     } catch (error) {
       console.error('Failed to upload file:', error);
+      throw error;
+    }
+  },
+
+  // Create upload session for large files
+  async createUploadSession(fileName: string, fileSize: number, parentId?: string): Promise<{ sessionId: string }> {
+    try {
+      const response = await apiService.post('/api/uploads/session', {
+        fileName,
+        fileSize,
+        parentId
+      });
+      
+      return { sessionId: response.data.sessionId };
+    } catch (error) {
+      console.error('Failed to create upload session:', error);
+      throw error;
+    }
+  },
+
+  // Upload chunk for large files
+  async uploadChunk(sessionId: string, chunkIndex: number, chunk: Blob, fileName: string): Promise<void> {
+    try {
+      const formData = new FormData();
+      formData.append('sessionId', sessionId);
+      formData.append('chunkIndex', chunkIndex.toString());
+      formData.append('chunk', chunk);
+      formData.append('fileName', fileName);
+
+      await apiService.post('/api/uploads/chunk', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 300000, // 5 minutes timeout for large chunks
+      });
+    } catch (error) {
+      console.error(`Failed to upload chunk ${chunkIndex}:`, error);
+      throw error;
+    }
+  },
+
+  // Complete upload session
+  async completeUpload(sessionId: string): Promise<DocumentItem> {
+    try {
+      const response = await apiService.post('/api/uploads/complete', { sessionId });
+      
+      return {
+        id: response.data.file.id,
+        name: response.data.file.name,
+        description: response.data.file.description,
+        type: 'file' as const,
+        size: response.data.file.size,
+        mimeType: response.data.file.type,
+        url: response.data.file.url,
+        isPublic: response.data.file.isPublic,
+        userId: response.data.file.userId,
+        userName: 'You',
+        folderId: response.data.file.folderId,
+        parentId: response.data.file.folderId,
+        path: `/${response.data.file.name}`,
+        createdAt: response.data.file.createdAt,
+        updatedAt: response.data.file.updatedAt
+      };
+    } catch (error) {
+      console.error('Failed to complete upload:', error);
       throw error;
     }
   },

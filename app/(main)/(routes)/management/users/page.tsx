@@ -506,7 +506,7 @@ export default function UserManagementPage() {
   const selectedUser = users.find(u => u.id === selectedUserId);
 
   return (
-    <div className="space-y-6 p-4 md:p-6 max-w-full overflow-x-hidden">
+    <div className="space-y-6 -m-2">
       <style jsx>{`
         .users-table-responsive {
           width: 100%;

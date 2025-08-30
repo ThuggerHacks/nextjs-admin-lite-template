@@ -4,42 +4,48 @@ export interface Library {
   id: string;
   name: string;
   description?: string;
-  createdById: string;
+  userId: string; // This is the creator ID
   sucursalId: string;
   createdAt: string;
   updatedAt: string;
-  createdBy: {
+  user: {
     id: string;
     name: string;
     email: string;
   };
-  members?: LibraryMember[];
-  files?: LibraryFile[];
+  members: LibraryMember[];
+  _count?: {
+    members: number;
+  };
 }
 
 export interface LibraryMember {
   id: string;
   libraryId: string;
   userId: string;
-  canRead: boolean;
-  canWrite: boolean;
-  canDelete: boolean;
+  createdAt: string;
   user: {
     id: string;
     name: string;
     email: string;
+    role: string;
   };
 }
 
 export interface LibraryFile {
   id: string;
   name: string;
-  originalName: string;
-  path: string;
+  originalName?: string;
+  description?: string;
+  url: string;
   size: number;
-  mimeType: string;
+  type: string;
+  mimeType?: string;
+  libraryId: string;
+  userId: string;
   createdAt: string;
-  owner: {
+  updatedAt: string;
+  user: {
     id: string;
     name: string;
     email: string;
@@ -49,6 +55,7 @@ export interface LibraryFile {
 export interface CreateLibraryRequest {
   name: string;
   description?: string;
+  userIds?: string[]; // Array of user IDs to add as members
 }
 
 export interface UpdateLibraryRequest {
@@ -58,107 +65,93 @@ export interface UpdateLibraryRequest {
 
 export interface AddMemberRequest {
   userId: string;
-  canRead?: boolean;
-  canWrite?: boolean;
-  canDelete?: boolean;
-}
-
-export interface UpdateMemberPermissionsRequest {
-  canRead?: boolean;
-  canWrite?: boolean;
-  canDelete?: boolean;
 }
 
 export const libraryService = {
-  // Get all libraries
+  // Get all libraries (user will only see libraries they're members of)
   getAll: async (): Promise<Library[]> => {
-    const response = await api.get('/libraries');
-    return response.data.data;
+    try {
+      const response = await api.get('/libraries');
+      return response.data.libraries || [];
+    } catch (error) {
+      console.error('Failed to fetch libraries:', error);
+      throw error;
+    }
   },
 
   // Get library by ID
   getById: async (id: string): Promise<Library> => {
-    const response = await api.get(`/libraries/${id}`);
-    return response.data.data;
+    try {
+      const response = await api.get(`/libraries/${id}`);
+      return response.data.library;
+    } catch (error) {
+      console.error(`Failed to fetch library ${id}:`, error);
+      throw error;
+    }
   },
 
   // Create new library
   create: async (data: CreateLibraryRequest): Promise<Library> => {
-    const response = await api.post('/libraries', data);
-    return response.data.data;
+    try {
+      const response = await api.post('/libraries', data);
+      return response.data.library;
+    } catch (error) {
+      console.error('Failed to create library:', error);
+      throw error;
+    }
   },
 
   // Update library
   update: async (id: string, data: UpdateLibraryRequest): Promise<Library> => {
-    const response = await api.put(`/libraries/${id}`, data);
-    return response.data.data;
+    try {
+      const response = await api.put(`/libraries/${id}`, data);
+      return response.data.library;
+    } catch (error) {
+      console.error(`Failed to update library ${id}:`, error);
+      throw error;
+    }
   },
 
   // Delete library
   delete: async (id: string): Promise<void> => {
-    await api.delete(`/libraries/${id}`);
-  },
-
-  // Get library members
-  getMembers: async (id: string): Promise<LibraryMember[]> => {
-    const response = await api.get(`/libraries/${id}/members`);
-    return response.data.data;
+    try {
+      await api.delete(`/libraries/${id}`);
+    } catch (error) {
+      console.error(`Failed to delete library ${id}:`, error);
+      throw error;
+    }
   },
 
   // Add member to library
   addMember: async (id: string, data: AddMemberRequest): Promise<LibraryMember> => {
-    const response = await api.post(`/libraries/${id}/members`, data);
-    return response.data.data;
-  },
-
-  // Update member permissions
-  updateMemberPermissions: async (
-    id: string,
-    memberId: string,
-    data: UpdateMemberPermissionsRequest
-  ): Promise<LibraryMember> => {
-    const response = await api.put(`/libraries/${id}/members/${memberId}`, data);
-    return response.data.data;
+    try {
+      const response = await api.post(`/libraries/${id}/members`, data);
+      return response.data.member;
+    } catch (error) {
+      console.error(`Failed to add member to library ${id}:`, error);
+      throw error;
+    }
   },
 
   // Remove member from library
-  removeMember: async (id: string, memberId: string): Promise<void> => {
-    await api.delete(`/libraries/${id}/members/${memberId}`);
+  removeMember: async (libraryId: string, userId: string): Promise<void> => {
+    try {
+      await api.delete(`/libraries/${libraryId}/members/${userId}`);
+    } catch (error) {
+      console.error(`Failed to remove member from library ${libraryId}:`, error);
+      throw error;
+    }
   },
 
-  // Get library files
-  getFiles: async (id: string): Promise<LibraryFile[]> => {
-    const response = await api.get(`/libraries/${id}/files`);
-    return response.data.data;
-  },
-
-  // Upload file to library
-  uploadFile: async (id: string, file: globalThis.File): Promise<LibraryFile> => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const response = await api.post(`/libraries/${id}/files`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    return response.data.data;
-  },
-
-  // Remove file from library
-  removeFile: async (id: string, fileId: string): Promise<void> => {
-    await api.delete(`/libraries/${id}/files/${fileId}`);
-  },
-
-  // Get libraries where user is a member
+  // Get libraries where user is a member (including created ones)
   getMyLibraries: async (): Promise<Library[]> => {
-    const response = await api.get('/libraries/my');
-    return response.data.data;
-  },
-
-  // Search libraries
-  search: async (query: string): Promise<Library[]> => {
-    const response = await api.get(`/libraries/search?q=${encodeURIComponent(query)}`);
-    return response.data.data;
+    try {
+      // The backend already filters libraries based on user membership
+      const response = await api.get('/libraries');
+      return response.data.libraries || [];
+    } catch (error) {
+      console.error('Failed to fetch my libraries:', error);
+      throw error;
+    }
   },
 };

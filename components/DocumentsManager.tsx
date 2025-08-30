@@ -245,10 +245,10 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
         }
       }
       setSelectedItems([]);
-      message.success(t('files.successfullyDeletedItems', { count: selectedItems.length }));
+      message.success(`Successfully deleted ${selectedItems.length} items`);
     } catch (error) {
       console.error('Error deleting items:', error);
-      message.error(t('files.failedToDeleteSomeItems'));
+      message.error('Failed to delete some items');
     } finally {
       setLoading(false);
     }
@@ -263,7 +263,7 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
     // Store all selected items in clipboard for bulk copy operation
     console.log('Setting clipboard for bulk copy:', { action: 'copy', itemCount: items.length, firstItem: items[0]?.name });
     setClipboard({ action: 'copy', item: items[0], bulkItems: items });
-    message.success(t('files.itemsCopiedToClipboard', { count: items.length }));
+    message.success(`${items.length} items copied to clipboard`);
     setSelectedItems([]);
   };
 
@@ -279,44 +279,73 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
     
     // Store all selected items in clipboard for bulk move operation
     setClipboard({ action: 'cut', item: items[0], bulkItems: items });
-    message.success(t('files.itemsCutToClipboard', { count: items.length }));
+    message.success(`${items.length} items cut to clipboard`);
     setSelectedItems([]);
   };
 
   // Check if user can edit item (owner check + Quill document check) - FIXED
   const canEditItem = (item: DocumentItem) => {
-    // Only allow editing if user has write permissions
-    if (!canWrite) return false;
-    
-    // For files, check if it's a Quill document that can be edited
+    // Only show edit button for Quill (RichTextEditor) HTML documents
     if (item.type === 'file') {
-      // Allow editing of HTML files that were created with Quill
-      // This excludes PDFs, images, Word docs, etc.
-      const isQuillDocument = item.mimeType === 'text/html' && 
-                             item.name.toLowerCase().endsWith('.html');
-      
-      if (isQuillDocument) {
-        // Quill documents can be edited by anyone with write permissions
-        return true;
-      }
+      const isQuillDocument = item.mimeType === 'text/html' && item.name.toLowerCase().endsWith('.html');
+      if (!isQuillDocument) return false;
+    } else {
+      // Never show edit for folders or non-files
+      return false;
     }
-    
-    // For folders and other files, only allow editing if user owns the item OR has admin access
-    return item.userId === user?.id || hasAdminAccess();
+
+    // Always allow admins to edit Quill docs
+    if (hasAdminAccess()) return true;
+    // If user owns the Quill doc, allow edit
+    if (item.userId === user?.id) return true;
+    // Otherwise, only allow if canWrite is true
+    if (!canWrite) return false;
+    return true;
   };
 
   // Check if user can delete item (owner check) - FIXED
   const canDeleteItem = (item: DocumentItem) => {
-    // Only allow deleting if user owns the item OR has admin access
-    if (!canDelete) return false;
-    return item.userId === user?.id || hasAdminAccess();
+    // Debug logging to see what's happening
+    console.log('Delete permission check:', {
+      itemId: item.id,
+      itemName: item.name,
+      itemUserId: item.userId,
+      currentUserId: user?.id,
+      hasAdminAccess: hasAdminAccess(),
+      canDelete: canDelete,
+      isOwner: item.userId === user?.id,
+      mode: mode
+    });
+    
+    // Always allow admins to delete
+    if (hasAdminAccess()) {
+      return true;
+    }
+    
+    // If user owns the item, they can delete it (regardless of canDelete prop)
+    if (item.userId === user?.id) {
+      return true;
+    }
+    
+    // For other cases, only allow if canDelete is true AND user has ownership
+    // This ensures users can't delete items they don't own, even if canDelete is true
+    return false;
   };
 
   // Check if user can rename item (owner check) - FIXED
   const canRenameItem = (item: DocumentItem) => {
-    // Only allow renaming if user owns the item OR has admin access
-    if (!canWrite) return false;
-    return item.userId === user?.id || hasAdminAccess();
+    // Always allow admins to rename
+    if (hasAdminAccess()) {
+      return true;
+    }
+    
+    // If user owns the item, they can rename it (regardless of canWrite prop)
+    if (item.userId === user?.id) {
+      return true;
+    }
+    
+    // For other cases, respect the canWrite prop
+    return canWrite;
   };
 
   // Check if user can move/copy item (owner check) - FIXED
@@ -608,26 +637,139 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
     }
   };
 
+  // Chunk size for large file uploads (5MB chunks)
+  const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
+  
   const handleFileUpload = async (fileList: any[]) => {
     try {
-      for (const fileItem of fileList) {
+      // Initialize upload progress for each file
+      const initialProgress = fileList.map(fileItem => ({
+        file: fileItem.originFileObj || fileItem,
+        progress: 0,
+        status: 'uploading' as 'uploading' | 'completed' | 'error',
+        error: null as string | null,
+        uploadedChunks: 0,
+        totalChunks: 0
+      }));
+      setUploadProgress(initialProgress);
+
+      for (let i = 0; i < fileList.length; i++) {
+        const fileItem = fileList[i];
         const file = fileItem.originFileObj || fileItem;
         if (!file || !(file instanceof globalThis.File)) continue;
 
-        const result = await documentsService.uploadFile(file, currentFolderId);
-        
-        // Notify sync system
-        createItem(result.id, 'file');
+        try {
+          // Calculate total chunks for this file
+          const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+          
+          // Update progress to show current file is being processed
+          setUploadProgress(prev => prev.map((item, index) => 
+            index === i ? { 
+              ...item, 
+              progress: 0, 
+              status: 'uploading',
+              totalChunks,
+              uploadedChunks: 0
+            } : item
+          ));
+
+          // Handle large file upload with chunking
+          if (file.size > CHUNK_SIZE) {
+            await uploadLargeFile(file, i, totalChunks);
+          } else {
+            // Small file upload (original method)
+            await uploadSmallFile(file, i);
+          }
+
+          // Set to completed
+          setUploadProgress(prev => prev.map((item, index) => 
+            index === i ? { ...item, progress: 100, status: 'completed' } : item
+          ));
+
+        } catch (error: any) {
+          console.error(`Error uploading file ${file.name}:`, error);
+          setUploadProgress(prev => prev.map((item, index) => 
+            index === i ? { ...item, status: 'error', error: error.message || 'Upload failed' } : item
+          ));
+        }
       }
 
-      message.success(t('Files uploaded successfully'));
-      setUploadModalVisible(false);
-      await loadDocuments();
-      onDocumentsChange?.();
+      // Check if all uploads completed successfully
+      const allCompleted = uploadProgress.every(item => item.status === 'completed');
+      if (allCompleted) {
+        message.success(t('files.filesUploadedSuccess') || 'Files uploaded successfully');
+        setUploadModalVisible(false);
+        setUploadProgress([]);
+        await loadDocuments();
+        onDocumentsChange?.();
+      } else {
+        // Show warning if some files failed
+        const failedCount = uploadProgress.filter(item => item.status === 'error').length;
+        if (failedCount > 0) {
+          message.warning(`${fileList.length - failedCount} files uploaded successfully, ${failedCount} failed`);
+        }
+      }
     } catch (error) {
       console.error('Error uploading files:', error);
-      message.error(t('Failed to upload files'));
+      message.error(t('files.failedToUploadFiles') || 'Failed to upload files');
+      setUploadProgress([]);
     }
+  };
+
+  // Upload large files in chunks
+  const uploadLargeFile = async (file: File, fileIndex: number, totalChunks: number) => {
+    try {
+      // Create upload session
+      const sessionResponse = await documentsService.createUploadSession(file.name, file.size, currentFolderId);
+      const { sessionId } = sessionResponse;
+
+      // Upload chunks
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+
+        // Update progress for this chunk
+        setUploadProgress(prev => prev.map((item, index) => 
+          index === fileIndex ? { 
+            ...item, 
+            uploadedChunks: chunkIndex + 1,
+            progress: Math.round(((chunkIndex + 1) / totalChunks) * 100)
+          } : item
+        ));
+
+        // Upload chunk
+        await documentsService.uploadChunk(sessionId, chunkIndex, chunk, file.name);
+      }
+
+      // Complete upload
+      const result = await documentsService.completeUpload(sessionId);
+      
+      // Notify sync system
+      createItem(result.id, 'file');
+
+    } catch (error) {
+      console.error(`Error uploading large file ${file.name}:`, error);
+      throw error;
+    }
+  };
+
+  // Upload small files (original method)
+  const uploadSmallFile = async (file: File, fileIndex: number) => {
+    // Simulate upload progress for small files
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => prev.map((item, index) => 
+        index === fileIndex ? { ...item, progress: Math.min(item.progress + 20, 90) } : item
+      ));
+    }, 200);
+
+    const result = await documentsService.uploadFile(file, currentFolderId);
+    
+    // Clear interval
+    clearInterval(progressInterval);
+    
+    // Notify sync system
+    createItem(result.id, 'file');
   };
 
   const handleDeleteItem = async (itemId: string) => {
@@ -1722,6 +1864,7 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
                   >
                     {t('files.newFolder')}
                   </Button>
+                  {/*
                   <Button
                     type="primary"
                     icon={<FileTextOutlined />}
@@ -1730,6 +1873,7 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
                   >
                     {t('files.createNewDocument')}
                   </Button>
+                  */}
                   <Button
                     icon={<UploadOutlined />}
                     onClick={() => setUploadModalVisible(true)}
@@ -1737,6 +1881,14 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
                   >
                     {t('files.uploadFiles')}
                   </Button>
+                  {uploadProgress.length > 0 && (
+                    <div className="flex items-center space-x-2 ml-2">
+                      <div className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></div>
+                      <span className="text-xs text-blue-600">
+                        {uploadProgress.filter(item => item.status === 'uploading').length} uploading
+                      </span>
+                    </div>
+                  )}
                                      {clipboard && (
                      <Button
                        icon={<ScissorOutlined />}
@@ -1812,13 +1964,11 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
         >
                  {editingDocument && (
            <RichTextEditor
-             onSave={handleUpdateDocument}
-             onCancel={() => {
-               setEditDocumentModalVisible(false);
-               setEditingDocument(null);
+             value={editingDocument.content || ''}
+             onChange={(content) => {
+               // Handle content changes if needed
              }}
-             initialContent={editingDocument.content || ''}
-             initialTitle={editingDocument.name}
+             placeholder="Edit your document..."
              key={editingDocument.id} // Force re-render when editing different document
            />
          )}
@@ -1836,33 +1986,139 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
           bodyStyle={{ height: '100vh', padding: 0, margin: 0 }}
         >
         <RichTextEditor
-          onSave={handleCreateDocument}
-          onCancel={() => setRichTextModalVisible(false)}
+          value=""
+          onChange={(content) => {
+            // Handle content changes if needed
+          }}
+          placeholder="Start writing your document..."
         />
       </Modal>
 
       {/* Upload Modal */}
       <Modal
-                 title={t('files.uploadFiles')}
+        title={t('files.uploadFiles')}
         open={uploadModalVisible}
-        onCancel={() => setUploadModalVisible(false)}
+        onCancel={() => {
+          setUploadModalVisible(false);
+          setUploadProgress([]);
+        }}
         footer={null}
         width={600}
       >
-        <Upload.Dragger
-          multiple
-          beforeUpload={() => false}
-          onChange={({ fileList }) => {
-            if (fileList.length > 0) {
-              handleFileUpload(fileList);
-            }
-          }}
-        >
-          <p className="ant-upload-drag-icon">
-            <UploadOutlined />
-          </p>
-          <p className="ant-upload-text">{t('Click or drag files to this area to upload')}</p>
-        </Upload.Dragger>
+        {uploadProgress.length === 0 ? (
+          <Upload.Dragger
+            multiple
+            beforeUpload={() => false}
+            onChange={({ fileList }) => {
+              if (fileList.length > 0) {
+                handleFileUpload(fileList);
+              }
+            }}
+          >
+                         <p className="ant-upload-drag-icon">
+               <UploadOutlined />
+             </p>
+             <p className="ant-upload-text">{t('Click or drag files to this area to upload')}</p>
+             <p className="ant-upload-hint text-xs text-gray-500 mt-2">
+               Supports files up to 10GB. Large files will be uploaded in chunks for reliability.
+             </p>
+          </Upload.Dragger>
+        ) : (
+          <div className="space-y-4">
+            {/* Upload Progress List */}
+            <div className="max-h-64 overflow-y-auto">
+              {uploadProgress.map((item, index) => (
+                <div key={index} className="border rounded-lg p-3 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <FileOutlined className="text-blue-500" />
+                      <span className="font-medium text-sm truncate max-w-48">
+                        {item.file.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {item.status === 'uploading' && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      )}
+                      {item.status === 'completed' && (
+                        <span className="text-green-500 text-sm">✓</span>
+                      )}
+                      {item.status === 'error' && (
+                        <span className="text-red-500 text-sm">✗</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                                     {/* Progress Bar */}
+                   <Progress
+                     percent={item.progress}
+                     size="small"
+                     status={
+                       item.status === 'error' ? 'exception' : 
+                       item.status === 'completed' ? 'success' : 'active'
+                     }
+                     strokeColor={
+                       item.status === 'error' ? '#ff4d4f' : 
+                       item.status === 'completed' ? '#52c41a' : '#1890ff'
+                     }
+                   />
+                   
+                   {/* Chunk Information for Large Files */}
+                   {item.totalChunks > 1 && (
+                     <div className="text-xs text-blue-600 mt-1">
+                       Chunk {item.uploadedChunks} of {item.totalChunks} 
+                       ({Math.round((item.uploadedChunks / item.totalChunks) * 100)}%)
+                     </div>
+                   )}
+                   
+                   {/* Status Text */}
+                   <div className="text-xs text-gray-500 mt-1">
+                     {item.status === 'uploading' && (
+                       item.totalChunks > 1 ? 'Uploading chunks...' : 'Uploading...'
+                     )}
+                     {item.status === 'completed' && 'Upload completed'}
+                     {item.status === 'error' && (
+                       <span className="text-red-500">
+                         Error: {item.error || 'Upload failed'}
+                       </span>
+                     )}
+                   </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center pt-4 border-t">
+              <div className="text-sm text-gray-500">
+                {uploadProgress.filter(item => item.status === 'completed').length} of {uploadProgress.length} completed
+              </div>
+              <Space>
+                {uploadProgress.some(item => item.status === 'error') && (
+                  <Button 
+                    onClick={() => setUploadProgress([])}
+                    size="small"
+                  >
+                    Clear
+                  </Button>
+                )}
+                {uploadProgress.every(item => item.status === 'completed') && (
+                  <Button 
+                    type="primary"
+                    onClick={() => {
+                      setUploadModalVisible(false);
+                      setUploadProgress([]);
+                      loadDocuments();
+                      onDocumentsChange?.();
+                    }}
+                    size="small"
+                  >
+                    Done
+                  </Button>
+                )}
+              </Space>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Rename Modal */}

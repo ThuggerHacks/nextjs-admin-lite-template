@@ -28,6 +28,8 @@ model Sucursal {
   generalReports GeneralReport[]
   folders     Folder[]
   files       File[]
+  libraryFolders LibraryFolder[]
+  libraryFiles LibraryFile[]
   notifications Notification[]
   errorLogs   ErrorLog[]
   scans       Scan[]
@@ -97,6 +99,9 @@ model User {
   files           File[]
   libraries       Library[]
   libraryMembers  LibraryMember[]
+  libraryFolders  LibraryFolder[]
+  libraryFiles    LibraryFile[]
+
   goals           GoalAssignment[]
   notifications   Notification[]
   scans           Scan[]
@@ -119,6 +124,7 @@ model Folder {
   parentId    String?
   userId      String
   sucursalId  String
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -144,6 +150,7 @@ model File {
   folderId    String?
   userId      String
   sucursalId  String
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -169,6 +176,8 @@ model Library {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
   members     LibraryMember[]
+  libraryFolders LibraryFolder[]
+  libraryFiles LibraryFile[]
 
   @@map("libraries")
 }
@@ -185,6 +194,53 @@ model LibraryMember {
   @@unique([libraryId, userId])
   @@map("library_members")
 }
+
+model LibraryFolder {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  parentId    String?
+  userId      String
+  sucursalId  String
+  libraryId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  library     Library @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+  parent      LibraryFolder? @relation("LibraryFolderHierarchy", fields: [parentId], references: [id])
+  children    LibraryFolder[] @relation("LibraryFolderHierarchy")
+  files       LibraryFile[]
+
+  @@map("library_folders")
+}
+
+model LibraryFile {
+  id          String   @id @default(cuid())
+  name        String
+  originalName String?
+  description String?
+  url         String
+  size        Int
+  type        String
+  mimeType    String?
+  folderId    String?
+  userId      String
+  sucursalId  String
+  libraryId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  folder      LibraryFolder? @relation(fields: [folderId], references: [id])
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  library     Library @relation(fields: [libraryId], references: [id], onDelete: Cascade)
+
+  @@map("library_files")
+}
+
+
 
 model Goal {
   id          String     @id @default(cuid())
