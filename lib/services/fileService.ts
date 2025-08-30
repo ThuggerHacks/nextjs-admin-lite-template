@@ -225,6 +225,84 @@ export const fileService = {
     return this.createFile(fileData);
   },
 
+  // Upload large file with progress tracking
+  async uploadLargeFile(
+    file: globalThis.File, 
+    folderId?: string, 
+    onProgress?: (progress: number) => void
+  ): Promise<{ message: string; file: File }> {
+    console.log('📁 FileService: Starting large file upload with folderId:', folderId);
+    
+    // For files larger than 100MB, use chunked upload
+    if (file.size > 100 * 1024 * 1024) {
+      return this.uploadFileInChunks(file, folderId, onProgress);
+    }
+    
+    // For smaller files, use regular upload
+    return this.uploadFile(file, folderId);
+  },
+
+  // Upload file in chunks for very large files
+  async uploadFileInChunks(
+    file: globalThis.File, 
+    folderId?: string, 
+    onProgress?: (progress: number) => void
+  ): Promise<{ message: string; file: File }> {
+    const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+    const totalChunks = Math.ceil(file.size / chunkSize);
+    let uploadedChunks = 0;
+
+    console.log(`📁 FileService: Uploading ${file.name} in ${totalChunks} chunks`);
+
+    // Create upload session
+    const sessionResponse = await apiService.post<{ sessionId: string }>('/uploads/session', {
+      fileName: file.name,
+      fileSize: file.size,
+      folderId
+    });
+
+    const sessionId = sessionResponse.data.sessionId;
+
+    // Upload chunks
+    for (let i = 0; i < totalChunks; i++) {
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, file.size);
+      const chunk = file.slice(start, end);
+
+      const formData = new FormData();
+      formData.append('sessionId', sessionId);
+      formData.append('chunkIndex', i.toString());
+      formData.append('chunk', chunk);
+      formData.append('fileName', file.name);
+
+      await apiService.post('/uploads/chunk', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 300000, // 5 minutes per chunk
+      });
+
+      uploadedChunks++;
+      if (onProgress) {
+        onProgress((uploadedChunks / totalChunks) * 100);
+      }
+    }
+
+    // Complete upload
+    const completeResponse = await apiService.post<{ file: File }>('/uploads/complete', { sessionId });
+    
+    // Create file record
+    const fileData: CreateFileRequest = {
+      name: file.name,
+      url: completeResponse.data.file.url,
+      size: file.size,
+      type: file.type,
+      folderId,
+    };
+
+    return this.createFile(fileData);
+  },
+
   // Download file
   async downloadFile(fileId: string): Promise<Blob> {
     const response = await apiService.download(`/files/${fileId}/download`);

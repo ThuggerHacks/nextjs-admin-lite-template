@@ -254,6 +254,45 @@ export const userService = {
     }
   },
 
+  // Create folder for specific user
+  createFolderForUser: async (userId: string, folderData: { name: string; description?: string; parentId?: string }): Promise<any> => {
+    try {
+      const response = await api.post(`/users/${userId}/folders`, folderData);
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to create folder for user ${userId}:`, error);
+      throw error;
+    }
+  },
+
+  // Upload file for specific user
+  uploadFileForUser: async (userId: string, file: File, folderId?: string, onProgress?: (progress: number) => void): Promise<any> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      if (folderId) {
+        formData.append('folderId', folderId);
+      }
+
+      const response = await api.post(`/users/${userId}/files`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        onUploadProgress: onProgress ? (progressEvent) => {
+          if (progressEvent.total) {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            onProgress(progress);
+          }
+        } : undefined,
+        timeout: 1800000, // 30 minutes for large files
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to upload file for user ${userId}:`, error);
+      throw error;
+    }
+  },
+
   // Demote user from admin
   demoteFromAdmin: async (userId: string): Promise<User> => {
     try {

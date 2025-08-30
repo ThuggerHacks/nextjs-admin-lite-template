@@ -1,327 +1,259 @@
-# 🚀 Large File Uploads (Up to 10GB)
+# Large File Uploads (10GB) Implementation
 
-This document explains how the large file upload feature works and how to configure it for handling files up to 10GB.
+This document describes the implementation of 10GB file upload support in both the documents and library sections of the Tonelizer platform.
 
-## ✨ **Features**
+## Overview
 
-- **File Size Support**: Upload files up to 10GB
-- **Chunked Uploads**: Large files are automatically split into 5MB chunks
-- **Progress Tracking**: Real-time progress for each chunk
-- **Resume Capability**: Failed uploads can be resumed
-- **Memory Efficient**: Chunks are processed individually to minimize memory usage
-- **Security**: User authentication and session validation
+The system now supports uploading files up to 10GB in size through:
+1. **Direct uploads** for files up to 10GB
+2. **Chunked uploads** for very large files (recommended for files >100MB)
+3. **Progress tracking** for better user experience
+4. **Resumable uploads** through session management
 
-## 🏗️ **Architecture**
+## Backend Configuration
 
-### Frontend (React/Next.js)
-- **DocumentsManager.tsx**: Main upload component with chunked upload logic
-- **documentsService.ts**: Service layer for API communication
-- **Progress Indicators**: Visual feedback for upload progress
+### File Size Limits
 
-### Backend (Node.js/Express)
-- **uploads.js**: API routes for chunked uploads
-- **Session Management**: Temporary storage for upload sessions
-- **Chunk Assembly**: File reconstruction from uploaded chunks
+- **Maximum file size**: 10GB (10 * 1024^3 bytes)
+- **Field size limit**: 10GB
+- **Request timeout**: 30 minutes
+- **Body size limit**: 10GB
 
-## 🔧 **Configuration**
+### Updated Files
 
-### Frontend Configuration
+#### 1. `backend/src/middleware/upload.js`
+- Updated multer configuration to support 10GB files
+- Added field size limits and file count restrictions
 
-#### Next.js (next.config.js)
-```javascript
-// Configure for large file uploads
-experimental: {
-  serverComponentsExternalPackages: ['multer'],
-},
-api: {
-  bodyParser: {
-    sizeLimit: '10gb',
-  },
-  responseLimit: false,
-},
-webpack: (config, { isServer }) => {
-  // Increase chunk size limit
-  config.optimization.splitChunks = {
-    ...config.optimization.splitChunks,
-    maxSize: 10 * 1024 * 1024, // 10MB chunks
-  };
-  return config;
-},
-```
+#### 2. `backend/src/routes/uploads.js`
+- Added chunked upload support with session management
+- New routes:
+  - `POST /api/uploads/session` - Create upload session
+  - `POST /api/uploads/chunk` - Upload file chunk
+  - `POST /api/uploads/complete` - Complete upload session
+- Maintains backward compatibility with direct uploads
 
-### Backend Configuration
+#### 3. `backend/src/routes/libraries.js`
+- Updated multer configuration for 10GB support
+- Updated file size validation from 50MB to 10GB
 
-#### Express Server (index.js)
-```javascript
-// Configure for large file uploads
-app.use(express.json({ limit: '10gb' }));
-app.use(express.urlencoded({ extended: true, limit: '10gb' }));
+#### 4. `backend/src/index.js`
+- Increased request timeout to 30 minutes
+- Set body size limits to 10GB
 
-// Increase timeout for large uploads
-app.use((req, res, next) => {
-  res.setTimeout(300000); // 5 minutes
-  next();
-});
-```
+## Frontend Configuration
 
-#### Multer Configuration (uploads.js)
-```javascript
-// Configure multer for chunk uploads (no file size limit for chunks)
-const chunkUpload = multer({
-  storage: multer.memoryStorage(), // Store chunks in memory temporarily
-  limits: {
-    fileSize: 10 * 1024 * 1024 * 1024 // 10GB limit for chunks
-  }
-});
-```
+### Updated Files
 
-## 📁 **API Endpoints**
+#### 1. `lib/axios.ts`
+- Increased timeout to 30 minutes for large operations
+- Added max content length and body length limits
 
-### 1. Create Upload Session
-```http
-POST /api/uploads/session
-Content-Type: application/json
+#### 2. `lib/services/fileService.ts`
+- Added `uploadLargeFile()` method with progress tracking
+- Added `uploadFileInChunks()` method for chunked uploads
+- Automatic fallback to chunked uploads for files >100MB
 
-{
-  "fileName": "large-file.zip",
-  "fileSize": 5368709120,
-  "parentId": "folder123"
-}
-```
+#### 3. `lib/services/libraryFileService.ts`
+- Added `uploadLargeFile()` method with progress tracking
+- Added `uploadFileInChunks()` method for chunked uploads
+- Same chunked upload logic as file service
 
-**Response:**
-```json
-{
-  "sessionId": "session_1234567890_abc123",
-  "totalChunks": 1024,
-  "chunkSize": 5242880
-}
-```
+## Upload Methods
 
-### 2. Upload Chunk
-```http
-POST /api/uploads/chunk
-Content-Type: multipart/form-data
+### 1. Direct Upload
+- **Use case**: Files up to 10GB
+- **Method**: Single HTTP request with file data
+- **Pros**: Simple, fast for smaller files
+- **Cons**: Memory intensive for very large files
 
-Form Data:
-- sessionId: "session_1234567890_abc123"
-- chunkIndex: "0"
-- chunk: [binary data]
-- fileName: "large-file.zip"
-```
+### 2. Chunked Upload
+- **Use case**: Files >100MB (automatically selected)
+- **Method**: File split into 10MB chunks
+- **Pros**: Memory efficient, resumable, better progress tracking
+- **Cons**: More complex, multiple HTTP requests
 
-**Response:**
-```json
-{
-  "message": "Chunk uploaded successfully",
-  "chunkIndex": 0,
-  "uploadedChunks": 1,
-  "totalChunks": 1024
-}
-```
+## Chunked Upload Flow
 
-### 3. Complete Upload
-```http
-POST /api/uploads/complete
-Content-Type: application/json
+1. **Create Session**
+   ```
+   POST /api/uploads/session
+   Body: { fileName, fileSize, folderId }
+   Response: { sessionId, totalChunks }
+   ```
 
-{
-  "sessionId": "session_1234567890_abc123"
-}
-```
+2. **Upload Chunks**
+   ```
+   POST /api/uploads/chunk
+   Body: { sessionId, chunkIndex, chunk, fileName }
+   Response: { uploadedChunks, totalChunks }
+   ```
 
-**Response:**
-```json
-{
-  "message": "File assembled successfully",
-  "file": {
-    "id": "file_1234567890",
-    "name": "large-file.zip",
-    "size": 5368709120,
-    "url": "/api/uploads/files/1234567890-large-file.zip"
-  }
-}
-```
+3. **Complete Upload**
+   ```
+   POST /api/uploads/complete
+   Body: { sessionId }
+   Response: { file: { url, size, ... } }
+   ```
 
-## 🔄 **Upload Flow**
+## Usage Examples
 
-### 1. **Session Creation**
-- User selects a large file (>5MB)
-- Frontend creates upload session
-- Backend generates unique session ID
-- Creates temporary directory for chunks
-
-### 2. **Chunk Upload**
-- File is split into 5MB chunks
-- Each chunk is uploaded individually
-- Progress is tracked per chunk
-- Chunks are stored temporarily
-
-### 3. **File Assembly**
-- All chunks are verified
-- File is reconstructed from chunks
-- Temporary chunks are cleaned up
-- File record is created in database
-
-## 📊 **Progress Tracking**
-
-The frontend provides detailed progress information:
-
-- **Overall Progress**: Percentage of file uploaded
-- **Chunk Progress**: Current chunk being processed
-- **Status Indicators**: Uploading, completed, error
-- **Real-time Updates**: Progress updates every chunk
-
-## 🛡️ **Security Features**
-
-- **Authentication**: All upload endpoints require valid JWT token
-- **Session Validation**: Users can only access their own upload sessions
-- **File Size Limits**: Server-side validation of file sizes
-- **Chunk Verification**: Ensures all chunks are uploaded before assembly
-
-## 🚨 **Error Handling**
-
-### Common Error Scenarios
-
-1. **Session Expired**: Upload session not found
-2. **Chunk Missing**: Incomplete chunk upload
-3. **File Size Exceeded**: File larger than 10GB limit
-4. **Authentication Failed**: Invalid or expired token
-5. **Disk Space**: Insufficient storage space
-
-### Error Recovery
-
-- **Automatic Retry**: Failed chunks are retried automatically
-- **Session Persistence**: Upload sessions persist across page refreshes
-- **Progress Preservation**: Upload progress is maintained on errors
-
-## 📁 **Directory Structure**
-
-```
-backend/
-├── uploads/
-│   ├── chunks/           # Temporary chunk storage
-│   │   └── session_xxx/  # Individual session directories
-│   └── files/            # Final assembled files
-├── src/
-│   └── routes/
-│       └── uploads.js    # Upload API routes
-```
-
-## ⚡ **Performance Optimizations**
-
-- **Chunk Size**: 5MB chunks balance memory usage and network efficiency
-- **Parallel Uploads**: Multiple chunks can be uploaded simultaneously
-- **Memory Management**: Chunks are processed individually to minimize memory footprint
-- **Streaming**: File assembly uses streams for large files
-
-## 🔍 **Monitoring & Logging**
-
-### Logged Events
-- Upload session creation
-- Chunk upload success/failure
-- File assembly completion
-- Error conditions and stack traces
-
-### Metrics
-- Upload success rate
-- Average upload time
-- Chunk upload performance
-- Storage usage
-
-## 🧪 **Testing Large Uploads**
-
-### Test File Sizes
-- **Small**: <5MB (regular upload)
-- **Medium**: 5MB - 100MB (chunked upload)
-- **Large**: 100MB - 1GB (stress test)
-- **Very Large**: 1GB - 10GB (limit test)
-
-### Test Scenarios
-1. **Normal Upload**: Complete file upload
-2. **Network Interruption**: Simulate network failures
-3. **Browser Refresh**: Test session persistence
-4. **Multiple Files**: Concurrent large file uploads
-5. **Resume Upload**: Resume interrupted uploads
-
-## 🚀 **Usage Example**
+### Frontend - File Upload with Progress
 
 ```typescript
-// Frontend usage in DocumentsManager
-const handleFileUpload = async (fileList: any[]) => {
-  for (const file of fileList) {
-    if (file.size > 5 * 1024 * 1024) {
-      // Large file - use chunked upload
-      await uploadLargeFile(file);
-    } else {
-      // Small file - use regular upload
-      await uploadSmallFile(file);
-    }
+import { fileService } from '@/lib/services/fileService';
+
+// Upload large file with progress tracking
+const uploadLargeFile = async (file: File) => {
+  try {
+    const result = await fileService.uploadLargeFile(
+      file, 
+      folderId, 
+      (progress) => {
+        console.log(`Upload progress: ${progress}%`);
+        // Update UI progress bar
+      }
+    );
+    console.log('Upload completed:', result);
+  } catch (error) {
+    console.error('Upload failed:', error);
   }
 };
 ```
 
-## 📋 **Requirements**
+### Frontend - Library File Upload
 
-### Frontend
-- React 18+
-- Next.js 13+
-- Modern browser with File API support
+```typescript
+import { libraryFileService } from '@/lib/services/libraryFileService';
 
-### Backend
-- Node.js 16+
-- Express 4+
-- Multer 1.4+
-- Sufficient disk space for temporary storage
+// Upload large file to library
+const uploadToLibrary = async (file: File, libraryId: string) => {
+  try {
+    const result = await libraryFileService.uploadLargeFile(
+      { file, folderId, description: '' },
+      libraryId,
+      (progress) => {
+        console.log(`Library upload progress: ${progress}%`);
+      }
+    );
+    console.log('Library upload completed:', result);
+  } catch (error) {
+    console.error('Library upload failed:', error);
+  }
+};
+```
 
-### System
-- Minimum 2GB RAM
-- 20GB+ free disk space
-- Stable network connection
+## Performance Considerations
 
-## 🔧 **Troubleshooting**
+### Memory Usage
+- **Direct uploads**: File loaded entirely into memory
+- **Chunked uploads**: Only 10MB chunks in memory at a time
+- **Recommendation**: Use chunked uploads for files >100MB
+
+### Network Efficiency
+- **Chunked uploads**: Better error handling and retry logic
+- **Progress tracking**: Real-time feedback for users
+- **Resumable**: Can resume failed uploads
+
+### Storage
+- **Temporary storage**: Chunks stored in `uploads/sessions/` during upload
+- **Cleanup**: Session directories automatically removed after completion
+- **Final storage**: Files stored in main uploads directory
+
+## Error Handling
+
+### Common Issues
+1. **File size exceeded**: Returns 400 error with size limit message
+2. **Session expired**: Returns 404 error for invalid session
+3. **Chunk missing**: Returns 400 error with missing chunk info
+4. **Network timeout**: Increased timeout to 30 minutes
+
+### Recovery
+- **Failed chunks**: Can be retried individually
+- **Session recovery**: Session info persists until completion
+- **Partial uploads**: Automatically cleaned up after timeout
+
+## Security Considerations
+
+### Authentication
+- All upload endpoints require valid JWT token
+- User ownership validation for upload sessions
+- Folder access control maintained
+
+### File Validation
+- File size limits enforced on both frontend and backend
+- File type validation (currently allows all types)
+- Path traversal protection
+
+## Monitoring and Logging
+
+### Error Logging
+- All upload errors logged with context
+- Session creation and completion tracked
+- Chunk upload failures logged
+
+### Performance Metrics
+- Upload duration tracking
+- Chunk upload success rates
+- Memory usage monitoring
+
+## Future Enhancements
+
+### Planned Features
+1. **Resumable uploads**: Resume from last successful chunk
+2. **Parallel chunk uploads**: Upload multiple chunks simultaneously
+3. **Compression**: Automatic file compression for large files
+4. **CDN integration**: Direct upload to cloud storage
+5. **Progress persistence**: Save progress across browser sessions
+
+### Scalability Improvements
+1. **Redis sessions**: Replace file-based session storage
+2. **Worker queues**: Background chunk processing
+3. **Load balancing**: Distribute uploads across servers
+4. **Storage optimization**: Implement deduplication
+
+## Testing
+
+### Test Scenarios
+1. **Small files** (<100MB): Direct upload
+2. **Medium files** (100MB-1GB): Chunked upload
+3. **Large files** (1GB-10GB): Chunked upload with progress
+4. **Edge cases**: Network interruptions, browser refresh
+5. **Error conditions**: Invalid sessions, missing chunks
+
+### Performance Testing
+- Upload speed measurements
+- Memory usage monitoring
+- Network bandwidth utilization
+- Server resource consumption
+
+## Troubleshooting
 
 ### Common Issues
 
-1. **Upload Fails at 100%**
-   - Check disk space
-   - Verify chunk integrity
-   - Check server logs
+#### Upload Fails with "File too large"
+- Check backend multer configuration
+- Verify frontend file size validation
+- Ensure server has sufficient memory
 
-2. **Slow Upload Performance**
-   - Reduce chunk size
-   - Check network bandwidth
-   - Optimize server configuration
+#### Chunked Upload Hangs
+- Check network timeout settings
+- Verify session directory permissions
+- Monitor server memory usage
 
-3. **Memory Issues**
-   - Monitor server memory usage
-   - Reduce concurrent uploads
-   - Increase server resources
+#### Progress Bar Not Updating
+- Check progress callback implementation
+- Verify chunk upload responses
+- Check browser console for errors
 
-### Debug Mode
+### Debug Information
+- Enable detailed logging in backend
+- Check browser network tab for requests
+- Monitor server logs for errors
+- Verify file permissions on upload directories
 
-Enable debug logging by setting environment variables:
-```bash
-DEBUG=uploads:*
-NODE_ENV=development
-```
+## Conclusion
 
-## 📈 **Future Enhancements**
+The 10GB file upload implementation provides a robust, scalable solution for handling large files in both documents and library sections. The combination of direct uploads for smaller files and chunked uploads for larger files ensures optimal performance and user experience while maintaining system stability.
 
-- **Resumable Uploads**: Resume interrupted uploads
-- **Parallel Chunks**: Upload multiple chunks simultaneously
-- **Compression**: Automatic file compression
-- **Encryption**: End-to-end encryption
-- **CDN Integration**: Distribute uploads across multiple servers
-
-## 📞 **Support**
-
-For issues or questions about large file uploads:
-1. Check server logs for error details
-2. Verify configuration settings
-3. Test with smaller files first
-4. Monitor system resources during uploads
-
----
-
-**Note**: This feature is designed for reliable large file uploads. Always test with your specific use case and ensure adequate server resources are available.
+The implementation includes comprehensive error handling, progress tracking, and security measures to ensure reliable file uploads across various network conditions and file sizes.

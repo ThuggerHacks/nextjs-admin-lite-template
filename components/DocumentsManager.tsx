@@ -58,6 +58,8 @@ import { documentsService, DocumentItem, DocumentFilters } from '@/lib/services/
 import { useDocumentsSync } from '@/hooks/use-documents-sync';
 import RichTextEditor from './RichTextEditor';
 import { UserRole } from '@/types';
+import { fileService, Folder, File as FileType } from '@/lib/services/fileService';
+import { userService } from '@/lib/services/userService';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -721,37 +723,27 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
     }
   };
 
-  // Upload large files in chunks
+  // Upload large files using the new fileService with progress tracking
   const uploadLargeFile = async (file: File, fileIndex: number, totalChunks: number) => {
     try {
-      // Create upload session
-      const sessionResponse = await documentsService.createUploadSession(file.name, file.size, currentFolderId);
-      const { sessionId } = sessionResponse;
-
-      // Upload chunks
-      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
-        const start = chunkIndex * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, file.size);
-        const chunk = file.slice(start, end);
-
-        // Update progress for this chunk
-        setUploadProgress(prev => prev.map((item, index) => 
-          index === fileIndex ? { 
-            ...item, 
-            uploadedChunks: chunkIndex + 1,
-            progress: Math.round(((chunkIndex + 1) / totalChunks) * 100)
-          } : item
-        ));
-
-        // Upload chunk
-        await documentsService.uploadChunk(sessionId, chunkIndex, chunk, file.name);
-      }
-
-      // Complete upload
-      const result = await documentsService.completeUpload(sessionId);
+      // Use the new fileService.uploadLargeFile method with progress tracking
+      const result = await fileService.uploadLargeFile(
+        file, 
+        currentFolderId, 
+        (progress) => {
+          // Update progress for this file
+          setUploadProgress(prev => prev.map((item, index) => 
+            index === fileIndex ? { 
+              ...item, 
+              progress: Math.round(progress),
+              uploadedChunks: Math.round((progress / 100) * totalChunks)
+            } : item
+          ));
+        }
+      );
       
       // Notify sync system
-      createItem(result.id, 'file');
+      createItem(result.file.id, 'file');
 
     } catch (error) {
       console.error(`Error uploading large file ${file.name}:`, error);
@@ -2089,6 +2081,10 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
         onCancel={() => {
           setUploadModalVisible(false);
           setUploadProgress([]);
+          // Reset the file input when modal is closed
+          if (uploadRef.current) {
+            uploadRef.current.fileList = [];
+          }
         }}
         footer={null}
         width={600}

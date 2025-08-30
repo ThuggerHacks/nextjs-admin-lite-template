@@ -138,7 +138,7 @@ export default function DashboardPage() {
   const loadDashboardData = async () => {
     if (!user) return;
     
-    setLoading(true);
+      setLoading(true);
     setError(null);
     try {
       // Load all users to calculate statistics (using existing working route)
@@ -211,7 +211,7 @@ export default function DashboardPage() {
       // Fallback to basic stats if the endpoint fails
       setStats(prev => ({ 
         ...prev, 
-        users: {
+    users: {
           total: 0,
           active: 0,
           inactive: 0,
@@ -375,7 +375,7 @@ export default function DashboardPage() {
 
   // Check if user can access dashboard
   if (user.role === UserRole.SUPERVISOR) {
-    return (
+  return (
       <div className="p-6">
         <Alert
           message="Access Denied"
@@ -394,11 +394,11 @@ export default function DashboardPage() {
         <Title level={2} className="flex items-center gap-2">
           <DashboardOutlined />
           {t("dashboard.title")}
-        </Title>
+                </Title>
         <Text type="secondary">
           {t("dashboard.welcomeBack", { name: user.name })}
-        </Text>
-      </div>
+                </Text>
+              </div>
 
       {/* Error Alert */}
       {error && (
@@ -431,9 +431,9 @@ export default function DashboardPage() {
                 prefix={<UserOutlined />}
                 valueStyle={{ color: '#3f8600' }}
                 loading={loading}
-              />
-            </Card>
-          </Col>
+                />
+              </Card>
+            </Col>
           <Col xs={24} sm={12} md={12} lg={6} xl={6}>
             <Card>
               <Statistic
@@ -443,8 +443,8 @@ export default function DashboardPage() {
                 valueStyle={{ color: '#1890ff' }}
                 loading={loading}
               />
-            </Card>
-          </Col>
+              </Card>
+            </Col>
           <Col xs={24} sm={12} md={12} lg={6} xl={6}>
             <Card>
               <Statistic
@@ -456,11 +456,11 @@ export default function DashboardPage() {
                 suffix={
                   <Text type="secondary" style={{ fontSize: '12px' }}>
                     ({stats.users.byRole.ADMIN} Admin + {stats.users.byRole.SUPER_ADMIN} Super)
-                  </Text>
+                    </Text>
                 }
               />
-            </Card>
-          </Col>
+              </Card>
+            </Col>
           <Col xs={24} sm={12} md={12} lg={6} xl={6}>
             <Card>
               <Statistic
@@ -470,8 +470,8 @@ export default function DashboardPage() {
                 valueStyle={{ color: '#fa8c16' }}
                 loading={loading}
               />
-            </Card>
-          </Col>
+              </Card>
+            </Col>
         </Row>
 
         {/* Fallback Message when stats fail */}
@@ -485,16 +485,16 @@ export default function DashboardPage() {
           />
         )}
 
-      <Row gutter={[24, 24]}>
+          <Row gutter={[24, 24]}>
         {/* Quick Actions */}
         <Col xs={24} md={24} lg={12} xl={12}>
-          <Card 
-            title={
-              <div className="flex items-center gap-2">
+              <Card 
+                title={
+                  <div className="flex items-center gap-2">
                 <RocketOutlined />
                 {t("dashboard.quickActions.title")}
-              </div>
-            } 
+                  </div>
+                }
             className="h-full"
           >
             <Space direction="vertical" className="w-full" size="middle">
@@ -506,7 +506,7 @@ export default function DashboardPage() {
                 onClick={() => handleQuickAction('documents')}
               >
                 {t("dashboard.quickActions.goToDocuments")}
-              </Button>
+                  </Button>
               
               <Button
                 icon={<FolderOpenOutlined />}
@@ -519,7 +519,7 @@ export default function DashboardPage() {
               
               <Button
                 icon={<ScanOutlined />}
-                size="large"
+                              size="large"
                 block
                 onClick={() => handleQuickAction('scanner')}
               >
@@ -532,12 +532,12 @@ export default function DashboardPage() {
                   {/* Recent Documents */}
           <Col xs={24} md={24} lg={12} xl={12}>
             <Card
-              title={
+                          title={
                 <div className="flex items-center gap-2">
                   <FileTextOutlined />
                   {t("dashboard.recentDocuments.title")}
-                </div>
-              }
+                            </div>
+                          }
               className="h-full"
               extra={
                 <Button
@@ -620,21 +620,21 @@ export default function DashboardPage() {
                     },
                   ]}
                 />
-              )}
-            </Card>
-          </Col>
+                )}
+              </Card>
+            </Col>
       </Row>
 
       {/* Recent Notifications */}
       <Row gutter={[24, 24]} className="mt-6">
         <Col span={24}>
-          <Card 
-            title={
-              <div className="flex items-center gap-2">
+              <Card 
+                title={
+                  <div className="flex items-center gap-2">
                 <BellOutlined />
                 {t("dashboard.notifications.title")}
-              </div>
-            }
+                  </div>
+                }
             extra={
               <Button 
                 icon={<ReloadOutlined />} 
@@ -657,9 +657,9 @@ export default function DashboardPage() {
                 emptyText: <Empty description={t("dashboard.notifications.noNotifications")} />
               }}
             />
-          </Card>
-        </Col>
-      </Row>
+              </Card>
+            </Col>
+          </Row>
 
       {/* Additional Statistics */}
       <Row gutter={[24, 24]} className="mt-6">
@@ -667,7 +667,7 @@ export default function DashboardPage() {
           <Card 
             title={
               <div className="flex items-center gap-2">
-                <TeamOutlined />
+              <TeamOutlined />
                 {t("dashboard.userStats.title")}
               </div>
             }
@@ -676,26 +676,26 @@ export default function DashboardPage() {
               <div className="flex justify-between items-center">
                 <Text>{t("dashboard.userStats.regularUsers")}:</Text>
                 <Text strong>{stats.users.byRole.USER}</Text>
-              </div>
+                  </div>
               <div className="flex justify-between items-center">
                 <Text>{t("dashboard.userStats.supervisors")}:</Text>
                 <Text strong>{stats.users.byRole.SUPERVISOR}</Text>
-              </div>
-              <div className="flex justify-between items-center">
+                </div>
+                  <div className="flex justify-between items-center">
                 <Text>{t("dashboard.userStats.admins")}:</Text>
                 <Text strong>{stats.users.byRole.ADMIN}</Text>
-              </div>
+                    </div>
               <div className="flex justify-between items-center">
                 <Text>{t("dashboard.userStats.superAdmins")}:</Text>
                 <Text strong>{stats.users.byRole.SUPER_ADMIN}</Text>
-              </div>
-              <div className="flex justify-between items-center">
+                  </div>
+                  <div className="flex justify-between items-center">
                 <Text>{t("dashboard.userStats.developers")}:</Text>
                 <Text strong>{stats.users.byRole.DEVELOPER}</Text>
-              </div>
+                    </div>
             </Space>
-          </Card>
-        </Col>
+              </Card>
+            </Col>
 
         <Col xs={24} md={24} lg={12} xl={12}>
           <Card 
@@ -703,23 +703,23 @@ export default function DashboardPage() {
               <div className="flex items-center gap-2">
                 <BarChartOutlined />
                 {t("dashboard.systemOverview.title")}
-              </div>
+                    </div>
             }
           >
             <Space direction="vertical" className="w-full" size="small">
-              <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center">
                 <Text>{t("dashboard.systemOverview.totalDepartments")}:</Text>
                 <Text strong>{stats.users.byDepartment.length}</Text>
-              </div>
-              <div className="flex justify-between items-center">
+                  </div>
+                  <div className="flex justify-between items-center">
                 <Text>{t("dashboard.systemOverview.inactiveUsers")}:</Text>
                 <Text strong>{stats.users.inactive}</Text>
-              </div>
+                  </div>
 
             </Space>
-          </Card>
-        </Col>
-      </Row>
+              </Card>
+            </Col>
+          </Row>
     </div>
   );
 }

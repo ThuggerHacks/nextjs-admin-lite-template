@@ -6,6 +6,8 @@ const { createNotification } = require('../utils/notifications');
 const { logError } = require('../utils/errorLogger');
 const currentSucursal = require('../lib/currentSucursal');
 const upload = require('../middleware/upload'); // Added for avatar upload
+const userFileUpload = require('../middleware/userFileUpload'); // Added for user file upload
+const path = require('path'); // Added for path manipulation
 
 const router = express.Router();
 
@@ -842,20 +844,15 @@ router.get('/export-csv', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN'
   }
 });
 
-// Create folder for user (admin/super admin only)
-router.post('/:userId/folders', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), [
-  body('name').notEmpty().withMessage('Folder name is required'),
-  body('description').optional().isString().withMessage('Description must be a string'),
-  body('parentId').optional().isString().withMessage('Parent ID must be a string')
-], async (req, res) => {
+// Create folder for specific user
+router.post('/:userId/folders', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']), async (req, res) => {
   try {
-    const errors = validationResult(req);
-    if (!errors.isEmpty()) {
-      return res.status(400).json({ errors: errors.array() });
-    }
-
     const { userId } = req.params;
-    const { name, description, parentId } = req.body;
+    const { name, description = '', parentId } = req.body;
+
+    if (!name) {
+      return res.status(400).json({ error: 'Folder name is required' });
+    }
 
     const user = await prisma.user.findUnique({
       where: { id: userId }
@@ -865,24 +862,16 @@ router.post('/:userId/folders', authenticateToken, requireRole(['ADMIN', 'SUPER_
       return res.status(404).json({ error: 'User not found' });
     }
 
-    if (parentId) {
-      const parentFolder = await prisma.folder.findUnique({
-        where: { id: parentId }
-      });
-
-      if (!parentFolder) {
-        return res.status(404).json({ error: 'Parent folder not found' });
-      }
-
-      if (parentFolder.userId !== userId) {
-        return res.status(403).json({ error: 'Parent folder does not belong to target user' });
-      }
+    // Check if user has permission to create folders for this user
+    if (req.user.role === 'SUPERVISOR' && req.user.departmentId !== user.departmentId) {
+      return res.status(403).json({ error: 'Access denied' });
     }
 
+    // Check if folder already exists
     const existingFolder = await prisma.folder.findFirst({
       where: {
-        name,
         userId: userId,
+        name: name,
         parentId: parentId || null
       }
     });
@@ -895,22 +884,20 @@ router.post('/:userId/folders', authenticateToken, requireRole(['ADMIN', 'SUPER_
       data: {
         name,
         description,
-        parentId,
+        parentId: parentId || null,
         userId: userId,
         sucursalId: user.sucursalId
       },
       include: {
         parent: true,
-        children: true
+        _count: {
+          select: {
+            children: true,
+            files: true
+          }
+        }
       }
     });
-
-    await createNotification(
-      userId,
-      'FILE_OPERATION',
-      'Nova Pasta',
-      `Pasta "${name}" foi criada por ${req.user.name}.`
-    );
 
     res.status(201).json({
       message: 'Folder created successfully',
@@ -922,6 +909,75 @@ router.post('/:userId/folders', authenticateToken, requireRole(['ADMIN', 'SUPER_
   }
 });
 
+// Upload file for specific user
+router.post('/:userId/files', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']), userFileUpload.single('file'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { folderId, description = '' } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: 'No file provided' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user has permission to upload files for this user
+    if (req.user.role === 'SUPERVISOR' && req.user.departmentId !== user.departmentId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Validate file size (50MB limit)
+    if (file.size > 50 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 50MB limit' });
+    }
+
+    // Create API URL for database storage
+    const serverUrl = req.protocol + '://' + req.get('host');
+    const apiUrl = `${serverUrl}/api/uploads/users/${userId}/${file.filename}`;
+
+    // Create file record in database
+    const fileRecord = await prisma.file.create({
+      data: {
+        name: file.originalname,
+        description,
+        url: apiUrl,
+        size: file.size,
+        type: path.extname(file.originalname).substring(1) || 'unknown',
+        mimeType: file.mimetype,
+        isPublic: false,
+        folderId: folderId || null,
+        userId: userId,
+        sucursalId: user.sucursalId
+      },
+      include: {
+        folder: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    res.status(201).json({
+      message: 'File uploaded successfully',
+      file: fileRecord
+    });
+  } catch (error) {
+    console.error('File upload error details:', error);
+    await logError('DATABASE_ERROR', 'Upload user file failed', error);
+    res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
 
 
 module.exports = router; 

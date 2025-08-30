@@ -415,12 +415,25 @@ const LibraryManager: React.FC<LibraryManagerProps> = ({
   const handleFileUpload = async (file: File) => {
     try {
       setLoading(true);
-      await libraryService.uploadFile(libraryId, file);
-      message.success('File uploaded successfully');
+      
+      // Show progress message
+      message.loading('Uploading file...', 0);
+      
+      await libraryService.uploadLargeFile(libraryId, file, (progress) => {
+        // Update progress message
+        if (progress < 100) {
+          message.loading(`Uploading file... ${Math.round(progress)}%`, 0);
+        } else {
+          message.destroy();
+          message.success('File uploaded successfully');
+        }
+      });
+      
       loadDocuments();
       onLibraryChange?.();
     } catch (error) {
       console.error('Error uploading file:', error);
+      message.destroy();
       message.error('Failed to upload file');
     } finally {
       setLoading(false);

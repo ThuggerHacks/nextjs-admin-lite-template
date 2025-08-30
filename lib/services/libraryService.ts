@@ -154,4 +154,108 @@ export const libraryService = {
       throw error;
     }
   },
+
+  // Remove file from library
+  removeFile: async (libraryId: string, fileId: string): Promise<void> => {
+    try {
+      await api.delete(`/libraries/${libraryId}/files/${fileId}`);
+    } catch (error) {
+      console.error(`Failed to remove file ${fileId} from library ${libraryId}:`, error);
+      throw error;
+    }
+  },
+
+  // Upload file to library
+  uploadFile: async (libraryId: string, file: File): Promise<any> => {
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await api.post(`/libraries/${libraryId}/files`, formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 1800000, // 30 minutes for large files
+      });
+      return response.data;
+    } catch (error) {
+      console.error(`Failed to upload file to library ${libraryId}:`, error);
+      throw error;
+    }
+  },
+
+  // Upload large file to library with progress tracking
+  uploadLargeFile: async (
+    libraryId: string, 
+    file: File, 
+    onProgress?: (progress: number) => void
+  ): Promise<any> => {
+    try {
+      // For files larger than 100MB, use chunked upload
+      if (file.size > 100 * 1024 * 1024) {
+        return libraryService.uploadFileInChunks(libraryId, file, onProgress);
+      }
+      
+      // For smaller files, use regular upload
+      return libraryService.uploadFile(libraryId, file);
+    } catch (error) {
+      console.error(`Failed to upload large file to library ${libraryId}:`, error);
+      throw error;
+    }
+  },
+
+  // Upload file in chunks for very large files
+  uploadFileInChunks: async (
+    libraryId: string, 
+    file: File, 
+    onProgress?: (progress: number) => void
+  ): Promise<any> => {
+    try {
+      const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+      const totalChunks = Math.ceil(file.size / chunkSize);
+      let uploadedChunks = 0;
+
+      console.log(`📁 LibraryService: Uploading ${file.name} in ${totalChunks} chunks`);
+
+      // Create upload session
+      const sessionResponse = await api.post(`/libraries/${libraryId}/upload-session`, {
+        fileName: file.name,
+        fileSize: file.size
+      });
+
+      const sessionId = sessionResponse.data.sessionId;
+
+      // Upload chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, file.size);
+        const chunk = file.slice(start, end);
+
+        const formData = new FormData();
+        formData.append('sessionId', sessionId);
+        formData.append('chunkIndex', i.toString());
+        formData.append('chunk', chunk);
+        formData.append('fileName', file.name);
+
+        await api.post(`/libraries/${libraryId}/upload-chunk`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 300000, // 5 minutes per chunk
+        });
+
+        uploadedChunks++;
+        if (onProgress) {
+          onProgress((uploadedChunks / totalChunks) * 100);
+        }
+      }
+
+      // Complete upload
+      const completeResponse = await api.post(`/libraries/${libraryId}/upload-complete`, { sessionId });
+      return completeResponse.data;
+    } catch (error) {
+      console.error(`Failed to upload file in chunks to library ${libraryId}:`, error);
+      throw error;
+    }
+  },
 };

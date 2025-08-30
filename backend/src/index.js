@@ -18,13 +18,13 @@ app.use(cors());
 app.use(compression());
 app.use(morgan('combined'));
 
-// Configure for large file uploads
+// Configure for large file uploads (10GB support)
 app.use(express.json({ limit: '10gb' }));
 app.use(express.urlencoded({ extended: true, limit: '10gb' }));
 
-// Increase timeout for large uploads
+// Increase timeout for large uploads (30 minutes for 10GB files)
 app.use((req, res, next) => {
-  res.setTimeout(300000); // 5 minutes
+  res.setTimeout(1800000); // 30 minutes
   next();
 });
 
@@ -33,6 +33,9 @@ app.use('/api/uploads/files', express.static(path.join(__dirname, '../uploads'))
 
 // Serve static files from library uploads directory
 app.use('/api/uploads/libraries', express.static(path.join(__dirname, '../uploads/libraries')));
+
+// Serve static files from user uploads directory
+app.use('/api/uploads/users', express.static(path.join(__dirname, '../uploads/users')));
 
 // Rate limiting
 const limiter = rateLimit({

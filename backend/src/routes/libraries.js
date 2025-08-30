@@ -15,11 +15,34 @@ router.get('/test', (req, res) => {
   res.json({ message: 'Libraries route is working' });
 });
 
-// Configure multer for file uploads
+// Configure multer for file uploads with 10GB support
 const upload = multer({ 
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 50 * 1024 * 1024 // 50MB limit
+    fileSize: 10 * 1024 * 1024 * 1024, // 10GB limit
+    fieldSize: 10 * 1024 * 1024 * 1024, // 10GB field size limit
+    files: 1, // Allow only one file at a time for large uploads
+  }
+});
+
+// Configure multer for chunk uploads (needs diskStorage to access file.path)
+const chunkUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      // Temporary directory for chunks
+      const tempDir = path.join(__dirname, '..', '..', 'uploads', 'temp');
+      fs.mkdirSync(tempDir, { recursive: true });
+      cb(null, tempDir);
+    },
+    filename: (req, file, cb) => {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, `chunk-${uniqueSuffix}`);
+    }
+  }),
+  limits: {
+    fileSize: 10 * 1024 * 1024 * 1024, // 10GB limit
+    fieldSize: 10 * 1024 * 1024 * 1024,
+    files: 1,
   }
 });
 
@@ -785,6 +808,319 @@ router.post('/:libraryId/files', authenticateToken, upload.single('file'), async
 
 // Note: File serving is now handled by Express static file serving in index.js
 // at /api/uploads/libraries/{libraryId}/{filename}
+
+// Create upload session for large files
+router.post('/:libraryId/upload-session', authenticateToken, async (req, res) => {
+  try {
+    const { libraryId } = req.params;
+    const { fileName, fileSize } = req.body;
+    
+    if (!fileName || !fileSize) {
+      return res.status(400).json({ error: 'FileName and fileSize are required' });
+    }
+
+    // Validate file size (10GB limit)
+    if (fileSize > 10 * 1024 * 1024 * 1024) {
+      return res.status(400).json({ error: 'File size exceeds 10GB limit' });
+    }
+
+    // Check library access
+    const library = await prisma.library.findUnique({
+      where: { id: libraryId }
+    });
+
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    if (library.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Check if user can write to library
+    const isMember = await prisma.libraryMember.findFirst({
+      where: {
+        libraryId,
+        userId: req.user.id
+      }
+    });
+
+    const canWrite = isMember || library.userId === req.user.id || ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+
+    if (!canWrite) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Generate session ID
+    const sessionId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create session directory
+    const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'libraries', libraryId, 'sessions', sessionId);
+    await fs.promises.mkdir(uploadDir, { recursive: true });
+
+    // Store session info
+    const sessionInfo = {
+      sessionId,
+      fileName,
+      fileSize: parseInt(fileSize),
+      libraryId,
+      userId: req.user.id,
+      createdAt: new Date(),
+      chunks: [],
+      totalChunks: Math.ceil(fileSize / (10 * 1024 * 1024)) // 10MB chunks
+    };
+
+    // Store session info in a file
+    await fs.promises.writeFile(
+      path.join(uploadDir, 'session.json'), 
+      JSON.stringify(sessionInfo)
+    );
+
+    res.status(201).json({ 
+      message: 'Upload session created',
+      sessionId,
+      totalChunks: sessionInfo.totalChunks
+    });
+  } catch (error) {
+    await logError('SESSION_CREATE_ERROR', 'Failed to create library upload session', error);
+    res.status(500).json({ error: 'Failed to create upload session' });
+  }
+});
+
+// Upload chunk for large files
+router.post('/:libraryId/upload-chunk', authenticateToken, chunkUpload.single('chunk'), async (req, res) => {
+  try {
+    const { libraryId } = req.params;
+    const { sessionId, chunkIndex, fileName } = req.body;
+    const chunkFile = req.file;
+    
+    console.log('Library chunk upload request received:', { 
+      libraryId,
+      sessionId, 
+      chunkIndex, 
+      fileName,
+      hasChunkFile: !!chunkFile,
+      chunkFileSize: chunkFile ? chunkFile.size : 0
+    });
+    
+    if (!sessionId || chunkIndex === undefined || !chunkFile || !fileName) {
+      return res.status(400).json({ 
+        error: 'SessionId, chunkIndex, chunk file, and fileName are required',
+        received: { 
+          sessionId, 
+          chunkIndex, 
+          chunk: chunkFile ? 'present' : 'missing', 
+          fileName,
+          chunkFileSize: chunkFile ? chunkFile.size : 0
+        }
+      });
+    }
+
+    // Check library access
+    const library = await prisma.library.findUnique({
+      where: { id: libraryId }
+    });
+
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    if (library.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const sessionDir = path.join(__dirname, '..', '..', 'uploads', 'libraries', libraryId, 'sessions', sessionId);
+    const sessionInfoPath = path.join(sessionDir, 'session.json');
+    
+    // Check if session exists
+    if (!fs.existsSync(sessionInfoPath)) {
+      return res.status(404).json({ error: 'Upload session not found' });
+    }
+
+    // Read session info
+    const sessionInfo = JSON.parse(await fs.promises.readFile(sessionInfoPath, 'utf8'));
+    
+    // Validate user ownership
+    if (sessionInfo.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied to this upload session' });
+    }
+
+    // The chunk file is already saved to disk by multer, so we just need to move it to the session directory
+    const chunkPath = path.join(sessionDir, `chunk_${chunkIndex}`);
+    
+    try {
+      // Move the uploaded chunk file to the session directory
+      await fs.promises.rename(chunkFile.path, chunkPath);
+      console.log('Chunk file moved to session directory:', chunkPath);
+    } catch (moveError) {
+      console.error('Failed to move chunk file:', moveError);
+      // Try to copy instead if rename fails
+      try {
+        await fs.promises.copyFile(chunkFile.path, chunkPath);
+        await fs.promises.unlink(chunkFile.path); // Clean up original
+        console.log('Chunk file copied to session directory:', chunkPath);
+      } catch (copyError) {
+        console.error('Failed to copy chunk file:', copyError);
+        return res.status(500).json({ error: 'Failed to save chunk file' });
+      }
+    }
+
+    // Update session info
+    sessionInfo.chunks.push(parseInt(chunkIndex));
+    sessionInfo.chunks.sort((a, b) => a - b);
+    
+    await fs.promises.writeFile(sessionInfoPath, JSON.stringify(sessionInfo, null, 2));
+
+    // Return only progress info, no success message to avoid toasts
+    res.json({ 
+      chunkIndex: parseInt(chunkIndex),
+      uploadedChunks: sessionInfo.chunks.length,
+      totalChunks: sessionInfo.totalChunks
+    });
+  } catch (error) {
+    console.error('Library chunk upload error:', error);
+    await logError('CHUNK_UPLOAD_ERROR', 'Failed to upload library chunk', error);
+    res.status(500).json({ error: 'Failed to upload chunk' });
+  }
+});
+
+// Complete upload session
+router.post('/:libraryId/upload-complete', authenticateToken, async (req, res) => {
+  try {
+    const { libraryId } = req.params;
+    const { sessionId } = req.body;
+    
+    if (!sessionId) {
+      return res.status(400).json({ error: 'SessionId is required' });
+    }
+
+    // Check library access
+    const library = await prisma.library.findUnique({
+      where: { id: libraryId }
+    });
+
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    if (library.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const sessionDir = path.join(__dirname, '..', '..', 'uploads', 'libraries', libraryId, 'sessions', sessionId);
+    const sessionInfoPath = path.join(sessionDir, 'session.json');
+    
+    // Check if session exists
+    if (!fs.existsSync(sessionInfoPath)) {
+      return res.status(404).json({ error: 'Upload session not found' });
+    }
+
+    // Read session info
+    const sessionInfo = JSON.parse(await fs.promises.readFile(sessionInfoPath, 'utf8'));
+    
+    // Validate user ownership
+    if (sessionInfo.userId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied to this upload session' });
+    }
+
+    // Check if all chunks are uploaded
+    if (sessionInfo.chunks.length !== sessionInfo.totalChunks) {
+      return res.status(400).json({ 
+        error: 'Not all chunks uploaded', 
+        uploaded: sessionInfo.chunks.length,
+        total: sessionInfo.totalChunks
+      });
+    }
+
+    // Combine chunks into final file
+    const finalFileName = `${Date.now()}-${sessionInfo.fileName}`;
+    const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'libraries', libraryId);
+    const finalFilePath = path.join(uploadDir, finalFileName);
+    const finalFileStream = fs.createWriteStream(finalFilePath);
+
+    // Combine chunks in order
+    for (let i = 0; i < sessionInfo.totalChunks; i++) {
+      const chunkPath = path.join(sessionDir, `chunk_${i}`);
+      if (!fs.existsSync(chunkPath)) {
+        return res.status(400).json({ error: `Chunk ${i} not found` });
+      }
+      
+      const chunkData = await fs.promises.readFile(chunkPath);
+      finalFileStream.write(chunkData);
+    }
+    
+    finalFileStream.end();
+
+    // Wait for file to be written
+    await new Promise((resolve, reject) => {
+      finalFileStream.on('finish', resolve);
+      finalFileStream.on('error', reject);
+    });
+
+    // Get final file size
+    const finalFileStats = await fs.promises.stat(finalFilePath);
+    
+    // Clean up session directory
+    try {
+      await fs.promises.rm(sessionDir, { recursive: true, force: true });
+    } catch (cleanupError) {
+      console.warn('Failed to cleanup session directory:', cleanupError);
+    }
+
+    // Create API URL for database storage
+    const serverUrl = req.protocol + '://' + req.get('host');
+    const apiUrl = `${serverUrl}/api/uploads/libraries/${libraryId}/${finalFileName}`;
+
+    // Create library file record
+    try {
+      const libraryFile = await prisma.libraryFile.create({
+        data: {
+          name: sessionInfo.fileName,
+          originalName: sessionInfo.fileName,
+          description: '',
+          url: apiUrl,
+          size: finalFileStats.size,
+          type: path.extname(sessionInfo.fileName).substring(1) || 'unknown',
+          mimeType: 'application/octet-stream',
+          libraryId,
+          folderId: null,
+          userId: req.user.id,
+          sucursalId: req.user.sucursalId
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true
+            }
+          }
+        }
+      });
+
+      res.json({
+        message: 'File upload completed successfully',
+        file: libraryFile
+      });
+    } catch (dbError) {
+      console.error('Failed to create library file record:', dbError);
+      
+      // Clean up the uploaded file since database record creation failed
+      try {
+        await fs.promises.unlink(finalFilePath);
+        console.log('Cleaned up uploaded file due to database error');
+      } catch (cleanupError) {
+        console.warn('Failed to cleanup uploaded file:', cleanupError);
+      }
+      
+      await logError('DATABASE_ERROR', 'Failed to create library file record', dbError);
+      res.status(500).json({ error: 'Failed to create file record in database' });
+    }
+  } catch (error) {
+    await logError('UPLOAD_COMPLETE_ERROR', 'Failed to complete library upload', error);
+    res.status(500).json({ error: 'Failed to complete upload' });
+  }
+});
 
 // Download library file
 router.get('/:libraryId/files/:fileId/download', authenticateToken, async (req, res) => {

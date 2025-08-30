@@ -550,20 +550,26 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
           continue;
         }
         
-        // Update progress to show uploading
-        setUploadProgress(prev => 
-          prev.map(p => p.id === fileItem.uid ? { ...p, progress: 50 } : p)
-        );
-        
         // Get parent folder ID if we're in a specific folder
         let folderId: string | undefined;
         if (currentFolderId) {
           folderId = currentFolderId;
         }
         
-        // Upload file to library
+        // Upload file to library with progress tracking
         console.log('Uploading file to library:', { libraryId, folderId, fileName: file.name });
-        const response = await libraryFileService.uploadFile(libraryId, { file, folderId, description: '' });
+        
+        const response = await libraryFileService.uploadLargeFile(
+          libraryId, 
+          { file, folderId, description: '' },
+          (progress) => {
+            // Update progress for this file
+            setUploadProgress(prev => 
+              prev.map(p => p.id === fileItem.uid ? { ...p, progress: Math.round(progress) } : p)
+            );
+          }
+        );
+        
         console.log('Upload response:', response);
         
         // Update progress to complete
@@ -572,21 +578,11 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         );
       }
 
-      // Clear progress and close modal after short delay
-      setTimeout(async () => {
-        setUploadProgress([]);
-        setUploadModalVisible(false);
-        // Reset the file input
-        if (uploadRef.current) {
-          uploadRef.current.fileList = [];
-        }
-        message.success('Files uploaded successfully');
-        
-        console.log('Reloading data after upload...');
-        // Reload data to show new files
-        await loadData();
-        console.log('Data reloaded after upload');
-      }, 1000);
+      // Show success message but keep modal open for user to see progress
+      message.success('Files uploaded successfully');
+      
+      // Don't automatically close modal - let user click "Done" when ready
+      // The modal will show the progress and "Done" button
       
     } catch (error) {
       console.error('Error uploading files:', error);
@@ -812,6 +808,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         rowKey="id"
         pagination={false}
         size="small"
+        loading={loading}
         rowSelection={{
           selectedRowKeys: selectedItems,
           onChange: (selectedRowKeys: React.Key[]) => setSelectedItems(selectedRowKeys.map(key => String(key))),
@@ -1020,25 +1017,6 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
 
         {/* Main Content */}
         {renderContent()}
-
-        {/* Upload Progress */}
-        {uploadProgress.length > 0 && (
-          <Card title={t('files.uploadProgress')} style={{ marginTop: 16 }}>
-            {uploadProgress.map(item => (
-              <div key={item.id} style={{ marginBottom: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text>{item.name}</Text>
-                  <Text type="secondary">{item.progress}%</Text>
-                </div>
-                <Progress
-                  percent={item.progress}
-                  status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'}
-                  size="small"
-                />
-              </div>
-            ))}
-          </Card>
-        )}
       </Card>
 
       {/* Create Folder Modal */}
@@ -1076,28 +1054,121 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
       <Modal
         title={t('files.uploadFiles')}
         open={uploadModalVisible}
-        onCancel={() => setUploadModalVisible(false)}
+        onCancel={() => {
+          setUploadModalVisible(false);
+          setUploadProgress([]);
+          // Reset the file input when modal is closed
+          if (uploadRef.current) {
+            uploadRef.current.fileList = [];
+          }
+        }}
         footer={null}
         width={600}
       >
-        <Upload.Dragger
-          ref={uploadRef}
-          multiple
-          beforeUpload={() => false}
-          onChange={({ fileList }) => {
-            if (fileList.length > 0) {
-              handleFileUpload(fileList);
-            }
-          }}
-        >
-          <p className="ant-upload-drag-icon">
-            <UploadOutlined />
-          </p>
-          <p className="ant-upload-text">{t('files.uploadDragText')}</p>
-          <p className="ant-upload-hint">
-            {t('files.uploadHint')}
-          </p>
-        </Upload.Dragger>
+        {uploadProgress.length === 0 ? (
+          <Upload.Dragger
+            ref={uploadRef}
+            multiple
+            beforeUpload={() => false}
+            onChange={({ fileList }) => {
+              if (fileList.length > 0) {
+                handleFileUpload(fileList);
+              }
+            }}
+          >
+            <p className="ant-upload-drag-icon">
+              <UploadOutlined />
+            </p>
+            <p className="ant-upload-text">{t('files.uploadDragText')}</p>
+            <p className="ant-upload-hint">
+              {t('files.uploadHint')}
+            </p>
+          </Upload.Dragger>
+        ) : (
+          <div className="space-y-4">
+            {/* Upload Progress List */}
+            <div className="max-h-64 overflow-y-auto">
+              {uploadProgress.map((item, index) => (
+                <div key={index} className="border rounded-lg p-3 mb-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-2">
+                      <FileOutlined className="text-blue-500" />
+                      <span className="font-medium text-sm truncate max-w-48">
+                        {item.name}
+                      </span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      {item.status === 'uploading' && (
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+                      )}
+                      {item.status === 'success' && (
+                        <span className="text-green-500 text-sm">✓</span>
+                      )}
+                      {item.status === 'error' && (
+                        <span className="text-red-500 text-sm">✗</span>
+                      )}
+                    </div>
+                  </div>
+                  
+                  {/* Progress Bar */}
+                  <Progress
+                    percent={item.progress}
+                    size="small"
+                    status={
+                      item.status === 'error' ? 'exception' : 
+                      item.status === 'success' ? 'success' : 'active'
+                    }
+                    strokeColor={
+                      item.status === 'error' ? '#ff4d4f' : 
+                      item.status === 'success' ? '#52c41a' : '#1890ff'
+                    }
+                  />
+                  
+                  {/* Status Text */}
+                  <div className="text-xs text-gray-500 mt-1">
+                    {item.status === 'uploading' && 'Uploading...'}
+                    {item.status === 'success' && 'Upload completed'}
+                    {item.status === 'error' && (
+                      <span className="text-red-500">
+                        Error: Upload failed
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Action Buttons */}
+            <div className="flex justify-between items-center pt-4 border-t">
+              <div className="text-sm text-gray-500">
+                {uploadProgress.filter(item => item.status === 'success').length} of {uploadProgress.length} completed
+              </div>
+              <Space>
+                {uploadProgress.some(item => item.status === 'error') && (
+                  <Button 
+                    onClick={() => setUploadProgress([])}
+                    size="small"
+                  >
+                    Clear
+                  </Button>
+                )}
+                {uploadProgress.every(item => item.status === 'success') && (
+                  <Button 
+                    type="primary"
+                    onClick={() => {
+                      setUploadModalVisible(false);
+                      setUploadProgress([]);
+                      loadData();
+                    }}
+                    size="small"
+                  >
+                    Done
+                  </Button>
+                )}
+              </Space>
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Rename Modal */}

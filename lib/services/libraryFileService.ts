@@ -97,10 +97,91 @@ export const libraryFileService = {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
+        timeout: 1800000, // 30 minutes for large files
       });
       return response.data.file;
     } catch (error) {
       console.error(`Failed to upload file to library ${libraryId}:`, error);
+      throw error;
+    }
+  },
+
+  // Upload large file to library with progress tracking
+  uploadLargeFile: async (
+    libraryId: string, 
+    data: UploadFileRequest, 
+    onProgress?: (progress: number) => void
+  ): Promise<LibraryFile> => {
+    try {
+      // For files larger than 100MB, use chunked upload
+      if (data.file.size > 100 * 1024 * 1024) {
+        return libraryFileService.uploadFileInChunks(libraryId, data, onProgress);
+      }
+      
+      // For smaller files, use regular upload
+      return libraryFileService.uploadFile(libraryId, data);
+    } catch (error) {
+      console.error(`Failed to upload large file to library ${libraryId}:`, error);
+      throw error;
+    }
+  },
+
+  // Upload file in chunks for very large files
+  uploadFileInChunks: async (
+    libraryId: string, 
+    data: UploadFileRequest, 
+    onProgress?: (progress: number) => void
+  ): Promise<LibraryFile> => {
+    try {
+      const chunkSize = 10 * 1024 * 1024; // 10MB chunks
+      const totalChunks = Math.ceil(data.file.size / chunkSize);
+      let uploadedChunks = 0;
+
+      console.log(`📁 LibraryFileService: Uploading ${data.file.name} in ${totalChunks} chunks`);
+
+      // Create upload session
+      const sessionResponse = await api.post(`/libraries/${libraryId}/upload-session`, {
+        fileName: data.file.name,
+        fileSize: data.file.size,
+        folderId: data.folderId
+      });
+
+      const sessionId = sessionResponse.data.sessionId;
+
+      // Upload chunks
+      for (let i = 0; i < totalChunks; i++) {
+        const start = i * chunkSize;
+        const end = Math.min(start + chunkSize, data.file.size);
+        const chunk = data.file.slice(start, end);
+
+        // Convert Blob chunk to file for upload
+        const chunkBlob = new Blob([chunk], { type: 'application/octet-stream' });
+        const chunkFile = new File([chunkBlob], `chunk_${i}`, { type: 'application/octet-stream' });
+
+        const formData = new FormData();
+        formData.append('sessionId', sessionId);
+        formData.append('chunkIndex', i.toString());
+        formData.append('chunk', chunkFile); // Send as file
+        formData.append('fileName', data.file.name);
+
+        await api.post(`/libraries/${libraryId}/upload-chunk`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 300000, // 5 minutes per chunk
+        });
+
+        uploadedChunks++;
+        if (onProgress) {
+          onProgress((uploadedChunks / totalChunks) * 100);
+        }
+      }
+
+      // Complete upload
+      const completeResponse = await api.post(`/libraries/${libraryId}/upload-complete`, { sessionId });
+      return completeResponse.data.file;
+    } catch (error) {
+      console.error(`Failed to upload file in chunks to library ${libraryId}:`, error);
       throw error;
     }
   },

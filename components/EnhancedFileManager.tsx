@@ -320,6 +320,7 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
   // Forms
   const [createFolderForm] = Form.useForm();
   const [renameForm] = Form.useForm();
+  const uploadRef = useRef<any>(null);
   
   const { user } = useUser();
   const { t } = useTranslation();
@@ -759,26 +760,42 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
           continue;
         }
         
-        // Update progress to show uploading
-        setUploadProgress(prev => 
-          prev.map(p => p.id === fileItem.uid ? { ...p, progress: 50 } : p)
-        );
+        // Get parent folder ID if we're in a specific folder
+        let folderId: string | undefined;
+        console.log('🔍 Current path:', currentPath);
+        console.log('🔍 Current folder ID:', currentFolderId);
+        if (currentFolderId) {
+          folderId = currentFolderId;
+          console.log('📁 Uploading to folder ID:', folderId);
+        } else {
+          console.log('📁 Uploading to root folder');
+        }
         
-                 // Get parent folder ID if we're in a specific folder
-         let folderId: string | undefined;
-         console.log('🔍 Current path:', currentPath);
-         console.log('🔍 Current folder ID:', currentFolderId);
-         if (currentFolderId) {
-           folderId = currentFolderId;
-           console.log('📁 Uploading to folder ID:', folderId);
-         } else {
-           console.log('📁 Uploading to root folder');
-         }
-         
-         // Upload to backend with folder context
-         console.log('🚀 Frontend: Uploading file with folderId:', folderId);
-         const response = await fileService.uploadFile(file, folderId);
-         console.log('🚀 Frontend: Upload response:', response);
+        let response;
+        if (mode === 'user-files' && userId) {
+          // Upload file for specific user
+          console.log('🚀 Frontend: Uploading file for user:', userId, 'with folderId:', folderId);
+          response = await userService.uploadFileForUser(userId, file, folderId, (progress) => {
+            // Update progress for this file
+            setUploadProgress(prev => 
+              prev.map(p => p.id === fileItem.uid ? { ...p, progress: Math.round(progress) } : p)
+            );
+          });
+        } else {
+          // Upload to backend with folder context and progress tracking
+          console.log('🚀 Frontend: Uploading file with folderId:', folderId);
+          response = await fileService.uploadLargeFile(
+            file, 
+            folderId,
+            (progress) => {
+              // Update progress for this file
+              setUploadProgress(prev => 
+                prev.map(p => p.id === fileItem.uid ? { ...p, progress: Math.round(progress) } : p)
+              );
+            }
+          );
+        }
+        console.log('🚀 Frontend: Upload response:', response);
         
         // Update progress to complete
         setUploadProgress(prev => 
@@ -790,17 +807,21 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
       setTimeout(async () => {
         setUploadProgress([]);
         setUploadModalVisible(false);
-        message.success('Files uploaded successfully');
+        // Reset the file input
+        if (uploadRef.current) {
+          uploadRef.current.fileList = [];
+        }
         
         // Reload data to show new files
         await loadData();
       }, 1000);
       
+      message.success(`${fileList.length} file(s) uploaded successfully!`);
     } catch (error) {
       console.error('Error uploading files:', error);
       message.error('Failed to upload files');
       
-      // Mark all as failed
+      // Update progress to error for failed uploads
       setUploadProgress(prev => 
         prev.map(p => ({ ...p, status: 'error' as const }))
       );
@@ -1462,11 +1483,18 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
              <Modal
          title={t('files.uploadFiles')}
          open={uploadModalVisible}
-         onCancel={() => setUploadModalVisible(false)}
+         onCancel={() => {
+           setUploadModalVisible(false);
+           // Reset the file input when modal is closed
+           if (uploadRef.current) {
+             uploadRef.current.fileList = [];
+           }
+         }}
          footer={null}
          width={600}
        >
                  <Upload.Dragger
+           ref={uploadRef}
            multiple
            beforeUpload={() => false}
            onChange={({ fileList }) => {

@@ -429,9 +429,9 @@ export default function LibrariesManager({
         <Card>
           <Row justify="space-between" align="middle">
             <Col>
-              <Button 
+          <Button 
                 icon={<FolderOutlined />} 
-                onClick={() => {
+              onClick={() => {
                   setSelectedLibrary(null);
                   // Reset modal states when going back
                   setIsEditModalVisible(false);
@@ -441,7 +441,7 @@ export default function LibrariesManager({
                 style={{ marginBottom: '16px' }}
               >
                 ← {t('libraries.backToLibraries')}
-              </Button>
+            </Button>
               <Title level={2}>{selectedLibrary.name}</Title>
               {selectedLibrary.description && (
                 <Text type="secondary">{selectedLibrary.description}</Text>
@@ -525,6 +525,7 @@ export default function LibrariesManager({
             columns={libraryColumns}
             dataSource={filteredLibraries}
             rowKey="id"
+            loading={loading}
             pagination={{
               pageSize: 10,
               showSizeChanger: true,
@@ -680,7 +681,7 @@ export default function LibrariesManager({
                   onClick={() => setIsAddMemberModalVisible(true)}
                 >
                   {t('libraries.addMember')}
-                </Button>
+              </Button>
               )}
             </div>
 
@@ -708,7 +709,7 @@ export default function LibrariesManager({
                               danger
                             >
                               {t('libraries.remove')}
-                            </Button>
+              </Button>
                           </Popconfirm>
                         ]
                       ) : []

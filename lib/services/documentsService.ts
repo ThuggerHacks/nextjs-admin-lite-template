@@ -278,7 +278,7 @@ export const documentsService = {
       const formData = new FormData();
       formData.append('sessionId', sessionId);
       formData.append('chunkIndex', chunkIndex.toString());
-      formData.append('chunk', chunk);
+      formData.append('chunk', chunk, `chunk_${chunkIndex}`); // Send as file with proper filename
       formData.append('fileName', fileName);
 
       await apiService.post('/api/uploads/chunk', formData, {
