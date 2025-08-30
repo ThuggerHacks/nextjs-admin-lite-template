@@ -15,13 +15,12 @@ import { departmentService, Department } from "@/lib/services/departmentService"
 export default function LoginPage() {
   const [loginForm] = Form.useForm();
   const [registerForm] = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState("login");
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loadingDepartments, setLoadingDepartments] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   
-  const { login } = useUser();
+  const { login, isLoggingIn } = useUser();
   const { locale, setLocale } = useLanguage();
   const { t } = useTranslation();
   const router = useRouter();
@@ -61,17 +60,16 @@ export default function LoginPage() {
     fetchDepartments();
   }, []);
 
-  const handleLogin = async (values: { email: string; password: string; remember: boolean }) => {
+  const handleLogin = async (values: { email: string; password: string }) => {
     // Prevent any form reload
-    console.log('Login handler called with:', { email: values.email, remember: values.remember });
-    setLoading(true);
+    console.log('Login handler called with:', { email: values.email });
     
     try {
       const result = await login(values.email, values.password);
       console.log('Login result:', result);
       
       if (result.success && result.user) {
-        message.success(t("auth.welcomeBack"));
+       
         
         console.log('Login successful, user object:', result.user);
         console.log('Current localStorage token:', localStorage.getItem('token'));
@@ -99,28 +97,27 @@ export default function LoginPage() {
             if (departmentId) {
               return `/departments`; // Manage their specific department
             }
-            return '/homepage'; // Fallback if no department assigned
+            return '/profile'; // Fallback if no department assigned
           }
           
           // Regular User - access their department's content
           if (role === 'USER') {
             if (departmentId) {
-              return '/homepage'; // User dashboard with department context
+              return '/profile'; // User dashboard with department context
             }
             return '/profile'; // Complete profile setup if no department
-          }
+            }
           
           // Default fallback
-          return '/homepage';
+          return '/profile';
         };
-        
+        message.success(t("auth.welcomeBack"));
         const redirectPath = getRedirectPath(result.user);
         console.log('Redirecting to:', redirectPath);
         
-        // Add a small delay to ensure token is saved before redirect
-        setTimeout(() => {
-          router.replace(redirectPath);
-        }, 100);
+        // Immediate redirect after successful login
+        console.log('Redirecting to:', redirectPath);
+        router.replace(redirectPath);
       } else {
         console.error('Login failed:', result.error);
         message.error(result.error || t("auth.invalidCredentials"));
@@ -128,16 +125,10 @@ export default function LoginPage() {
     } catch (error: any) {
       console.error('Login error:', error);
       message.error(error.message || t("auth.loginFailed"));
-    } finally {
-      setLoading(false);
     }
   };
 
   const handleRegister = async (values: any) => {
-    // Prevent any form reload
-    console.log('Register handler called with:', values);
-    setLoading(true);
-    
     try {
       const registerData = {
         name: values.name,
@@ -147,9 +138,7 @@ export default function LoginPage() {
         role: UserRole.USER // Default role for new registrations
       };
       
-      console.log('Sending registration data:', registerData);
       const response = await authService.register(registerData);
-      console.log('Registration response:', response);
       
       // Success - show messages and switch to login tab
       message.success(response.message || t("auth.accountRequested"));
@@ -159,37 +148,25 @@ export default function LoginPage() {
       registerForm.resetFields();
       setActiveTab("login");
       
-      } catch (error: any) {
-    console.error('Registration error:', error);
+    } catch (error: any) {
+      // Extract error message from response
+      let errorMessage = t("auth.registrationFailed") || "Registration failed";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.errors) {
+        // Handle validation errors array
+        const errors = error.response.data.errors;
+        errorMessage = errors.map((err: any) => err.msg || err.message).join(', ');
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
 
-    // Extract error message from response
-    let errorMessage = t("auth.registrationFailed") || "Registration failed";
-    if (error.response?.data?.error) {
-      errorMessage = error.response.data.error;
-    } else if (error.response?.data?.errors) {
-      // Handle validation errors array
-      const errors = error.response.data.errors;
-      errorMessage = errors.map((err: any) => err.msg || err.message).join(', ');
-    } else if (error.message) {
-      errorMessage = error.message;
+      message.error(errorMessage);
     }
-
-    message.error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
   };
 
-  // Prevent form submission refresh with explicit preventDefault
-  const handleFormSubmit = (handler: Function) => {
-    return async (values: any) => {
-      // Prevent any potential form submission
-      return handler(values);
-    };
-  };
-
-  // Create explicit form submission handlers that prevent default
-  const onLoginSubmit = async (values: { email: string; password: string; remember: boolean }) => {
+  // Form submission handlers
+  const onLoginSubmit = async (values: { email: string; password: string }) => {
     return handleLogin(values);
   };
 
@@ -209,6 +186,7 @@ export default function LoginPage() {
         <Form
           form={loginForm}
           name="login"
+          onFinish={onLoginSubmit}
           onFinishFailed={(errorInfo) => {
             console.log('Login form validation failed:', errorInfo);
             message.error(t("auth.checkFormFields"));
@@ -242,7 +220,7 @@ export default function LoginPage() {
             />
           </Form.Item>
 
-          <Form.Item>
+          {/* <Form.Item>
             <div className="flex justify-between items-center">
               <Form.Item name="remember" valuePropName="checked" noStyle>
                 <Checkbox>{t("auth.rememberMe")}</Checkbox>
@@ -251,27 +229,21 @@ export default function LoginPage() {
                 {t("auth.forgotPassword")}
               </Button>
             </div>
-          </Form.Item>
+          </Form.Item> */}
 
           <Form.Item>
             <Button
               type="primary"
-              htmlType="button"
-              loading={loading}
+              htmlType="submit"
+              loading={isLoggingIn}
               className="w-full"
               size="large"
-              onClick={async () => {
-                try {
-                  const values = await loginForm.validateFields();
-                  await onLoginSubmit(values);
-                } catch (error) {
-                  console.log('Login form validation failed:', error);
-                  message.error(t("auth.checkFormFields"));
-                }
-              }}
             >
               {t("common.login")}
             </Button>
+            <div className="text-center text-xs text-gray-500 mt-2">
+              Press Enter to submit
+            </div>
           </Form.Item>
         </Form>
       )
@@ -283,6 +255,7 @@ export default function LoginPage() {
         <Form
           form={registerForm}
           name="register"
+          onFinish={onRegisterSubmit}
           onFinishFailed={(errorInfo) => {
             console.log('Register form validation failed:', errorInfo);
             message.error(t("auth.checkFormFields"));
@@ -375,22 +348,16 @@ export default function LoginPage() {
           <Form.Item>
             <Button
               type="primary"
-              htmlType="button"
-              loading={loading}
+              htmlType="submit"
+              loading={false}
               className="w-full"
               size="large"
-              onClick={async () => {
-                try {
-                  const values = await registerForm.validateFields();
-                  await onRegisterSubmit(values);
-                } catch (error) {
-                  console.log('Register form validation failed:', error);
-                  message.error(t("auth.checkFormFields"));
-                }
-              }}
             >
               {t("auth.requestAccess")}
             </Button>
+            <div className="text-center text-xs text-gray-500 mt-2">
+              Press Enter to submit
+            </div>
           </Form.Item>
         </Form>
       )

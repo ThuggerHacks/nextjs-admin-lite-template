@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { FloatButton, Drawer, Card, Typography, List } from "antd";
@@ -23,11 +23,12 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   const { isCollapsed } = useCollapse();
   const { settings } = useSettingStore();
   const { colorBgContainer, colorBgElevated } = useThemeToken();
-  const { user, isAuthenticated, loading } = useUser();
+  const { user, isAuthenticated, loading, isLoggingOut, isLoggingIn } = useUser();
   const router = useRouter();
   const [helpDrawerVisible, setHelpDrawerVisible] = useState(false);
 
-  const helpItems = [
+  // Memoize help items to prevent unnecessary re-renders
+  const helpItems = useMemo(() => [
     {
       title: "Goals Management",
       description: "Create individual or department-wide goals, track progress with reports",
@@ -48,7 +49,34 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       description: "Monitor branch servers and diagnostics (Developer only)", 
       icon: <PhoneOutlined />
     }
-  ];
+  ], []);
+
+  // Memoize style objects to prevent unnecessary re-renders
+  const sidebarStyle = useMemo(() => ({
+    color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
+    backgroundColor: settings.themeMode === ThemeMode.Dark ? colorBgElevated : "",
+  }), [settings.themeMode, colorBgElevated]);
+
+  const breadcrumbStyle = useMemo(() => ({
+    color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
+    backgroundColor: settings.themeMode === ThemeMode.Dark ? colorBgElevated : "",
+  }), [settings.themeMode, colorBgElevated]);
+
+  const mainStyle = useMemo(() => ({
+    color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
+    backgroundColor: settings.themeMode === ThemeMode.Dark ? colorBgElevated : "",
+  }), [settings.themeMode, colorBgElevated]);
+
+  // Memoize className to prevent unnecessary re-renders
+  const breadcrumbClassName = useMemo(() => cn(
+    "fixed w-full top-[48px] h-[40px] z-10 transition-all",
+    isCollapsed ? "ml-[50px]" : "ml-[210px]"
+  ), [isCollapsed]);
+
+  const mainClassName = useMemo(() => cn(
+    "w-full min-h-[100vh] bg-[#f0f4f7] p-2 pt-[98px] transition-spacing",
+    isCollapsed ? "ml-[50px]" : "ml-[210px]"
+  ), [isCollapsed]);
 
   useEffect(() => {
     if (!loading && !isAuthenticated) {
@@ -56,20 +84,43 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     }
   }, [loading, isAuthenticated, router]);
 
-  if (loading) {
+  if (loading || isLoggingOut || isLoggingIn) {
+    // Debug logging to help troubleshoot loader issues
+    console.log('Loader state:', { loading, isLoggingOut, isLoggingIn, isAuthenticated });
+    
+    const loadingMessage = isLoggingOut 
+      ? "Logging out..." 
+      : isLoggingIn 
+        ? "Logging in..." 
+        : "Loading Totalizer Platform...";
+    
+    const subMessage = isLoggingOut 
+      ? "Please wait while we secure your session" 
+      : isLoggingIn 
+        ? "Please wait while we authenticate you" 
+        : "Please wait while we prepare your workspace";
+    
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <div className="mb-4">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center bg-white p-8 rounded-lg shadow-lg">
+          <div className="mb-6 flex justify-center">
             <Image
               src="/icon.png"
               alt="Platform Logo"
-              width={64}
-              height={64}
+              width={80}
+              height={80}
               className="rounded-lg shadow-lg"
+              priority
             />
           </div>
-          <div className="text-lg">Loading Totalizer Platform...</div>
+          <div className="text-xl font-medium text-gray-700">{loadingMessage}</div>
+          <div className="mt-2 text-sm text-gray-500">{subMessage}</div>
+          {/* Debug info in development */}
+          {process.env.NODE_ENV === 'development' && (
+            <div className="mt-4 text-xs text-gray-400">
+              Debug: {loading ? 'loading' : ''} {isLoggingOut ? 'loggingOut' : ''} {isLoggingIn ? 'loggingIn' : ''}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -87,41 +138,21 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="flex min-h-full ">
         <div
           className="fixed top-[48px] h-full shadow-md border-r bg-white border-zinc-200 z-10"
-          style={{
-            color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
-            backgroundColor:
-              settings.themeMode === ThemeMode.Dark ? colorBgElevated : "",
-          }}
+          style={sidebarStyle}
         >
           <SiderPage />
         </div>
-        <div
-          className={cn(
-            "fixed w-full top-[48px] h-[40px] z-10 transition-all",
-            isCollapsed ? "ml-[50px]" : "ml-[210px]"
-          )}
-        >
+        <div className={breadcrumbClassName}>
           <div
             className="h-full flex items-center bg-[#f0f4f7]"
-            style={{
-              color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
-              backgroundColor:
-                settings.themeMode === ThemeMode.Dark ? colorBgElevated : "",
-            }}
+            style={breadcrumbStyle}
           >
             <NavBreadcrumb />
           </div>
         </div>
         <main
-          className={cn(
-            "w-full min-h-[100vh] bg-[#f0f4f7] p-2 pt-[98px] transition-spacing",
-            isCollapsed ? "ml-[50px]" : "ml-[210px]"
-          )}
-          style={{
-            color: settings.themeMode === ThemeMode.Dark ? "#ffffff" : "",
-            backgroundColor:
-              settings.themeMode === ThemeMode.Dark ? colorBgElevated : "",
-          }}
+          className={mainClassName}
+          style={mainStyle}
         >
           {children}
         </main>
@@ -155,7 +186,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           <Card size="small" title="Key Features">
             <List
               dataSource={helpItems}
-              renderItem={(item) => (
+              renderItem={(item: any) => (
                 <List.Item>
                   <List.Item.Meta
                     avatar={item.icon}
@@ -203,4 +234,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
   );
 };
 
-export default MainLayout;
+// Wrap component with React.memo for performance optimization
+const MemoizedMainLayout = React.memo(MainLayout);
+
+export default MemoizedMainLayout;

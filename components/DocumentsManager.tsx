@@ -1146,8 +1146,8 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateFolderModalVisible(true)}>
                 {t('files.createNewFolder')}
               </Button>
-              <Button type="primary" icon={<FileTextOutlined />} onClick={() => setRichTextModalVisible(true)}>
-                {t('files.createNewDocument')}
+              <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadModalVisible(true)}>
+                {t('files.sendDocument')}
               </Button>
             </Space>
           )}
@@ -1453,8 +1453,8 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateFolderModalVisible(true)}>
                 {t('files.createNewFolder')}
               </Button>
-              <Button type="primary" icon={<FileTextOutlined />} onClick={() => setRichTextModalVisible(true)}>
-                {t('files.createNewDocument')}
+              <Button type="primary" icon={<UploadOutlined />} onClick={() => setUploadModalVisible(true)}>
+                {t('files.sendDocument')}
               </Button>
             </Space>
           )}

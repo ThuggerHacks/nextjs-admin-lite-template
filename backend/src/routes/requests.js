@@ -208,10 +208,12 @@ router.post('/:requestId/approve', authenticateToken, requireRole(['ADMIN', 'SUP
 });
 
 // Reject request (reject and remove user)
-router.post('/:requestId/reject', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN']), async (req, res) => {
+router.post('/:requestId/reject', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN','SUPERVISOR']), async (req, res) => {
   try {
     const { requestId } = req.params;
     const { response } = req.body;
+
+    console.log('Rejecting request for user:', requestId);
 
     const user = await prisma.user.findUnique({
       where: { id: requestId },
@@ -222,21 +224,49 @@ router.post('/:requestId/reject', authenticateToken, requireRole(['ADMIN', 'SUPE
     });
 
     if (!user) {
+      console.log('User not found for rejection:', requestId);
       return res.status(404).json({ error: 'User not found' });
     }
 
-    // Create notification for the user before deletion
-    await createNotification(
-      requestId,
-      'SYSTEM_UPDATE',
-      'Account Rejected',
-      `Your account registration has been rejected by ${req.user.name}. ${response || 'Your account registration has been rejected.'}`
-    );
+    console.log('Found user for rejection:', user.email);
 
-    // Delete the user completely when rejected
-    await prisma.user.delete({
-      where: { id: requestId }
-    });
+    // First, try to deactivate the user instead of deleting
+    try {
+      await prisma.user.update({
+        where: { id: requestId },
+        data: { 
+          status: 'REJECTED',
+          updatedAt: new Date()
+        }
+      });
+      console.log('User status updated to REJECTED');
+    } catch (updateError) {
+      console.error('Failed to update user status:', updateError);
+      // If update fails, try to delete
+      try {
+        await prisma.user.delete({
+          where: { id: requestId }
+        });
+        console.log('User deleted successfully');
+      } catch (deleteError) {
+        console.error('Failed to delete user:', deleteError);
+        throw new Error(`Failed to reject user: ${deleteError.message}`);
+      }
+    }
+
+    // Try to create notification (but don't fail if it doesn't work)
+    try {
+      await createNotification(
+        requestId,
+        'SYSTEM_UPDATE',
+        'Account Rejected',
+        `Your account registration has been rejected by ${req.user.name}. ${response || 'Your account registration has been rejected.'}`
+      );
+      console.log('Notification created successfully');
+    } catch (notificationError) {
+      console.error('Failed to create notification:', notificationError);
+      // Continue with rejection even if notification fails
+    }
 
     // Return rejection confirmation
     const request = {
@@ -258,10 +288,15 @@ router.post('/:requestId/reject', authenticateToken, requireRole(['ADMIN', 'SUPE
       response: response || 'Account registration rejected and user removed'
     };
 
+    console.log('Request rejection completed successfully');
     res.json({ request });
   } catch (error) {
+    console.error('Reject request failed:', error);
     await logError('DATABASE_ERROR', 'Reject request failed', error);
-    res.status(500).json({ error: 'Failed to reject request' });
+    res.status(500).json({ 
+      error: 'Failed to reject request',
+      details: error.message 
+    });
   }
 });
 

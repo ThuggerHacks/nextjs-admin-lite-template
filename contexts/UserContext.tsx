@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { User, UserRole, UserStatus } from '@/types';
 import { authService } from '@/lib/services/authService';
 import { apiService } from '@/lib/axios';
@@ -9,6 +9,8 @@ interface UserContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isLoggingOut: boolean;
+  isLoggingIn: boolean;
   login: (email: string, password: string) => Promise<{ success: boolean; user?: User; error?: string }>;
   logout: () => void;
   hasRole: (role: UserRole) => boolean;
@@ -28,6 +30,8 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3003/a
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   // Check for stored auth on mount and initialize locale
   useEffect(() => {
@@ -51,7 +55,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     initializeApp();
   }, []);
 
-  const validateToken = async (token: string) => {
+  const validateToken = useCallback(async (token: string) => {
     try {
       console.log('Validating token...');
       const isValid = await authService.verifyToken();
@@ -69,21 +73,40 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         }
       } else {
         console.log('Token is invalid, clearing storage');
-        logout();
+        // Clear storage directly to avoid circular dependency
+        localStorage.clear();
+        sessionStorage.clear();
+        apiService.clearAuthToken();
+        setUser(null);
       }
     } catch (error) {
       console.error('Token validation error:', error);
-      logout();
+      // Clear storage directly to avoid circular dependency
+      localStorage.clear();
+      sessionStorage.clear();
+      apiService.clearAuthToken();
+      setUser(null);
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const login = async (email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }> => {
+  const login = useCallback(async (email: string, password: string): Promise<{ success: boolean; user?: User; error?: string }> => {
     try {
+      setIsLoggingIn(true);
       setLoading(true);
 
+      // Add safety timeout to prevent loader from getting stuck
+      const safetyTimeout = setTimeout(() => {
+        console.warn('Login timeout - resetting loading state');
+        setIsLoggingIn(false);
+        setLoading(false);
+      }, 30000); // 30 seconds timeout
+
       const response = await authService.login({ email, password });
+
+      // Clear safety timeout
+      clearTimeout(safetyTimeout);
 
       // Store user data and token (token is already stored in axios instance)
       localStorage.setItem('user', JSON.stringify(response.user));
@@ -94,8 +117,6 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         apiService.setCurrentSucursal(response.user.sucursal);
       }
 
-      console.log('Login successful, user set:', response.user);
-
       return { success: true, user: response.user };
     } catch (error: any) {
       console.error('Login error:', error);
@@ -103,12 +124,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       return { success: false, error: errorMessage };
     } finally {
       setLoading(false);
+      setIsLoggingIn(false);
     }
-  };
+  }, []);
 
-  const logout = async () => {
+  const logout = useCallback(async () => {
     try {
+      setIsLoggingOut(true);
+      
+      // Add safety timeout to prevent loader from getting stuck
+      const safetyTimeout = setTimeout(() => {
+        console.warn('Logout timeout - resetting loading state');
+        setIsLoggingOut(false);
+      }, 15000); // 15 seconds timeout
+
       await authService.logout();
+      
+      // Clear safety timeout
+      clearTimeout(safetyTimeout);
     } catch (error) {
       console.error('Logout API error:', error);
       // Continue with logout even if API call fails
@@ -122,10 +155,11 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
       setUser(null);
       console.log('Logout completed, all data cleared');
+      setIsLoggingOut(false);
     }
-  };
+  }, []);
 
-  const hasRole = (role: UserRole): boolean => {
+  const hasRole = useCallback((role: UserRole): boolean => {
     if (!user) return false;
     
     // Super admin has all permissions
@@ -146,14 +180,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     
     // User only has user permissions
     return user.role === role;
-  };
+  }, [user]);
 
-  const canAccess = (roles: UserRole[]): boolean => {
+  const canAccess = useCallback((roles: UserRole[]): boolean => {
     if (!user) return false;
     return roles.some(role => hasRole(role));
-  };
+  }, [user, hasRole]);
 
-  const canAccessRoute = (route: string): boolean => {
+  const canAccessRoute = useCallback((route: string): boolean => {
     if (!user) return false;
 
     // Define role-based route access
@@ -178,9 +212,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (!allowedRoles) return true; // Allow access to undefined routes by default
 
     return allowedRoles.includes(user.role);
-  };
+  }, [user]);
 
-  const getDefaultRoute = (userRole: UserRole): string => {
+  const getDefaultRoute = useCallback((userRole: UserRole): string => {
     switch (userRole) {
       case UserRole.SUPER_ADMIN:
       case UserRole.ADMIN:
@@ -193,9 +227,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       default:
         return '/homepage';
     }
-  };
+  }, []);
 
-  const getAllUsers = async (): Promise<User[]> => {
+  const getAllUsers = useCallback(async (): Promise<User[]> => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`${API_BASE_URL}/users`, {
@@ -215,9 +249,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       console.error('Get users error:', error);
       return [];
     }
-  };
+  }, []);
 
-  const updateUser = async (userId: string, userData: Partial<User>): Promise<boolean> => {
+  const updateUser = useCallback(async (userId: string, userData: Partial<User>): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
@@ -234,9 +268,9 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       console.error('Update user error:', error);
       return false;
     }
-  };
+  }, []);
 
-  const deleteUser = async (userId: string): Promise<boolean> => {
+  const deleteUser = useCallback(async (userId: string): Promise<boolean> => {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(`${API_BASE_URL}/users/${userId}`, {
@@ -252,31 +286,36 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
       console.error('Delete user error:', error);
       return false;
     }
-  };
+  }, []);
 
-  const updateCurrentUser = (userData: Partial<User>) => {
+  const updateCurrentUser = useCallback((userData: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...userData } as User;
       setUser(updatedUser);
       localStorage.setItem('user', JSON.stringify(updatedUser));
     }
-  };
+  }, [user]);
+
+  // Memoize context value to prevent unnecessary re-renders
+  const contextValue = useMemo(() => ({
+    user,
+    loading,
+    isAuthenticated: !!user,
+    isLoggingOut,
+    isLoggingIn,
+    login,
+    logout,
+    hasRole,
+    canAccess,
+    canAccessRoute,
+    getAllUsers,
+    updateUser,
+    deleteUser,
+    updateCurrentUser,
+  }), [user, loading, isLoggingOut, isLoggingIn, login, logout, hasRole, canAccess, canAccessRoute, getAllUsers, updateUser, deleteUser, updateCurrentUser]);
 
   return (
-    <UserContext.Provider value={{
-      user,
-      loading,
-      isAuthenticated: !!user,
-      login,
-      logout,
-      hasRole,
-      canAccess,
-      canAccessRoute,
-      getAllUsers,
-      updateUser,
-      deleteUser,
-      updateCurrentUser,
-    }}>
+    <UserContext.Provider value={contextValue}>
       {children}
     </UserContext.Provider>
   );

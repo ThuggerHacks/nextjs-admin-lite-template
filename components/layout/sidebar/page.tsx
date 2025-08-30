@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useMemo } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { cn } from "@/lib/utils";
@@ -55,11 +56,12 @@ const SiderPage = () => {
   const { t } = useTranslation();
 
   const { isCollapsed, onOpen, onClose } = useCollapse();
-  const selectedKeys = "/" + pathname.split("/").reverse()[0];
+  
+  // Memoize selected keys to prevent unnecessary recalculations
+  const selectedKeys = useMemo(() => "/" + pathname.split("/").reverse()[0], [pathname]);
 
-  const onClick: MenuProps["onClick"] = (e) => {
-    // For leaf nodes (pages), use the key directly
-    // For parent nodes, don't navigate
+  // Memoize click handler to prevent unnecessary re-renders
+  const onClick = useMemo((): MenuProps["onClick"] => (e) => {
     const targetKey = e.key as string;
     
     // Only navigate if it's a direct page URL (not a parent menu)
@@ -69,24 +71,25 @@ const SiderPage = () => {
         onStart();
       }
     }
-  };
+  }, [pathname, router, onStart]);
 
-  // Build menu items based on user role
-  const getMenuItems = (): MenuProps["items"] => {
+  // Memoize menu items to prevent unnecessary re-renders
+  const menuItems = useMemo((): MenuProps["items"] => {
     if (!user) return [];
 
-    const menuItems: MenuProps["items"] = [];
+    const items: MenuProps["items"] = [];
 
-    // Role-based access control - use direct role comparison for more precise control
-    const isSuperAdmin = user.role === UserRole.SUPER_ADMIN;
-    const isDeveloper = user.role === UserRole.DEVELOPER;
-    const isAdmin = user.role === UserRole.ADMIN;
-    const isSupervisor = user.role === UserRole.SUPERVISOR;
-    const isUser = user.role === UserRole.USER;
+    // Cache role checks to avoid repeated comparisons
+    const userRole = user.role;
+    const isSuperAdmin = userRole === UserRole.SUPER_ADMIN;
+    const isDeveloper = userRole === UserRole.DEVELOPER;
+    const isAdmin = userRole === UserRole.ADMIN;
+    const isSupervisor = userRole === UserRole.SUPERVISOR;
+    const isUser = userRole === UserRole.USER;
 
     // Dashboard - Admin, Super Admin, Developer (Supervisors cannot access)
     if (isAdmin || isSuperAdmin || isDeveloper) {
-      menuItems.push(
+      items.push(
         getItem(t("navigation.dashboard"), "/management/dashboard", <DashboardOutlined />)
       );
     }
@@ -104,7 +107,7 @@ const SiderPage = () => {
       );
     }
 
-    menuItems.push(
+    items.push(
       getItem(
         t("navigation.goals"),
         "/goals",
@@ -114,17 +117,17 @@ const SiderPage = () => {
     );
 
     // Scanner - All users
-    menuItems.push(
+    items.push(
       getItem(t("navigation.scan"), "/scanner", <ScanOutlined />)
     );
 
     // Documents - All users
-    menuItems.push(
+    items.push(
       getItem(t("navigation.documents"), "/documents", <FileOutlined />)
     );
 
     // Libraries - All users
-    menuItems.push(
+    items.push(
       getItem(t("navigation.libraries"), "/libraries", <FolderOutlined />)
     );
 
@@ -160,7 +163,7 @@ const SiderPage = () => {
         );
       }
 
-      menuItems.push(
+      items.push(
         getItem(
           t("navigation.management"),
           "/management",
@@ -171,43 +174,45 @@ const SiderPage = () => {
     }
 
     // Notifications - All users
-    menuItems.push(
+    items.push(
       getItem(t("navigation.notifications"), "/notifications", <BellOutlined />)
     );
 
     // Profile - All users
-    menuItems.push(
+    items.push(
       getItem(t("navigation.profile"), "/profile", <UserOutlined />)
     );
 
-    return menuItems;
-  };
+    return items;
+  }, [user, t]);
 
-  const items = getMenuItems();
+  const items = menuItems || [];
+
+  // Memoize theme configuration to prevent unnecessary re-renders
+  const themeConfig = useMemo(() => ({
+    token: {
+      motion: false,
+    },
+    components: {
+      Menu: {
+        collapsedIconSize: 14,
+        collapsedWidth: 50,
+        itemBorderRadius: 0,
+        itemMarginInline: 0,
+        itemMarginBlock: 0,
+      },
+    },
+  }), []);
+
+  // Memoize className to prevent unnecessary re-renders
+  const sidebarClassName = useMemo(() => cn(
+    "flex flex-col h-full overflow-y-auto scrollbar overflow-x-hidden transition-all",
+    isCollapsed ? "w-[50px]" : "w-[210px]"
+  ), [isCollapsed]);
 
   return (
-    <div
-      className={cn(
-        "flex flex-col h-full overflow-y-auto scrollbar overflow-x-hidden transition-all",
-        isCollapsed ? "w-[50px]" : "w-[210px]"
-      )}
-    >
-      <ConfigProvider
-        theme={{
-          token: {
-            motion: false,
-          },
-          components: {
-            Menu: {
-              collapsedIconSize: 14,
-              collapsedWidth: 50,
-              itemBorderRadius: 0,
-              itemMarginInline: 0,
-              itemMarginBlock: 0,
-            },
-          },
-        }}
-      >
+    <div className={sidebarClassName}>
+      <ConfigProvider theme={themeConfig}>
         <Menu
           onClick={onClick}
           defaultSelectedKeys={[selectedKeys]}
@@ -244,7 +249,10 @@ const SiderPage = () => {
   );
 };
 
-export default SiderPage;
+// Wrap component with React.memo for performance optimization
+const MemoizedSiderPage = React.memo(SiderPage);
+
+export default MemoizedSiderPage;
 export type { MenuItem };
 
 // Export a function to get menu items for other components that might need it
