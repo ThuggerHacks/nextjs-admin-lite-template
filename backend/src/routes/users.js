@@ -1008,7 +1008,7 @@ router.post('/:userId/upload-session', authenticateToken, requireRole(['ADMIN', 
     // Create temporary directory for chunks
     const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'users', userId, 'chunks', sessionId);
     const fs = require('fs');
-    fs.mkdirSync(uploadDir, { recursive: true });
+    await fs.promises.mkdir(uploadDir, { recursive: true });
 
     // Store session info (in production, you might want to use Redis or database)
     global.uploadSessions = global.uploadSessions || {};
@@ -1019,12 +1019,14 @@ router.post('/:userId/upload-session', authenticateToken, requireRole(['ADMIN', 
       folderId: folderId || null,
       chunks: [],
       createdAt: new Date(),
-      uploadDir
+      uploadDir,
+      totalChunks: Math.ceil(parseInt(fileSize) / (5 * 1024 * 1024)) // 5MB chunks
     };
 
     res.json({
       sessionId,
-      message: 'Upload session created successfully'
+      message: 'Upload session created successfully',
+      totalChunks: global.uploadSessions[sessionId].totalChunks
     });
   } catch (error) {
     console.error('Create upload session error:', error);
@@ -1067,18 +1069,42 @@ router.post('/:userId/upload-chunk', authenticateToken, requireRole(['ADMIN', 'S
       return res.status(400).json({ error: 'Session user mismatch' });
     }
 
-    // Save chunk
+    // The chunk file is already saved to disk by multer, so we just need to move it to the session directory
     const chunkPath = path.join(session.uploadDir, `chunk_${chunkIndex}`);
-    const fs = require('fs');
-    fs.writeFileSync(chunkPath, chunkFile.buffer);
+    
+    try {
+      // Move the uploaded chunk file to the session directory
+      const fs = require('fs');
+      await fs.promises.rename(chunkFile.path, chunkPath);
+      console.log('Chunk file moved to session directory:', chunkPath);
+    } catch (moveError) {
+      console.error('Failed to move chunk file:', moveError);
+      // Try to copy instead if rename fails
+      try {
+        const fs = require('fs');
+        await fs.promises.copyFile(chunkFile.path, chunkPath);
+        await fs.promises.unlink(chunkFile.path); // Clean up original
+        console.log('Chunk file copied to session directory:', chunkPath);
+      } catch (copyError) {
+        console.error('Failed to copy chunk file:', copyError);
+        console.error('Chunk file details:', {
+          originalPath: chunkFile.path,
+          targetPath: chunkPath,
+          chunkSize: chunkFile.size,
+          sessionId,
+          chunkIndex
+        });
+        return res.status(500).json({ error: 'Failed to save chunk file' });
+      }
+    }
 
     // Update session
     session.chunks[parseInt(chunkIndex)] = chunkPath;
 
     res.json({
-      message: 'Chunk uploaded successfully',
       chunkIndex: parseInt(chunkIndex),
-      receivedChunks: session.chunks.filter(Boolean).length
+      uploadedChunks: session.chunks.filter(Boolean).length,
+      totalChunks: totalChunks
     });
   } catch (error) {
     console.error('Upload chunk error:', error);
@@ -1121,43 +1147,50 @@ router.post('/:userId/upload-complete', authenticateToken, requireRole(['ADMIN',
     }
 
     // Check if all chunks are present
-    const expectedChunks = Math.ceil(session.fileSize / (5 * 1024 * 1024)); // 5MB chunks
+    const expectedChunks = session.totalChunks;
     if (session.chunks.filter(Boolean).length !== expectedChunks) {
-      return res.status(400).json({ error: 'Not all chunks received' });
+      return res.status(400).json({ 
+        error: 'Not all chunks received', 
+        uploaded: session.chunks.filter(Boolean).length,
+        total: expectedChunks
+      });
     }
 
-    // Combine chunks
+    // Combine chunks into final file
     const fs = require('fs');
-    const finalFilePath = path.join(session.uploadDir, session.fileName);
-    const writeStream = fs.createWriteStream(finalFilePath);
+    const combinedFileName = `${Date.now()}-${session.fileName}`;
+    const finalFilePath = path.join(session.uploadDir, combinedFileName);
+    const finalFileStream = fs.createWriteStream(finalFilePath);
 
+    // Combine chunks in order
     for (let i = 0; i < expectedChunks; i++) {
       const chunkPath = session.chunks[i];
-      if (chunkPath && fs.existsSync(chunkPath)) {
-        const chunkData = fs.readFileSync(chunkPath);
-        writeStream.write(chunkData);
-        // Clean up chunk file
-        fs.unlinkSync(chunkPath);
+      if (!chunkPath || !fs.existsSync(chunkPath)) {
+        return res.status(400).json({ error: `Chunk ${i} not found` });
       }
+      
+      const chunkData = await fs.promises.readFile(chunkPath);
+      finalFileStream.write(chunkData);
     }
-    writeStream.end();
+    
+    finalFileStream.end();
 
-    // Wait for write to complete
+    // Wait for file to be written
     await new Promise((resolve, reject) => {
-      writeStream.on('finish', resolve);
-      writeStream.on('error', reject);
+      finalFileStream.on('finish', resolve);
+      finalFileStream.on('error', reject);
     });
 
     // Move final file to user uploads directory
     const userUploadDir = path.join(__dirname, '..', '..', 'uploads', 'users', userId);
-    const finalUserPath = path.join(userUploadDir, session.fileName);
+    const finalUserPath = path.join(userUploadDir, combinedFileName);
     
     // Ensure unique filename
     let counter = 1;
     let uniquePath = finalUserPath;
     while (fs.existsSync(uniquePath)) {
-      const ext = path.extname(session.fileName);
-      const name = path.basename(session.fileName, ext);
+      const ext = path.extname(combinedFileName);
+      const name = path.basename(combinedFileName, ext);
       uniquePath = path.join(userUploadDir, `${name}_${counter}${ext}`);
       counter++;
     }
@@ -1172,7 +1205,7 @@ router.post('/:userId/upload-complete', authenticateToken, requireRole(['ADMIN',
     // Create file record in database
     const fileRecord = await prisma.file.create({
       data: {
-        name: session.fileName,
+        name: session.fileName, // Keep original filename for display
         description,
         url: apiUrl,
         size: session.fileSize,
@@ -1197,7 +1230,11 @@ router.post('/:userId/upload-complete', authenticateToken, requireRole(['ADMIN',
 
     // Clean up session
     delete global.uploadSessions[sessionId];
-    fs.rmdirSync(session.uploadDir, { recursive: true });
+    try {
+      await fs.promises.rm(session.uploadDir, { recursive: true, force: true });
+    } catch (cleanupError) {
+      console.warn('Failed to cleanup session directory:', cleanupError);
+    }
 
     res.json({
       message: 'File uploaded successfully',
