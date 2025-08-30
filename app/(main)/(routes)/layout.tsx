@@ -84,9 +84,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
     }
   }, [loading, isAuthenticated, router]);
 
-  if (loading || isLoggingOut || isLoggingIn) {
-    // Debug logging to help troubleshoot loader issues
-    console.log('Loader state:', { loading, isLoggingOut, isLoggingIn, isAuthenticated });
+         if (loading || isLoggingOut || isLoggingIn) {
     
     const loadingMessage = isLoggingOut 
       ? "Logging out..." 
@@ -115,12 +113,7 @@ const MainLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
           <div className="text-xl font-medium text-gray-700">{loadingMessage}</div>
           <div className="mt-2 text-sm text-gray-500">{subMessage}</div>
-          {/* Debug info in development */}
-          {process.env.NODE_ENV === 'development' && (
-            <div className="mt-4 text-xs text-gray-400">
-              Debug: {loading ? 'loading' : ''} {isLoggingOut ? 'loggingOut' : ''} {isLoggingIn ? 'loggingIn' : ''}
-            </div>
-          )}
+          
         </div>
       </div>
     );

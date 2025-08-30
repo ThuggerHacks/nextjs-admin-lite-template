@@ -223,7 +223,6 @@ export default function UserManagementPage() {
       departmentId: userData.departmentId,
       phone: userData.phone,
       status: userData.status,
-      isDepartmentAdmin: userData.isDepartmentAdmin,
     });
     setIsModalVisible(true);
   };
@@ -315,7 +314,6 @@ export default function UserManagementPage() {
         departmentId: values.departmentId,
         phone: values.phone,
         status: values.status,
-        isDepartmentAdmin: values.isDepartmentAdmin,
       };
 
       if (editingUser) {
@@ -1089,29 +1087,7 @@ export default function UserManagementPage() {
             </Select>
           </Form.Item>
 
-          <Form.Item
-            label={t("users.promoteToSupervisor")}
-            name="isDepartmentAdmin"
-            valuePropName="checked"
-          >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <input 
-                  type="checkbox" 
-                  onChange={(e) => {
-                    form.setFieldValue('isDepartmentAdmin', e.target.checked);
-                  }}
-                />
-                <span>{t("users.promoteToSupervisor")}</span>
-                <Tooltip title={t("users.departmentAdminDescription")}>
-                  <UserSwitchOutlined style={{ color: '#1890ff' }} />
-                </Tooltip>
-              </div>
-              <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
-                {t("users.departmentAdminDescription")}
-              </Typography.Text>
-            </div>
-          </Form.Item>
+
 
 
 

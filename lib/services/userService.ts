@@ -265,7 +265,7 @@ export const userService = {
     }
   },
 
-  // Upload file for specific user
+  // Upload file for specific user (standard upload for small files)
   uploadFileForUser: async (userId: string, file: File, folderId?: string, onProgress?: (progress: number) => void): Promise<any> => {
     try {
       const formData = new FormData();
@@ -289,6 +289,61 @@ export const userService = {
       return response.data;
     } catch (error) {
       console.error(`Failed to upload file for user ${userId}:`, error);
+      throw error;
+    }
+  },
+
+  // Upload large file for specific user using chunked upload
+  uploadLargeFileForUser: async (userId: string, file: File, folderId?: string, onProgress?: (progress: number) => void): Promise<any> => {
+    try {
+      const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB chunks
+      const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
+
+      // Create upload session
+      const sessionResponse = await api.post(`/users/${userId}/upload-session`, {
+        fileName: file.name,
+        fileSize: file.size,
+        folderId
+      });
+
+      const { sessionId } = sessionResponse.data;
+
+      // Upload chunks
+      for (let chunkIndex = 0; chunkIndex < totalChunks; chunkIndex++) {
+        const start = chunkIndex * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, file.size);
+        const chunk = file.slice(start, end);
+
+        // Convert chunk to File object for FormData
+        const chunkFile = new File([chunk], `chunk_${chunkIndex}`, { type: 'application/octet-stream' });
+        const formData = new FormData();
+        formData.append('chunk', chunkFile);
+        formData.append('sessionId', sessionId);
+        formData.append('chunkIndex', chunkIndex.toString());
+        formData.append('totalChunks', totalChunks.toString());
+
+        await api.post(`/users/${userId}/upload-chunk`, formData, {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+          },
+          timeout: 300000, // 5 minutes per chunk
+        });
+
+        // Update progress
+        if (onProgress) {
+          const progress = Math.round(((chunkIndex + 1) / totalChunks) * 100);
+          onProgress(progress);
+        }
+      }
+
+      // Complete upload
+      const completeResponse = await api.post(`/users/${userId}/upload-complete`, {
+        sessionId
+      });
+
+      return completeResponse.data;
+    } catch (error) {
+      console.error(`Failed to upload large file for user ${userId}:`, error);
       throw error;
     }
   },

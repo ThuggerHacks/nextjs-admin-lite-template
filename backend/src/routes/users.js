@@ -979,5 +979,236 @@ router.post('/:userId/files', authenticateToken, requireRole(['ADMIN', 'SUPER_AD
   }
 });
 
+// Chunked upload session for user files
+router.post('/:userId/upload-session', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { fileName, fileSize, folderId } = req.body;
+
+    if (!fileName || !fileSize) {
+      return res.status(400).json({ error: 'fileName and fileSize are required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user has permission to upload files for this user
+    if (req.user.role === 'SUPERVISOR' && req.user.departmentId !== user.departmentId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Create upload session
+    const sessionId = `user_${userId}_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    
+    // Create temporary directory for chunks
+    const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'users', userId, 'chunks', sessionId);
+    const fs = require('fs');
+    fs.mkdirSync(uploadDir, { recursive: true });
+
+    // Store session info (in production, you might want to use Redis or database)
+    global.uploadSessions = global.uploadSessions || {};
+    global.uploadSessions[sessionId] = {
+      userId,
+      fileName,
+      fileSize: parseInt(fileSize),
+      folderId: folderId || null,
+      chunks: [],
+      createdAt: new Date(),
+      uploadDir
+    };
+
+    res.json({
+      sessionId,
+      message: 'Upload session created successfully'
+    });
+  } catch (error) {
+    console.error('Create upload session error:', error);
+    await logError('DATABASE_ERROR', 'Create upload session failed', error);
+    res.status(500).json({ error: 'Failed to create upload session' });
+  }
+});
+
+// Upload chunk for user files
+router.post('/:userId/upload-chunk', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']), userFileUpload.single('chunk'), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { sessionId, chunkIndex, totalChunks } = req.body;
+    const chunkFile = req.file;
+
+    if (!sessionId || chunkIndex === undefined || !totalChunks || !chunkFile) {
+      return res.status(400).json({ error: 'sessionId, chunkIndex, totalChunks, and chunk are required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user has permission to upload files for this user
+    if (req.user.role === 'SUPERVISOR' && req.user.departmentId !== user.departmentId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Validate session
+    if (!global.uploadSessions || !global.uploadSessions[sessionId]) {
+      return res.status(400).json({ error: 'Invalid upload session' });
+    }
+
+    const session = global.uploadSessions[sessionId];
+    if (session.userId !== userId) {
+      return res.status(400).json({ error: 'Session user mismatch' });
+    }
+
+    // Save chunk
+    const chunkPath = path.join(session.uploadDir, `chunk_${chunkIndex}`);
+    const fs = require('fs');
+    fs.writeFileSync(chunkPath, chunkFile.buffer);
+
+    // Update session
+    session.chunks[parseInt(chunkIndex)] = chunkPath;
+
+    res.json({
+      message: 'Chunk uploaded successfully',
+      chunkIndex: parseInt(chunkIndex),
+      receivedChunks: session.chunks.filter(Boolean).length
+    });
+  } catch (error) {
+    console.error('Upload chunk error:', error);
+    await logError('DATABASE_ERROR', 'Upload chunk failed', error);
+    res.status(500).json({ error: 'Failed to save chunk file' });
+  }
+});
+
+// Complete chunked upload for user files
+router.post('/:userId/upload-complete', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER', 'SUPERVISOR']), async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { sessionId, description = '' } = req.body;
+
+    if (!sessionId) {
+      return res.status(400).json({ error: 'sessionId is required' });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }
+    });
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Check if user has permission to upload files for this user
+    if (req.user.role === 'SUPERVISOR' && req.user.departmentId !== user.departmentId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Validate session
+    if (!global.uploadSessions || !global.uploadSessions[sessionId]) {
+      return res.status(400).json({ error: 'Invalid upload session' });
+    }
+
+    const session = global.uploadSessions[sessionId];
+    if (session.userId !== userId) {
+      return res.status(400).json({ error: 'Session user mismatch' });
+    }
+
+    // Check if all chunks are present
+    const expectedChunks = Math.ceil(session.fileSize / (5 * 1024 * 1024)); // 5MB chunks
+    if (session.chunks.filter(Boolean).length !== expectedChunks) {
+      return res.status(400).json({ error: 'Not all chunks received' });
+    }
+
+    // Combine chunks
+    const fs = require('fs');
+    const finalFilePath = path.join(session.uploadDir, session.fileName);
+    const writeStream = fs.createWriteStream(finalFilePath);
+
+    for (let i = 0; i < expectedChunks; i++) {
+      const chunkPath = session.chunks[i];
+      if (chunkPath && fs.existsSync(chunkPath)) {
+        const chunkData = fs.readFileSync(chunkPath);
+        writeStream.write(chunkData);
+        // Clean up chunk file
+        fs.unlinkSync(chunkPath);
+      }
+    }
+    writeStream.end();
+
+    // Wait for write to complete
+    await new Promise((resolve, reject) => {
+      writeStream.on('finish', resolve);
+      writeStream.on('error', reject);
+    });
+
+    // Move final file to user uploads directory
+    const userUploadDir = path.join(__dirname, '..', '..', 'uploads', 'users', userId);
+    const finalUserPath = path.join(userUploadDir, session.fileName);
+    
+    // Ensure unique filename
+    let counter = 1;
+    let uniquePath = finalUserPath;
+    while (fs.existsSync(uniquePath)) {
+      const ext = path.extname(session.fileName);
+      const name = path.basename(session.fileName, ext);
+      uniquePath = path.join(userUploadDir, `${name}_${counter}${ext}`);
+      counter++;
+    }
+
+    fs.renameSync(finalFilePath, uniquePath);
+    const finalFileName = path.basename(uniquePath);
+
+    // Create API URL for database storage
+    const serverUrl = req.protocol + '://' + req.get('host');
+    const apiUrl = `${serverUrl}/api/uploads/users/${userId}/${finalFileName}`;
+
+    // Create file record in database
+    const fileRecord = await prisma.file.create({
+      data: {
+        name: session.fileName,
+        description,
+        url: apiUrl,
+        size: session.fileSize,
+        type: path.extname(session.fileName).substring(1) || 'unknown',
+        mimeType: 'application/octet-stream', // Will be updated when file is processed
+        isPublic: false,
+        folderId: session.folderId,
+        userId: userId,
+        sucursalId: user.sucursalId
+      },
+      include: {
+        folder: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      }
+    });
+
+    // Clean up session
+    delete global.uploadSessions[sessionId];
+    fs.rmdirSync(session.uploadDir, { recursive: true });
+
+    res.json({
+      message: 'File uploaded successfully',
+      file: fileRecord
+    });
+  } catch (error) {
+    console.error('Complete upload error:', error);
+    await logError('DATABASE_ERROR', 'Complete upload failed', error);
+    res.status(500).json({ error: 'Failed to create file' });
+  }
+});
+
 
 module.exports = router; 

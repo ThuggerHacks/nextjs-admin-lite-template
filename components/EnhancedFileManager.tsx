@@ -80,6 +80,8 @@ interface UploadProgressItem {
   status: 'uploading' | 'success' | 'error';
   speed?: string;
   timeRemaining?: string;
+  totalChunks?: number;
+  uploadedChunks?: number;
 }
 
 type ViewMode = 'list' | 'grid' | 'tree';
@@ -746,6 +748,8 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
       name: file.name,
       progress: 0,
       status: 'uploading' as const,
+      totalChunks: file.originFileObj?.size > 5 * 1024 * 1024 ? Math.ceil(file.originFileObj.size / (5 * 1024 * 1024)) : undefined,
+      uploadedChunks: 0,
     }));
 
     setUploadProgress(uploadItems);
@@ -773,24 +777,50 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
         
         let response;
         if (mode === 'user-files' && userId) {
-          // Upload file for specific user
+          // Upload file for specific user using chunked upload for large files
           console.log('🚀 Frontend: Uploading file for user:', userId, 'with folderId:', folderId);
-          response = await userService.uploadFileForUser(userId, file, folderId, (progress) => {
-            // Update progress for this file
-            setUploadProgress(prev => 
-              prev.map(p => p.id === fileItem.uid ? { ...p, progress: Math.round(progress) } : p)
-            );
-          });
+          
+          // Use chunked upload for files larger than 5MB
+          if (file.size > 5 * 1024 * 1024) {
+            const totalChunks = Math.ceil(file.size / (5 * 1024 * 1024));
+            response = await userService.uploadLargeFileForUser(userId, file, folderId, (progress) => {
+              // Update progress for this file
+              setUploadProgress(prev => 
+                prev.map(p => p.id === fileItem.uid ? { 
+                  ...p, 
+                  progress: Math.round(progress),
+                  uploadedChunks: Math.round((progress / 100) * totalChunks)
+                } : p)
+              );
+            });
+          } else {
+            // Use standard upload for small files
+            response = await userService.uploadFileForUser(userId, file, folderId, (progress) => {
+              // Update progress for this file
+              setUploadProgress(prev => 
+                prev.map(p => p.id === fileItem.uid ? { 
+                  ...p, 
+                  progress: Math.round(progress),
+                  uploadedChunks: 1 // Single chunk for small files
+                } : p)
+              );
+            });
+          }
         } else {
           // Upload to backend with folder context and progress tracking
           console.log('🚀 Frontend: Uploading file with folderId:', folderId);
+          const totalChunks = file.size > 5 * 1024 * 1024 ? Math.ceil(file.size / (5 * 1024 * 1024)) : 1;
           response = await fileService.uploadLargeFile(
             file, 
             folderId,
             (progress) => {
               // Update progress for this file
               setUploadProgress(prev => 
-                prev.map(p => p.id === fileItem.uid ? { ...p, progress: Math.round(progress) } : p)
+                prev.map(p => p.id === fileItem.uid ? { 
+                  ...p, 
+                  progress: Math.round(progress),
+                  uploadedChunks: Math.round((progress / 100) * totalChunks)
+                } : p)
               );
             }
           );
@@ -1427,17 +1457,24 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
          {uploadProgress.length > 0 && (
            <Card title={t('files.uploadProgress')} style={{ marginTop: 16 }}>
              {uploadProgress.map(item => (
-               <div key={item.id} style={{ marginBottom: 8 }}>
-                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
-                   <Text>{item.name}</Text>
-                   <Text type="secondary">{item.progress}%</Text>
+                                <div key={item.id} style={{ marginBottom: 8 }}>
+                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                     <Text>{item.name}</Text>
+                     <Text type="secondary">{item.progress}%</Text>
+                   </div>
+                   <Progress
+                     percent={item.progress}
+                     status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'}
+                     size="small"
+                   />
+                   {/* Show chunk information for large files */}
+                   {item.totalChunks && item.totalChunks > 1 && (
+                     <div style={{ marginTop: 4, fontSize: '12px', color: '#666' }}>
+                       Chunk {item.uploadedChunks || 0} of {item.totalChunks} 
+                       ({Math.round(((item.uploadedChunks || 0) / item.totalChunks) * 100)}%)
+                     </div>
+                   )}
                  </div>
-                 <Progress
-                   percent={item.progress}
-                   status={item.status === 'error' ? 'exception' : item.status === 'success' ? 'success' : 'active'}
-                   size="small"
-                 />
-               </div>
              ))}
            </Card>
          )}
@@ -1509,6 +1546,9 @@ const EnhancedFileManager: React.FC<EnhancedFileManagerProps> = ({
            <p className="ant-upload-text">{t('files.uploadDragText')}</p>
            <p className="ant-upload-hint">
              {t('files.uploadHint')}
+           </p>
+           <p className="ant-upload-hint" style={{ fontSize: '12px', color: '#666' }}>
+             Large files (>5MB) will be uploaded in chunks for reliability
            </p>
          </Upload.Dragger>
       </Modal>
