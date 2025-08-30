@@ -48,6 +48,9 @@
   "promoteToSupervisor": "Promote to Supervisor",
   "departmentAdminDescription": "This user will become a supervisor of their department",
   "enterPhoneNumber": "Enter phone number",
-  "files": "Files"
+  "files": "Files",
+  "viewingFilesFor": "Viewing files for",
+  "fileManagerDescription": "Browse and manage user's personal files and folders",
+  "users.fileManagerDescription": "Browse and manage user's personal files and folders"
 }
 

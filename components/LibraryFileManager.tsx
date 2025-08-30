@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   Card,
   Row,
@@ -86,6 +86,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
   // Forms
   const [createFolderForm] = Form.useForm();
   const [renameForm] = Form.useForm();
+  const uploadRef = useRef<any>(null);
   
   const { user } = useUser();
   const { t } = useTranslation();
@@ -575,6 +576,10 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
       setTimeout(async () => {
         setUploadProgress([]);
         setUploadModalVisible(false);
+        // Reset the file input
+        if (uploadRef.current) {
+          uploadRef.current.fileList = [];
+        }
         message.success('Files uploaded successfully');
         
         console.log('Reloading data after upload...');
@@ -1076,6 +1081,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         width={600}
       >
         <Upload.Dragger
+          ref={uploadRef}
           multiple
           beforeUpload={() => false}
           onChange={({ fileList }) => {

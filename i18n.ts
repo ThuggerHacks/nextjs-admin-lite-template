@@ -72,6 +72,60 @@ export interface Dictionary {
     logoutSuccess: string;
     logoutError: string;
   };
+  users: {
+    status: {
+      active: string;
+      inactive: string;
+      pending: string;
+    };
+    role: {
+      super_admin: string;
+      admin: string;
+      user: string;
+      supervisor: string;
+    };
+    department: string;
+    createdAt: string;
+    actions: string;
+    userDetails: string;
+    selectStatus: string;
+    passwordReset: string;
+    email: string;
+    temporaryPassword: string;
+    emailSent: string;
+    superAdmins: string;
+    admins: string;
+    normalUsers: string;
+    supervisors: string;
+    editUser: string;
+    viewFiles: string;
+    promoteToSuperAdmin: string;
+    resetPassword: string;
+    removeUserConfirm: string;
+    removeUserWarning: string;
+    removeUser: string;
+    user: string;
+    phone: string;
+    userManagement: string;
+    manageUsers: string;
+    exportUsers: string;
+    createUser: string;
+    totalUsers: string;
+    usersList: string;
+    searchByName: string;
+    filterByStatus: string;
+    filterByDepartment: string;
+    enterUserName: string;
+    enterEmailAddress: string;
+    selectRole: string;
+    selectDepartment: string;
+    promoteToSupervisor: string;
+    departmentAdminDescription: string;
+    enterPhoneNumber: string;
+    files: string;
+    viewingFilesFor: string;
+    fileManagerDescription: string;
+  };
   auth: {
     welcomeBack: string;
     enterCredentials: string;
@@ -1050,7 +1104,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       createGoals: 'Criar Metas',
       editGoals: 'Editar Metas',
       scanner: 'Scanner',
-      scan: 'Digitalizar',
+              scan: 'Scanner',
 
       fileManagement: 'Gestão de Arquivos',
       libraries: 'Bibliotecas',
@@ -1148,7 +1202,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       quickActions: 'Ações Rápidas',
       addFiles: 'Adicionar Arquivos',
       createLibrary: 'Criar Biblioteca',
-      scanDocument: 'Digitalizar Documento',
+      scanDocument: 'Scanner Documento',
       submitReport: 'Submeter Relatório',
       companyOverview: 'Visão Geral da Empresa',
       newUsersThisMonth: 'Novos Usuários Este Mês',
@@ -1326,6 +1380,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       promoteToSupervisor: 'Promover a Supervisor do Departamento',
       removeUserConfirm: 'Confirmar Remoção',
       removeUserWarning: 'Tem certeza que deseja remover este usuário? Esta ação não pode ser desfeita.',
+      viewingFilesFor: 'Visualizando arquivos de',
+      fileManagerDescription: 'Navegue e gerencie arquivos e pastas pessoais do usuário',
       userTypes: {
         SUPER_ADMIN: 'Super Administrador',
         ADMIN: 'Administrador',
@@ -2095,8 +2151,8 @@ const dictionaries: Record<Locale, Dictionary> = {
     },
     scanner: {
       title: 'Scanner',
-      description: 'Digitalize documentos e gere PDFs',
-      scanDocument: 'Digitalizar Documento',
+      description: 'Scanner documentos e gere PDFs',
+      scanDocument: 'Scanner Documento',
       takePhoto: 'Tirar Foto',
       addPage: 'Adicionar Página',
       removePage: 'Remover Página',
@@ -2110,7 +2166,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       adjustBorders: 'Ajustar Bordas',
       camera: 'Câmera',
       startCamera: 'Iniciar Câmera',
-      startCameraHint: 'Clique em "Iniciar Câmera" para começar a digitalizar',
+      startCameraHint: 'Clique em "Iniciar Câmera" para começar a scanner',
       stopCamera: 'Parar Câmera',
       scannedPages: 'Páginas Digitalizadas',
       noPagesScanned: 'Nenhuma página digitalizada',
@@ -2126,7 +2182,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       enterFileName: 'Por favor, digite um nome de arquivo.',
       cameraAccessError: 'Não foi possível acessar a câmera. Verifique as permissões.',
       // Additional scanner keys
-      useDeviceCamera: 'Use a câmera do seu dispositivo para digitalizar documentos e convertê-los em PDF.',
+      useDeviceCamera: 'Use a câmera do seu dispositivo para scanner documentos e convertê-los em PDF.',
       convertToPdf: 'Converter para PDF',
       scanningTipsTitle: 'Dicas de Digitalização',
       ensureGoodLighting: '• Garanta boa iluminação para melhor qualidade',
@@ -2146,7 +2202,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       pagePlural: 'páginas',
       noPagesScannedYet: 'Nenhuma página digitalizada ainda',
       clickStartCamera: 'Clique em "Iniciar Câmera"',
-      toBeginScanning: 'para começar a digitalizar',
+      toBeginScanning: 'para começar a scanner',
       pageNumber: 'Página',
       movePageUp: 'Mover para cima',
       movePageDown: 'Mover para baixo',
@@ -2579,6 +2635,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       promoteToSupervisor: 'Promote to Department Supervisor',
       removeUserConfirm: 'Confirm Removal',
       removeUserWarning: 'Are you sure you want to remove this user? This action cannot be undone.',
+      viewingFilesFor: 'Viewing files for',
+      fileManagerDescription: 'Browse and manage user\'s personal files and folders',
       userTypes: {
         SUPER_ADMIN: 'Super Administrator',
         ADMIN: 'Administrator',

@@ -31,6 +31,9 @@ app.use((req, res, next) => {
 // Serve static files from uploads directory
 app.use('/api/uploads/files', express.static(path.join(__dirname, '../uploads')));
 
+// Serve static files from library uploads directory
+app.use('/api/uploads/libraries', express.static(path.join(__dirname, '../uploads/libraries')));
+
 // Rate limiting
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes

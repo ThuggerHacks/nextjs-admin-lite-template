@@ -58,6 +58,35 @@ const { TextArea } = Input;
 const { Title } = Typography;
 
 export default function UserManagementPage() {
+  // Add custom styles for mobile drawer
+  useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = `
+      .mobile-full-drawer .ant-drawer-content-wrapper {
+        width: 100vw !important;
+        height: 100vh !important;
+      }
+      .mobile-full-drawer .ant-drawer-content {
+        border-radius: 0 !important;
+        height: 100vh !important;
+      }
+      .mobile-full-drawer .ant-drawer-body {
+        padding: 4px !important;
+        height: calc(100vh - 60px) !important;
+        overflow: auto !important;
+      }
+      .mobile-full-drawer .ant-drawer-header {
+        padding: 8px 12px !important;
+        height: 60px !important;
+        border-bottom: 1px solid #f0f0f0 !important;
+      }
+    `;
+    document.head.appendChild(style);
+    
+    return () => {
+      document.head.removeChild(style);
+    };
+  }, []);
   const [users, setUsers] = useState<UserType[]>([]);
   const [departments, setDepartments] = useState<Department[]>([]);
   const [isModalVisible, setIsModalVisible] = useState(false);
@@ -607,7 +636,7 @@ export default function UserManagementPage() {
         /* Ultra-wide screens */
         @media (min-width: 1440px) {
           .space-y-6 {
-            max-width: 1400px;
+            max-width: 1600px;
             margin: 0 auto;
           }
         }
@@ -1119,35 +1148,113 @@ export default function UserManagementPage() {
 
       {/* User Files Drawer */}
       <Drawer
-        title={selectedUser ? `${selectedUser.name} - ${t('users.files')}` : t('users.files')}
-        placement={screenSize === 'xs' || screenSize === 'sm' ? 'bottom' : 'right'}
-        size={screenSize === 'xs' || screenSize === 'sm' ? 'default' : 'large'}
+        title={
+          <div className="flex items-center gap-2">
+            <FolderOpenOutlined />
+            <span className="truncate">
+              {selectedUser ? `${selectedUser.name} - ${t('users.files')}` : t('users.files')}
+            </span>
+          </div>
+        }
+        placement={screenSize === 'xs' ? 'bottom' : screenSize === 'sm' ? 'bottom' : 'right'}
+        size="large"
         onClose={() => setUserFilesDrawerVisible(false)}
         open={userFilesDrawerVisible}
-        className="responsive-file-drawer"
+        className={`responsive-file-drawer ${screenSize === 'xs' ? 'mobile-full-drawer' : ''}`}
+        maskClosable={true}
+        keyboard={true}
+        destroyOnClose={false}
+        closable={screenSize !== 'xs'}
         styles={{
           body: {
-            padding: screenSize === 'xs' || screenSize === 'sm' ? '12px' : '24px',
+            padding: screenSize === 'xs' ? '4px' : screenSize === 'sm' ? '8px' : '16px',
+            overflow: 'auto',
+            maxHeight: screenSize === 'xs' ? 'calc(100vh - 100px)' : 'calc(100vh - 80px)',
+            height: screenSize === 'xs' ? 'calc(100vh - 100px)' : 'auto',
           },
           header: {
-            padding: screenSize === 'xs' || screenSize === 'sm' ? '12px 16px' : '16px 24px',
+            padding: screenSize === 'xs' ? '8px 12px' : screenSize === 'sm' ? '12px 16px' : '16px 20px',
+            borderBottom: '1px solid #f0f0f0',
+            position: 'sticky',
+            top: 0,
+            backgroundColor: '#fff',
+            zIndex: 1,
           },
           wrapper: {
-            width: screenSize === 'xs' ? '100%' : screenSize === 'sm' ? '90%' : undefined,
+            width: screenSize === 'xs' ? '100vw' : 
+                   screenSize === 'sm' ? '100vw' : 
+                   screenSize === 'md' ? '80vw' : 
+                   undefined,
+          },
+          content: {
+            borderRadius: screenSize === 'xs' || screenSize === 'sm' ? '16px 16px 0 0' : '8px 0 0 8px',
+            boxShadow: screenSize === 'xs' || screenSize === 'sm' ? '0 -4px 12px rgba(0,0,0,0.1)' : '0 4px 12px rgba(0,0,0,0.1)',
           },
         }}
+        extra={
+          <div className="flex items-center gap-2">
+            {screenSize === 'xs' && (
+              <Button
+                type="primary"
+                size="large"
+                icon={<CloseOutlined />}
+                onClick={() => setUserFilesDrawerVisible(false)}
+                className="flex md:hidden"
+                style={{ 
+                  width: '40px', 
+                  height: '40px', 
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              />
+            )}
+            <Button
+              type="text"
+              size="small"
+              icon={<CloseOutlined />}
+              onClick={() => setUserFilesDrawerVisible(false)}
+              className="hidden md:flex"
+            />
+          </div>
+        }
       >
         {selectedUserId && (
           <div className="file-manager-container">
-            <EnhancedFileManager
-              mode="user-files"
-              libraryName={`${selectedUser?.name || 'User'} Files`}
-              canWrite={hasRole(UserRole.SUPER_ADMIN)}
-              canDelete={hasRole(UserRole.SUPER_ADMIN)}
-              title={`${selectedUser?.name || 'User'} Personal Files`}
-              rootPath={`/Users/${selectedUser?.name || 'User'}`}
-              userId={selectedUserId}
-            />
+            <div className={`mb-4 p-3 bg-gray-50 rounded-lg ${screenSize === 'xs' ? 'mx-2' : 'mx-0'}`}>
+              <div className={`flex items-center justify-between mb-2 ${screenSize === 'xs' ? 'flex-col items-start gap-2' : ''}`}>
+                <Typography.Text strong className={`${screenSize === 'xs' ? 'text-base' : 'text-sm'}`}>
+                  {t('users.viewingFilesFor')}: {selectedUser?.name}
+                </Typography.Text>
+                <Tag color="blue" className={`${screenSize === 'xs' ? 'text-sm' : 'text-xs'}`}>
+                  {selectedUser?.role}
+                </Tag>
+              </div>
+              <div className={`${screenSize === 'xs' ? 'text-sm' : 'text-xs'} text-gray-500`}>
+                {t('users.fileManagerDescription')}
+              </div>
+            </div>
+            
+            <div className="file-manager-wrapper" style={{ 
+              minHeight: screenSize === 'xs' ? 'calc(100vh - 140px)' : 'calc(100vh - 300px)',
+              height: screenSize === 'xs' ? 'calc(100vh - 140px)' : 'auto',
+              overflow: 'auto',
+              padding: screenSize === 'xs' ? '0 2px' : '0',
+              borderRadius: screenSize === 'xs' ? '8px' : '0',
+              backgroundColor: screenSize === 'xs' ? '#fafafa' : 'transparent',
+              width: '100%'
+            }}>
+              <EnhancedFileManager
+                mode="user-files"
+                libraryName={`${selectedUser?.name || 'User'} Files`}
+                canWrite={hasRole(UserRole.SUPER_ADMIN)}
+                canDelete={hasRole(UserRole.SUPER_ADMIN)}
+                title={`${selectedUser?.name || 'User'} Personal Files`}
+                rootPath={`/Users/${selectedUser?.name || 'User'}`}
+                userId={selectedUserId}
+              />
+            </div>
           </div>
         )}
       </Drawer>

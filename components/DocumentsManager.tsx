@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   Card,
   Row,
@@ -117,6 +117,7 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
   const [editingDocument, setEditingDocument] = useState<DocumentItem | null>(null);
   const [uploadProgress, setUploadProgress] = useState<any[]>([]);
   const [clipboard, setClipboard] = useState<{ action: 'copy' | 'cut'; item: DocumentItem; bulkItems?: DocumentItem[] } | null>(null);
+  const uploadRef = useRef<any>(null);
 
   // Forms
   const [createFolderForm] = Form.useForm();
@@ -700,6 +701,10 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
         message.success(t('files.filesUploadedSuccess') || 'Files uploaded successfully');
         setUploadModalVisible(false);
         setUploadProgress([]);
+        // Reset the file input
+        if (uploadRef.current) {
+          uploadRef.current.fileList = [];
+        }
         await loadDocuments();
         onDocumentsChange?.();
       } else {
@@ -2090,6 +2095,7 @@ const DocumentsManager: React.FC<DocumentsManagerProps> = ({
       >
         {uploadProgress.length === 0 ? (
           <Upload.Dragger
+            ref={uploadRef}
             multiple
             beforeUpload={() => false}
             onChange={({ fileList }) => {

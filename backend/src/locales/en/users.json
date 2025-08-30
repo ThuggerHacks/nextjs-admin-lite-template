@@ -39,6 +39,8 @@
   "departmentAdminDescription": "This user will become a supervisor of their department",
   "enterPhoneNumber": "Enter phone number",
   "files": "Files",
+  "viewingFilesFor": "Viewing files for",
+  "fileManagerDescription": "Browse and manage user's personal files and folders",
   "status": {
     "ACTIVE": "Active",
     "INACTIVE": "Inactive",

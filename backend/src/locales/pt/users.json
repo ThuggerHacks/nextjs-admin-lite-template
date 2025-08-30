@@ -39,6 +39,8 @@
   "departmentAdminDescription": "Este usuário se tornará supervisor de seu departamento",
   "enterPhoneNumber": "Digite o número de telefone",
   "files": "Arquivos",
+  "viewingFilesFor": "Visualizando arquivos de",
+  "fileManagerDescription": "Navegue e gerencie arquivos e pastas pessoais do usuário",
   "status": {
     "ACTIVE": "Ativo",
     "INACTIVE": "Inativo",

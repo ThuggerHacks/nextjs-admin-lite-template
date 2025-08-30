@@ -692,10 +692,25 @@ router.post('/:libraryId/files', authenticateToken, upload.single('file'), async
     const fileName = `${Date.now()}-${file.originalname}`;
     const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'libraries', libraryId);
     const filePath = path.join(uploadDir, fileName);
+    
+    console.log('Upload details:', {
+      fileName,
+      uploadDir,
+      filePath,
+      libraryId
+    });
+    
+    // Create API URL for database storage (dynamic server URL)
+    const serverUrl = req.protocol + '://' + req.get('host');
+    const apiUrl = `${serverUrl}/api/uploads/libraries/${libraryId}/${fileName}`;
+    
+    console.log('Generated API URL:', apiUrl);
 
     // Ensure upload directory exists
     try {
+      console.log('Creating upload directory:', uploadDir);
       await fs.promises.mkdir(uploadDir, { recursive: true });
+      console.log('Upload directory created successfully');
     } catch (dirError) {
       console.error('Failed to create upload directory:', dirError);
       return res.status(500).json({ error: 'Failed to create upload directory' });
@@ -703,7 +718,9 @@ router.post('/:libraryId/files', authenticateToken, upload.single('file'), async
 
     // Save file to disk
     try {
+      console.log('Writing file to disk:', filePath);
       await fs.promises.writeFile(filePath, file.buffer);
+      console.log('File written to disk successfully');
     } catch (writeError) {
       console.error('Failed to write file:', writeError);
       return res.status(500).json({ error: 'Failed to save file' });
@@ -712,7 +729,7 @@ router.post('/:libraryId/files', authenticateToken, upload.single('file'), async
     console.log('Creating library file record with data:', {
       name: file.originalname,
       description,
-      url: filePath,
+      url: apiUrl,
       size: file.size,
       type: path.extname(file.originalname).substring(1),
       mimeType: file.mimetype,
@@ -729,10 +746,10 @@ router.post('/:libraryId/files', authenticateToken, upload.single('file'), async
           name: file.originalname,
           originalName: file.originalname,
           description,
-          url: filePath,
+          url: apiUrl,
           size: file.size,
           type: path.extname(file.originalname).substring(1) || 'unknown',
-          mimeType: file.mimetype,
+          mimeType: file.mimeType,
           libraryId,
           folderId: folderId || null,
           userId: req.user.id,
@@ -763,6 +780,74 @@ router.post('/:libraryId/files', authenticateToken, upload.single('file'), async
     console.error('File upload error details:', error);
     await logError('DATABASE_ERROR', 'Upload library file failed', error);
     res.status(500).json({ error: 'Failed to upload file' });
+  }
+});
+
+// Note: File serving is now handled by Express static file serving in index.js
+// at /api/uploads/libraries/{libraryId}/{filename}
+
+// Download library file
+router.get('/:libraryId/files/:fileId/download', authenticateToken, async (req, res) => {
+  try {
+    const { libraryId, fileId } = req.params;
+
+    const library = await prisma.library.findUnique({
+      where: { id: libraryId }
+    });
+
+    if (!library) {
+      return res.status(404).json({ error: 'Library not found' });
+    }
+
+    if (library.sucursalId !== req.user.sucursalId) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const file = await prisma.libraryFile.findUnique({
+      where: { id: fileId }
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if user can access file
+    const isMember = await prisma.libraryMember.findFirst({
+      where: {
+        libraryId,
+        userId: req.user.id
+      }
+    });
+
+    const canAccess = isMember || library.userId === req.user.id || ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+
+    if (!canAccess) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get the file path and check if it exists
+    // Extract filename from URL like /api/uploads/libraries/{libraryId}/{filename}
+    const urlParts = file.url.split('/');
+    const filename = urlParts[urlParts.length - 1];
+    const filePath = path.join(__dirname, '..', '..', 'uploads', 'libraries', libraryId, filename);
+    
+    if (!fs.existsSync(filePath)) {
+      return res.status(404).json({ error: 'File not found on disk' });
+    }
+
+    // Set headers for download
+    res.setHeader('Content-Type', file.mimeType || 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename="${file.name}"`);
+    res.setHeader('Content-Length', file.size);
+
+    // Stream the file
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+
+  } catch (error) {
+    console.error('Download error:', error);
+    await logError('FILE_ERROR', 'Download library file failed', error);
+    res.status(500).json({ error: 'Failed to download file' });
   }
 });
 
