@@ -48,6 +48,7 @@ import {
   EyeOutlined as ViewFileOutlined,
   SendOutlined,
   ShareAltOutlined,
+  GlobalOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
@@ -66,6 +67,7 @@ import { userService } from '@/lib/services/userService';
 import { departmentService } from '@/lib/services/departmentService';
 import { apiService as api, baseUrl } from '@/lib/axios';
 import ShareGoalForm from '@/components/ShareGoalForm';
+import CrossSucursalShare from '@/components/CrossSucursalShare';
 
 const { Title, Text } = Typography;
 
@@ -205,6 +207,7 @@ export default function ViewGoalsPage() {
   const [reportsModalVisible, setReportsModalVisible] = useState(false);
   const [statusUpdateModalVisible, setStatusUpdateModalVisible] = useState(false);
   const [shareModalVisible, setShareModalVisible] = useState(false);
+  const [crossSucursalShareModalVisible, setCrossSucursalShareModalVisible] = useState(false);
   const [shareableUsers, setShareableUsers] = useState<any[]>([]);
 
   const [activeTab, setActiveTab] = useState('my-goals');
@@ -735,6 +738,24 @@ export default function ViewGoalsPage() {
               </Tooltip>
             )}
             
+            {/* External Sucursal Sharing - Only for DEVELOPER/SUPER_ADMIN when goal is completed/done */}
+            {canShare && 
+             (user?.role === UserRole.DEVELOPER || user?.role === UserRole.SUPER_ADMIN) &&
+             (record.status === GoalStatus.COMPLETED || record.status === GoalStatus.DONE) && (
+              <Tooltip title="Share with External Sucursal">
+                <Button
+                  icon={<GlobalOutlined />}
+                  size="small"
+                  type="primary"
+                  style={{ backgroundColor: '#722ed1', borderColor: '#722ed1' }}
+                  onClick={() => {
+                    setSelectedGoal(record);
+                    setCrossSucursalShareModalVisible(true);
+                  }}
+                />
+              </Tooltip>
+            )}
+            
             {canEdit && (
               <Tooltip title={t('goals.editGoal')}>
                 <Button
@@ -1250,6 +1271,29 @@ export default function ViewGoalsPage() {
               loadInitialData(); // Reload to show updated shares
             }}
             onCancel={() => setShareModalVisible(false)}
+          />
+        )}
+      </Modal>
+
+      {/* Cross-Sucursal Share Goal Modal */}
+      <Modal
+        title={`🌐 ${t('goals.shareCompletedGoalWithExternalSucursal')} - ${selectedGoal?.title || ''}`}
+        open={crossSucursalShareModalVisible}
+        onCancel={() => setCrossSucursalShareModalVisible(false)}
+        footer={null}
+        width={800}
+      >
+        {selectedGoal && (
+          <CrossSucursalShare
+            type="goal"
+            itemId={selectedGoal.id}
+            itemName={selectedGoal.title}
+            localShareableUsers={shareableUsers}
+            onSuccess={() => {
+              setCrossSucursalShareModalVisible(false);
+              loadInitialData(); // Reload to show updated shares
+            }}
+            onCancel={() => setCrossSucursalShareModalVisible(false)}
           />
         )}
       </Modal>

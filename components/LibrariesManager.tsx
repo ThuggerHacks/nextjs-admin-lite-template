@@ -467,8 +467,8 @@ export default function LibrariesManager({
     <div className="space-y-6">
       {/* Header with actions */}
       <Card>
-        <Row justify="space-between" align="middle">
-          <Col>
+        <Row gutter={[16, 16]} justify="space-between" align="middle">
+          <Col xs={24} md={12}>
             <Title level={3} style={{ margin: 0 }}>
               {title || t('libraries.libraryManagementSystem')}
             </Title>
@@ -476,37 +476,41 @@ export default function LibrariesManager({
               {t('libraries.privateLibraryStorage')}
             </Text>
           </Col>
-          <Col>
-            <Space>
+          <Col xs={24} md={12}>
+            <div className="flex flex-col gap-3">
               <Search
                 placeholder={t('libraries.search')}
                 allowClear
-                style={{ width: 200 }}
+                style={{ width: '100%' }}
                 value={searchText}
                 onChange={(e) => setSearchText(e.target.value)}
               />
-              <Button 
-                icon={<ReloadOutlined />} 
-                onClick={loadLibraries}
-                loading={loading}
-              >
-                {t('libraries.refresh')}
-              </Button>
-          {canWrite && (
-              <Button
-                type="primary"
-                  icon={<PlusOutlined />}
-                  onClick={() => setIsCreateModalVisible(true)}
-              >
-                  {t('libraries.createLibrary')}
-              </Button>
-              )}
-            </Space>
+              <div className="flex flex-wrap gap-2 justify-end">
+                <Button 
+                  icon={<ReloadOutlined />} 
+                  onClick={loadLibraries}
+                  loading={loading}
+                  size="small"
+                >
+                  {t('libraries.refresh')}
+                </Button>
+                {canWrite && (
+                  <Button
+                    type="primary"
+                    icon={<PlusOutlined />}
+                    onClick={() => setIsCreateModalVisible(true)}
+                    size="small"
+                  >
+                    {t('libraries.createLibrary')}
+                  </Button>
+                )}
+              </div>
+            </div>
           </Col>
         </Row>
       </Card>
 
-      {/* Libraries table */}
+      {/* Libraries display - responsive */}
       <Card>
         {filteredLibraries.length === 0 ? (
           <Empty
@@ -521,19 +525,108 @@ export default function LibrariesManager({
             }
           />
         ) : (
-          <Table
-            columns={libraryColumns}
-            dataSource={filteredLibraries}
-            rowKey="id"
-            loading={loading}
-            pagination={{
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) =>
-                `${range[0]}-${range[1]} of ${total} items`,
-            }}
-          />
+          <>
+            {/* Desktop view - Table */}
+            <div className="hidden md:block">
+              <Table
+                columns={libraryColumns}
+                dataSource={filteredLibraries}
+                rowKey="id"
+                loading={loading}
+                pagination={{
+                  pageSize: 10,
+                  showSizeChanger: true,
+                  showQuickJumper: true,
+                  showTotal: (total, range) =>
+                    `${range[0]}-${range[1]} of ${total} items`,
+                }}
+              />
+            </div>
+
+            {/* Mobile view - Cards */}
+            <div className="md:hidden">
+              <div className="space-y-4">
+                {filteredLibraries.map((library) => (
+                  <Card key={library.id} size="small" className="hover:shadow-md transition-shadow">
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div 
+                          className="flex items-center space-x-3 cursor-pointer hover:text-blue-600"
+                          onClick={() => setSelectedLibrary(library)}
+                        >
+                          <FolderOutlined className="text-blue-500 text-xl flex-shrink-0" />
+                          <div className="min-w-0 flex-1">
+                            <div className="font-medium truncate">{library.name}</div>
+                            {library.description && (
+                              <div className="text-sm text-gray-500 truncate">{library.description}</div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center space-x-4 text-sm text-gray-500">
+                          <div className="flex items-center space-x-1">
+                            <UserOutlined />
+                            <span>{library.user?.name}</span>
+                          </div>
+                          <div className="flex items-center space-x-1">
+                            <TeamOutlined />
+                            <span>{getMemberCount(library)} {getMemberCount(library) === 1 ? 'member' : 'members'}</span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex flex-col space-y-1 ml-2">
+                        <Tooltip title={t('libraries.edit')}>
+                          <Button
+                            icon={<EditOutlined />}
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              setLibraryForModal(library);
+                              editForm.setFieldsValue({
+                                name: library.name,
+                                description: library.description,
+                              });
+                              setIsEditModalVisible(true);
+                            }}
+                            disabled={!canManageLibrary(library)}
+                          />
+                        </Tooltip>
+                        <Tooltip title={t('libraries.libraryMembers')}>
+                          <Button
+                            icon={<TeamOutlined />}
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              e.preventDefault();
+                              setLibraryForModal(library);
+                              setIsMembersModalVisible(true);
+                            }}
+                          />
+                        </Tooltip>
+                        {canManageLibrary(library) && (
+                          <Popconfirm
+                            title={t('libraries.libraryDeleteConfirm')}
+                            description={t('libraries.libraryDeleteWarning')}
+                            onConfirm={() => handleDeleteLibrary(library.id)}
+                            okText={t('libraries.yes')}
+                            cancelText={t('libraries.no')}
+                          >
+                            <Tooltip title={t('libraries.delete')}>
+                              <Button
+                                icon={<DeleteOutlined />}
+                                size="small"
+                                danger
+                              />
+                            </Tooltip>
+                          </Popconfirm>
+                        )}
+                      </div>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          </>
         )}
       </Card>
 
@@ -546,7 +639,9 @@ export default function LibrariesManager({
           createForm.resetFields();
         }}
         footer={null}
-        width={600}
+        width="90%"
+        style={{ maxWidth: 600 }}
+        centered
       >
         <Form
           form={createForm}
@@ -597,14 +692,14 @@ export default function LibrariesManager({
               </Form.Item>
           
           <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="primary" htmlType="submit" loading={loading} block>
                 {t('libraries.create')}
               </Button>
-              <Button onClick={() => setIsCreateModalVisible(false)}>
+              <Button onClick={() => setIsCreateModalVisible(false)} block>
                 {t('libraries.cancel')}
               </Button>
-            </Space>
+            </div>
           </Form.Item>
         </Form>
       </Modal>
@@ -618,7 +713,9 @@ export default function LibrariesManager({
           setLibraryForModal(null);
         }}
         footer={null}
-        width={600}
+        width="90%"
+        style={{ maxWidth: 600 }}
+        centered
       >
         <Form
           form={editForm}
@@ -644,14 +741,14 @@ export default function LibrariesManager({
           </Form.Item>
           
           <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="primary" htmlType="submit" loading={loading} block>
                 {t('libraries.update')}
               </Button>
-              <Button onClick={() => setIsEditModalVisible(false)}>
+              <Button onClick={() => setIsEditModalVisible(false)} block>
                 {t('libraries.cancel')}
               </Button>
-            </Space>
+            </div>
           </Form.Item>
         </Form>
       </Modal>
@@ -665,23 +762,26 @@ export default function LibrariesManager({
           setLibraryForModal(null);
         }}
         footer={null}
-        width={800}
+        width="95%"
+        style={{ maxWidth: 800 }}
+        centered
       >
 
 
 
         {libraryForModal ? (
           <div className="space-y-4">
-            <div className="flex justify-between items-center">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
               <Text strong>{t('libraries.members')}: {getMemberCount(libraryForModal)}</Text>
               {canManageLibrary(libraryForModal) && (
                 <Button
                   type="primary"
                   icon={<UserAddOutlined />}
                   onClick={() => setIsAddMemberModalVisible(true)}
+                  size="small"
                 >
                   {t('libraries.addMember')}
-              </Button>
+                </Button>
               )}
             </div>
 
@@ -718,12 +818,14 @@ export default function LibrariesManager({
                     <List.Item.Meta
                       avatar={<Avatar icon={<UserOutlined />} />}
                       title={
-                        <div className="flex items-center space-x-2">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-1 sm:gap-2">
                           <span>{member.user.name}</span>
-                          {member.userId === libraryForModal.userId && (
-                            <Tag color="blue">{t('libraries.creator')}</Tag>
-                          )}
-                          <Tag color="green">{member.user.role}</Tag>
+                          <div className="flex flex-wrap gap-1">
+                            {member.userId === libraryForModal.userId && (
+                              <Tag color="blue">{t('libraries.creator')}</Tag>
+                            )}
+                            <Tag color="green">{member.user.role}</Tag>
+                          </div>
                         </div>
                       }
                       description={member.user.email}
@@ -748,7 +850,9 @@ export default function LibrariesManager({
           setIsAddMemberModalVisible(false);
         }}
         footer={null}
-        width={500}
+        width="90%"
+        style={{ maxWidth: 500 }}
+        centered
       >
         <Form
           form={addMemberForm}
@@ -783,14 +887,14 @@ export default function LibrariesManager({
           </Form.Item>
           
           <Form.Item>
-            <Space>
-              <Button type="primary" htmlType="submit" loading={loading}>
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button type="primary" htmlType="submit" loading={loading} block>
                 {t('libraries.add')}
               </Button>
-              <Button onClick={() => setIsAddMemberModalVisible(false)}>
+              <Button onClick={() => setIsAddMemberModalVisible(false)} block>
                 {t('libraries.cancel')}
               </Button>
-            </Space>
+            </div>
           </Form.Item>
         </Form>
       </Modal>

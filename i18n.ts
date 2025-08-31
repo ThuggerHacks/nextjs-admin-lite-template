@@ -568,6 +568,31 @@ export interface Dictionary {
        sharedBy: string;
        sharedOn: string;
        sharingInfo: string;
+       // Cross-sucursal sharing
+       shareCompletedGoalWithExternalSucursal: string;
+       shareCompletedGoalDescription: string;
+  };
+  sharing: {
+    shareWithLocalUsers: string;
+    selectLocalUsers: string;
+    selectUsersFromSucursal: string;
+    shareWithExternalSucursal: string;
+    selectSucursal: string;
+    pleaseSelectSucursal: string;
+    selectRemoteUsers: string;
+    pleaseSelectRemoteUsers: string;
+    selectUsersFromSelectedSucursal: string;
+    messageOptional: string;
+    addMessageAboutSharedContent: string;
+    share: string;
+    sharing: string;
+    pleaseSelectUsersToShareWith: string;
+    pleaseSelectRemoteUsersToShareWith: string;
+    localFileSharingNotImplemented: string;
+    sharedSuccessfully: string;
+    failedToShare: string;
+    failedToLoadSucursals: string;
+    failedToLoadUsersFromSucursal: string;
   };
   documents: {
     // Page title and description
@@ -797,6 +822,10 @@ export interface Dictionary {
     text: string;
     file: string;
     exportAsPdf: string;
+    // File sharing
+    shareFile: string;
+    shareFileDescription: string;
+    shareFileWithExternalSucursal: string;
     characters: string;
     words: string;
     richTextEditorPoweredByQuill: string;
@@ -886,10 +915,20 @@ export interface Dictionary {
       selectTargetFolderForBulkMove: string;
       successfullyDeletedItems: string;
       failedToDeleteSomeItems: string;
-      // Additional missing keys
-      copyText: string;
-      moveText: string;
-      deleteSelectedText: string;
+          // Additional missing keys
+    copyText: string;
+    moveText: string;
+    deleteSelectedText: string;
+    // File shares modal
+    fileShares: string;
+    fileSharedWith: string;
+    fileSharedBy: string;
+    sharedAt: string;
+    message: string;
+    remoteShare: string;
+    noSharesFound: string;
+    loadingShares: string;
+    fileSharedSuccessfully: string;
   };
   scanner: {
     title: string;
@@ -1573,6 +1612,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       shareMessagePlaceholder: 'Digite uma mensagem opcional...',
       sharing: 'Compartilhando',
       pleaseSelectUsers: 'Por favor, selecione pelo menos um usuário',
+      // Cross-sucursal sharing
+      shareCompletedGoalWithExternalSucursal: 'Compartilhar Meta Concluída com Sucursal Externa',
+      shareCompletedGoalDescription: 'Compartilhar a meta concluída "{goalName}" com usuários de outras sucursais para colaboração interorganizacional',
       publishGoal: 'Publicar Meta',
       publish: 'Publicar',
       pending: 'Pendente',
@@ -1797,6 +1839,28 @@ const dictionaries: Record<Locale, Dictionary> = {
       sharedBy: 'Compartilhado por',
       sharedOn: 'Compartilhado em',
       sharingInfo: 'Informações de Compartilhamento',
+    },
+    sharing: {
+      shareWithLocalUsers: 'Compartilhar com Usuários Locais',
+      selectLocalUsers: 'Selecionar Usuários Locais',
+      selectUsersFromSucursal: 'Selecionar usuários da sua sucursal',
+      shareWithExternalSucursal: 'Compartilhar com Sucursal Externa',
+      selectSucursal: 'Selecionar Sucursal',
+      pleaseSelectSucursal: 'Por favor selecione uma sucursal',
+      selectRemoteUsers: 'Selecionar Usuários Remotos',
+      pleaseSelectRemoteUsers: 'Por favor selecione usuários remotos',
+      selectUsersFromSelectedSucursal: 'Selecionar usuários da sucursal selecionada',
+      messageOptional: 'Mensagem (Opcional)',
+      addMessageAboutSharedContent: 'Adicione uma mensagem sobre este conteúdo compartilhado...',
+      share: 'Compartilhar',
+      sharing: 'Compartilhando...',
+      pleaseSelectUsersToShareWith: 'Por favor selecione usuários para compartilhar',
+      pleaseSelectRemoteUsersToShareWith: 'Por favor selecione usuários remotos para compartilhar',
+      localFileSharingNotImplemented: 'Compartilhamento local de arquivos ainda não implementado',
+      sharedSuccessfully: 'Compartilhado com sucesso!',
+      failedToShare: 'Falha ao compartilhar',
+      failedToLoadSucursals: 'Falha ao carregar sucursals',
+      failedToLoadUsersFromSucursal: 'Falha ao carregar usuários da sucursal selecionada',
     },
     documents: {
       // Page title and description
@@ -2057,6 +2121,10 @@ const dictionaries: Record<Locale, Dictionary> = {
       failedToDeleteSomeItems: 'Falha ao excluir alguns itens',
       // Document types
       folder: 'Pasta',
+      // File sharing
+      shareFile: 'Compartilhar Arquivo',
+      shareFileDescription: 'Compartilhar "{fileName}" com usuários da sua sucursal ou de outras sucursais',
+      shareFileWithExternalSucursal: 'Compartilhar Arquivo com Sucursal Externa',
       document: 'Documento',
       image: 'Imagem',
       pdf: 'PDF',
@@ -2140,6 +2208,16 @@ const dictionaries: Record<Locale, Dictionary> = {
       copyText: 'Copiar',
       moveText: 'Mover',
       deleteSelectedText: 'Excluir Selecionados',
+      // File shares modal
+      fileShares: 'Partilhas do Ficheiro',
+      fileSharedWith: 'Este ficheiro foi partilhado com',
+      fileSharedBy: 'Partilhado por',
+      sharedAt: 'Partilhado em',
+      message: 'Mensagem',
+      remoteShare: 'Partilha remota',
+      noSharesFound: 'Nenhuma partilha encontrada para este ficheiro',
+      loadingShares: 'A carregar partilhas...',
+      fileSharedSuccessfully: 'Ficheiro partilhado com sucesso!',
       // Clipboard messages
       itemCutToClipboard: '{{name}} cortado para a área de transferência',
       itemCopiedToClipboard: '{{name}} copiado para a área de transferência',
@@ -2829,6 +2907,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       shareMessagePlaceholder: 'Enter an optional message...',
       sharing: 'Sharing',
       pleaseSelectUsers: 'Please select at least one user',
+      // Cross-sucursal sharing
+      shareCompletedGoalWithExternalSucursal: 'Share Completed Goal with External Sucursal',
+      shareCompletedGoalDescription: 'Share the completed goal "{goalName}" with users from other sucursals for cross-organizational collaboration',
       sharedWithYou: 'Shared With You',
       sharedBy: 'Shared by',
       sharedOn: 'Shared on',
@@ -3053,6 +3134,28 @@ const dictionaries: Record<Locale, Dictionary> = {
       shareMessagePlaceholder: 'Enter an optional message...',
       sharing: 'Sharing',
       pleaseSelectUsers: 'Please select at least one user',
+    },
+    sharing: {
+      shareWithLocalUsers: 'Share with Local Users',
+      selectLocalUsers: 'Select Local Users',
+      selectUsersFromSucursal: 'Select users from your sucursal',
+      shareWithExternalSucursal: 'Share with External Sucursal',
+      selectSucursal: 'Select Sucursal',
+      pleaseSelectSucursal: 'Please select a sucursal',
+      selectRemoteUsers: 'Select Remote Users',
+      pleaseSelectRemoteUsers: 'Please select remote users',
+      selectUsersFromSelectedSucursal: 'Select users from the selected sucursal',
+      messageOptional: 'Message (Optional)',
+      addMessageAboutSharedContent: 'Add a message about this shared content...',
+      share: 'Share',
+      sharing: 'Sharing...',
+      pleaseSelectUsersToShareWith: 'Please select users to share with',
+      pleaseSelectRemoteUsersToShareWith: 'Please select remote users to share with',
+      localFileSharingNotImplemented: 'Local file sharing not yet implemented',
+      sharedSuccessfully: 'Shared successfully!',
+      failedToShare: 'Failed to share',
+      failedToLoadSucursals: 'Failed to load sucursals',
+      failedToLoadUsersFromSucursal: 'Failed to load users from selected sucursal',
     },
     documents: {
       // Page title and description
@@ -3310,6 +3413,10 @@ const dictionaries: Record<Locale, Dictionary> = {
       bulkMoveItems: 'Move Selected Items',
       selectTargetFolderForBulkCopy: 'Select a target folder to copy the selected items to:',
       selectTargetFolderForBulkMove: 'Select a target folder to move the selected items to:',
+      // File sharing
+      shareFile: 'Share File',
+      shareFileDescription: 'Share "{fileName}" with users from your sucursal or from other sucursals',
+      shareFileWithExternalSucursal: 'Share File with External Sucursal',
       successfullyDeletedItems: 'Successfully deleted {{count}} item(s)',
       failedToDeleteSomeItems: 'Failed to delete some items',
       // Document types
@@ -3397,6 +3504,16 @@ const dictionaries: Record<Locale, Dictionary> = {
       copyText: 'Copy',
       moveText: 'Move',
       deleteSelectedText: 'Delete Selected',
+      // File shares modal
+      fileShares: 'File Shares',
+      fileSharedWith: 'This file has been shared with',
+      fileSharedBy: 'Shared by',
+      sharedAt: 'Shared at',
+      message: 'Message',
+      remoteShare: 'Remote share',
+      noSharesFound: 'No shares found for this file',
+      loadingShares: 'Loading shares...',
+      fileSharedSuccessfully: 'File shared successfully!',
       // Clipboard messages
       itemCutToClipboard: '{{name}} cut to clipboard',
       itemCopiedToClipboard: '{{name}} copied to clipboard',

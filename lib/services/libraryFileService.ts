@@ -238,4 +238,53 @@ export const libraryFileService = {
       throw error;
     }
   },
+
+  // Share file with users
+  shareFile: async (libraryId: string, fileId: string, sharedWithIds: string[], message?: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const response = await api.post(`/libraries/${libraryId}/files/${fileId}/share`, {
+        sharedWithIds,
+        message
+      });
+      return { success: true, message: response.data.message };
+    } catch (error: any) {
+      console.error('Share file error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to share file'
+      };
+    }
+  },
+
+  // Share file with remote sucursal users
+  shareFileRemote: async (libraryId: string, fileId: string, serverUrl: string, sharedWithIds: string[], message?: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const response = await api.post(`/libraries/${libraryId}/files/${fileId}/share-remote`, {
+        serverUrl,
+        sharedWithIds,
+        message
+      });
+      return { success: true, message: response.data.message };
+    } catch (error: any) {
+      console.error('Share file remotely error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to share file remotely'
+      };
+    }
+  },
+
+  // Get file sharing information
+  getFileShares: async (libraryId: string, fileId: string): Promise<{ success: boolean; shares?: any[]; error?: string }> => {
+    try {
+      const response = await api.get(`/libraries/${libraryId}/files/${fileId}/shares`);
+      return { success: true, shares: response.data.shares };
+    } catch (error: any) {
+      console.error('Get file shares error:', error);
+      return {
+        success: false,
+        error: error.response?.data?.error || 'Failed to get file shares'
+      };
+    }
+  },
 };

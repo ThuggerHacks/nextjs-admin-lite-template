@@ -1437,4 +1437,491 @@ router.patch('/:libraryId/folders/:folderId', authenticateToken, [
   }
 });
 
+// Share library file with users
+router.post('/:libraryId/files/:fileId/share', authenticateToken, [
+  body('sharedWithIds').isArray().withMessage('sharedWithIds must be an array'),
+  body('message').optional().isString().withMessage('Message must be a string')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { libraryId, fileId } = req.params;
+    const { sharedWithIds, message } = req.body;
+
+    // Get the file to share
+    const file = await prisma.libraryFile.findUnique({
+      where: { id: fileId },
+      include: {
+        library: true,
+        user: true
+      }
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if user can share this file
+    const isMember = await prisma.libraryMember.findFirst({
+      where: {
+        libraryId,
+        userId: req.user.id
+      }
+    });
+
+    const canShare = file.userId === req.user.id || 
+                    file.library.userId === req.user.id || 
+                    ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+
+    if (!canShare) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const results = [];
+
+    for (const userId of sharedWithIds) {
+      try {
+        // Check if user exists
+        const targetUser = await prisma.user.findUnique({
+          where: { id: userId }
+        });
+
+        if (!targetUser) {
+          results.push({ userId, success: false, error: 'User not found' });
+          continue;
+        }
+
+        // Check if already shared
+        const existingShare = await prisma.libraryFileShare.findFirst({
+          where: {
+            fileId,
+            sharedWithId: userId
+          }
+        });
+
+        if (existingShare) {
+          results.push({ userId, success: false, error: 'Already shared with this user' });
+          continue;
+        }
+
+        // Create or get the "Ficheiros Partilhados" library for the target user
+        let sharedLibrary = await prisma.library.findFirst({
+          where: {
+            name: 'Ficheiros Partilhados',
+            userId: userId,
+            sucursalId: targetUser.sucursalId
+          }
+        });
+
+        if (!sharedLibrary) {
+          // Create the shared files library
+          sharedLibrary = await prisma.library.create({
+            data: {
+              name: 'Ficheiros Partilhados',
+              description: 'Biblioteca para ficheiros partilhados por outros utilizadores',
+              userId: userId,
+              sucursalId: targetUser.sucursalId,
+              members: {
+                create: {
+                  userId: userId,
+                }
+              }
+            }
+          });
+        } else {
+          // Ensure the user is a member of the existing library
+          const existingMember = await prisma.libraryMember.findFirst({
+            where: {
+              libraryId: sharedLibrary.id,
+              userId: userId
+            }
+          });
+          
+          if (!existingMember) {
+            await prisma.libraryMember.create({
+              data: {
+                libraryId: sharedLibrary.id,
+                userId: userId,
+                role: 'MEMBER'
+              }
+            });
+          }
+        }
+
+        // Create a copy of the file in the shared library
+        const sharedFile = await prisma.libraryFile.create({
+          data: {
+            name: file.name,
+            originalName: file.originalName,
+            description: file.description,
+            url: file.url,
+            size: file.size,
+            type: file.type,
+            mimeType: file.mimeType,
+            folderId: null, // Place in root of shared library
+            userId: userId, // Owner is the target user
+            sucursalId: targetUser.sucursalId,
+            libraryId: sharedLibrary.id,
+            sharedById: req.user.id // Who shared it
+          }
+        });
+
+        // Create the share record
+        await prisma.libraryFileShare.create({
+          data: {
+            fileId: file.id,
+            sharedById: req.user.id,
+            sharedWithId: userId,
+            message: message || null
+          }
+        });
+
+        results.push({ userId, success: true, sharedFileId: sharedFile.id });
+      } catch (error) {
+        console.error(`Error sharing file with user ${userId}:`, error);
+        results.push({ userId, success: false, error: error.message });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    res.json({
+      message: `File shared successfully with ${successCount} users${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
+      results
+    });
+
+  } catch (error) {
+    console.error('File sharing error:', error);
+    await logError('DATABASE_ERROR', 'Share library file failed', error);
+    res.status(500).json({ error: 'Failed to share file' });
+  }
+});
+
+// Get file sharing information
+router.get('/:libraryId/files/:fileId/shares', authenticateToken, async (req, res) => {
+  try {
+    const { libraryId, fileId } = req.params;
+
+    // Get the file
+    const file = await prisma.libraryFile.findUnique({
+      where: { id: fileId },
+      include: {
+        library: true
+      }
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if user can view this file
+    const isMember = await prisma.libraryMember.findFirst({
+      where: {
+        libraryId,
+        userId: req.user.id
+      }
+    });
+
+    const canView = file.userId === req.user.id || 
+                   file.library.userId === req.user.id || 
+                   isMember ||
+                   ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+
+    if (!canView) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    // Get all shares for this file
+    const shares = await prisma.libraryFileShare.findMany({
+      where: { fileId },
+      include: {
+        sharedBy: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        sharedWith: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        }
+      },
+      orderBy: { sharedAt: 'desc' }
+    });
+
+    res.json({ shares });
+  } catch (error) {
+    console.error('Get file shares error:', error);
+    await logError('DATABASE_ERROR', 'Get file shares failed', error);
+    res.status(500).json({ error: 'Failed to get file shares' });
+  }
+});
+
+// Share library file with remote sucursal users
+router.post('/:libraryId/files/:fileId/share-remote', authenticateToken, [
+  body('serverUrl').notEmpty().withMessage('serverUrl is required'),
+  body('sharedWithIds').isArray().withMessage('sharedWithIds must be an array'),
+  body('message').optional().isString().withMessage('Message must be a string')
+], async (req, res) => {
+  try {
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { libraryId, fileId } = req.params;
+    const { serverUrl, sharedWithIds, message } = req.body;
+
+    // Get the file to share
+    const file = await prisma.libraryFile.findUnique({
+      where: { id: fileId },
+      include: {
+        library: true,
+        user: true
+      }
+    });
+
+    if (!file) {
+      return res.status(404).json({ error: 'File not found' });
+    }
+
+    // Check if user can share this file
+    const isMember = await prisma.libraryMember.findFirst({
+      where: {
+        libraryId,
+        userId: req.user.id
+      }
+    });
+
+    const canShare = file.userId === req.user.id || 
+                    file.library.userId === req.user.id || 
+                    ['SUPERVISOR', 'ADMIN', 'SUPER_ADMIN', 'DEVELOPER'].includes(req.user.role);
+
+    if (!canShare) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
+    const results = [];
+
+    for (const userId of sharedWithIds) {
+      try {
+        // Send request to remote server to share the file
+        const remoteResponse = await fetch(`${serverUrl}/api/libraries/files/share-remote`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${req.headers.authorization}`,
+          },
+          body: JSON.stringify({
+            fileData: {
+              name: file.name,
+              originalName: file.originalName,
+              description: file.description,
+              url: file.url,
+              size: file.size,
+              type: file.type,
+              mimeType: file.mimeType,
+              sharedById: req.user.id,
+              sharedByUser: {
+                id: req.user.id,
+                name: req.user.name,
+                email: req.user.email,
+                sucursalId: req.user.sucursalId
+              }
+            },
+            targetUserId: userId,
+            message: message || null
+          })
+        });
+
+        if (!remoteResponse.ok) {
+          const errorData = await remoteResponse.json();
+          results.push({ userId, success: false, error: errorData.error || 'Remote server error' });
+          continue;
+        }
+
+        const remoteResult = await remoteResponse.json();
+        
+        if (remoteResult.success) {
+          // Create local share record
+          await prisma.libraryFileShare.create({
+            data: {
+              fileId: file.id,
+              sharedById: req.user.id,
+              sharedWithId: userId,
+              message: message || null,
+              isRemoteShare: true,
+              remoteServerUrl: serverUrl
+            }
+          });
+
+          results.push({ userId, success: true, remoteFileId: remoteResult.sharedFileId });
+        } else {
+          results.push({ userId, success: false, error: remoteResult.error });
+        }
+      } catch (error) {
+        console.error(`Error sharing file with remote user ${userId}:`, error);
+        results.push({ userId, success: false, error: error.message });
+      }
+    }
+
+    const successCount = results.filter(r => r.success).length;
+    const failureCount = results.filter(r => !r.success).length;
+
+    res.json({
+      message: `File shared successfully with ${successCount} remote users${failureCount > 0 ? `, ${failureCount} failed` : ''}`,
+      results
+    });
+
+  } catch (error) {
+    console.error('Remote file sharing error:', error);
+    await logError('DATABASE_ERROR', 'Share library file with remote sucursal failed', error);
+    res.status(500).json({ error: 'Failed to share file with remote sucursal' });
+  }
+});
+
+// Handle incoming remote file sharing requests
+router.post('/files/share-remote', authenticateToken, [
+  body('fileData').notEmpty().withMessage('fileData is required'),
+  body('targetUserId').notEmpty().withMessage('targetUserId is required'),
+  body('message').optional().isString().withMessage('Message must be a string')
+], async (req, res) => {
+  try {
+    console.log('Received remote file sharing request:', req.body);
+    
+    const errors = validationResult(req);
+    if (!errors.isEmpty()) {
+      return res.status(400).json({ errors: errors.array() });
+    }
+
+    const { fileData, targetUserId, message } = req.body;
+
+    // Check if target user exists
+    const targetUser = await prisma.user.findUnique({
+      where: { id: targetUserId }
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ error: 'Target user not found' });
+    }
+
+    // Check if sharedBy user exists (if provided)
+    let sharedByUser = null;
+    if (fileData.sharedById) {
+      sharedByUser = await prisma.user.findUnique({
+        where: { id: fileData.sharedById }
+      });
+      
+      if (!sharedByUser) {
+        console.warn('SharedBy user not found:', fileData.sharedById);
+        // Continue without sharedById
+      }
+    }
+
+    // Create or get the "Ficheiros Partilhados" library for the target user
+    let sharedLibrary = await prisma.library.findFirst({
+      where: {
+        name: 'Ficheiros Partilhados',
+        userId: targetUserId,
+        sucursalId: targetUser.sucursalId
+      }
+    });
+
+    if (!sharedLibrary) {
+      // Create the shared files library
+      sharedLibrary = await prisma.library.create({
+        data: {
+          name: 'Ficheiros Partilhados',
+          description: 'Biblioteca para ficheiros partilhados por outros utilizadores',
+          userId: targetUserId,
+          sucursalId: targetUser.sucursalId,
+          members: {
+            create: {
+              userId: targetUserId
+            }
+          }
+        }
+      });
+    } else {
+      // Ensure the user is a member of the existing library
+      const existingMember = await prisma.libraryMember.findFirst({
+        where: {
+          libraryId: sharedLibrary.id,
+          userId: targetUserId
+        }
+      });
+      
+      if (!existingMember) {
+        await prisma.libraryMember.create({
+          data: {
+            libraryId: sharedLibrary.id,
+            userId: targetUserId
+          }
+        });
+      }
+    }
+
+    // Create the shared file in the library
+    const fileDataToCreate = {
+      name: fileData.name,
+      originalName: fileData.name, // Use name as originalName if not provided
+      description: fileData.description || '',
+      url: fileData.url,
+      size: fileData.size,
+      type: fileData.type || 'application/octet-stream',
+      mimeType: fileData.type || 'application/octet-stream',
+      folderId: null, // Place in root of shared library
+      userId: targetUserId, // Owner is the target user
+      sucursalId: targetUser.sucursalId,
+      libraryId: sharedLibrary.id,
+      sharedById: sharedByUser ? fileData.sharedById : null // Only set if user exists
+    };
+    
+    console.log('Creating file with data:', fileDataToCreate);
+    
+    const sharedFile = await prisma.libraryFile.create({
+      data: fileDataToCreate
+    });
+
+    // Create the share record
+    const shareData = {
+      fileId: sharedFile.id,
+      sharedById: sharedByUser ? fileData.sharedById : targetUserId, // Use sharedBy user if exists, otherwise target user
+      sharedWithId: targetUserId,
+      message: message || null,
+      isRemoteShare: true,
+      remoteServerUrl: req.headers.origin || 'unknown'
+    };
+    
+    console.log('Creating share record with data:', shareData);
+    
+    await prisma.libraryFileShare.create({
+      data: shareData
+    });
+
+    console.log('File shared successfully:', { sharedFileId: sharedFile.id, targetUserId });
+    
+    res.json({
+      success: true,
+      sharedFileId: sharedFile.id,
+      message: 'File shared successfully'
+    });
+
+  } catch (error) {
+    console.error('Remote file sharing error:', error);
+    console.error('Request body:', req.body);
+    console.error('Target user:', req.body.targetUserId || 'undefined');
+    await logError('DATABASE_ERROR', 'Handle remote file sharing failed', error);
+    res.status(500).json({ error: 'Failed to handle remote file sharing', details: error.message });
+  }
+});
+
 module.exports = router; 

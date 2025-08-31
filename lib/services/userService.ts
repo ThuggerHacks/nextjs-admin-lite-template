@@ -498,4 +498,21 @@ export const userService = {
       throw error;
     }
   },
+
+  // Share goal with users
+  shareGoal: async (goalId: string, sharedWithIds: string[], message?: string): Promise<{ success: boolean; message?: string; error?: string }> => {
+    try {
+      const response = await api.post(`/goals/${goalId}/share`, {
+        sharedWithIds,
+        message
+      });
+      return { success: true, message: response.data.message };
+    } catch (error: any) {
+      console.error('Share goal error:', error);
+      return { 
+        success: false, 
+        error: error.response?.data?.error || 'Failed to share goal' 
+      };
+    }
+  },
 };

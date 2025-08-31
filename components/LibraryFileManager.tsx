@@ -35,11 +35,15 @@ import {
   SortAscendingOutlined,
   SortDescendingOutlined,
   HomeOutlined,
+  ShareAltOutlined,
+  EyeOutlined,
+  SearchOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
 import { FileItem, FolderItem } from '@/types';
 import { libraryFileService, LibraryFolder, LibraryFile } from '@/lib/services/libraryFileService';
+import CrossSucursalShare from './CrossSucursalShare';
 
 const { TextArea } = Input;
 const { Title, Text } = Typography;
@@ -77,12 +81,18 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
   const [fileSystem, setFileSystem] = useState<(FileItem | FolderItem)[]>([]);
   const [completeFileSystem, setCompleteFileSystem] = useState<(FileItem | FolderItem)[]>([]); // Store complete tree
   const [loading, setLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState<string>('');
   
   // Modals
   const [createFolderModalVisible, setCreateFolderModalVisible] = useState(false);
   const [uploadModalVisible, setUploadModalVisible] = useState(false);
   const [renameModalVisible, setRenameModalVisible] = useState(false);
+  const [crossSucursalShareModalVisible, setCrossSucursalShareModalVisible] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<UploadProgressItem[]>([]);
+  const [selectedFileToShare, setSelectedFileToShare] = useState<LibraryFile | null>(null);
+  const [sharesModalVisible, setSharesModalVisible] = useState(false);
+  const [selectedFileShares, setSelectedFileShares] = useState<any[]>([]);
+  const [sharesLoading, setSharesLoading] = useState(false);
   
   // Forms
   const [createFolderForm] = Form.useForm();
@@ -271,7 +281,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     } finally {
       setLoading(false);
     }
-  }, [libraryId, currentFolderId, currentPath]);
+  }, [libraryId, currentFolderId]);
 
   // Load data on component mount and when key dependencies change
   useEffect(() => {
@@ -446,7 +456,16 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
   };
 
   const sortItems = (items: (FileItem | FolderItem)[]): (FileItem | FolderItem)[] => {
-    const sorted = [...items].sort((a, b) => {
+    // First filter by search term
+    let filteredItems = items;
+    if (searchTerm.trim()) {
+      filteredItems = items.filter(item => 
+        item.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Then sort the filtered results
+    const sorted = [...filteredItems].sort((a, b) => {
       // Folders first
       const aIsFolder = 'children' in a;
       const bIsFolder = 'children' in b;
@@ -821,6 +840,26 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     setRenameModalVisible(true);
   };
 
+  const handleViewShares = async (file: LibraryFile) => {
+    try {
+      setSharesLoading(true);
+      setSelectedFileShares([]);
+      setSharesModalVisible(true);
+
+      const result = await libraryFileService.getFileShares(libraryId, file.id);
+      if (result.success && result.shares) {
+        setSelectedFileShares(result.shares);
+      } else {
+        message.error(result.error || 'Failed to load file shares');
+      }
+    } catch (error) {
+      console.error('Error loading file shares:', error);
+      message.error('Failed to load file shares');
+    } finally {
+      setSharesLoading(false);
+    }
+  };
+
   // View mode components
   const renderListView = () => {
     const items = sortItems(getCurrentFolderContents());
@@ -830,6 +869,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         title: t('files.name'),
         dataIndex: 'name',
         key: 'name',
+        responsive: ['md'],
         render: (text: string, record: FileItem | FolderItem) => (
           <Space>
             {getFileIcon(record)}
@@ -850,6 +890,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         title: t('files.size'),
         dataIndex: 'size',
         key: 'size',
+        responsive: ['lg'],
         render: (size: number, record: FileItem | FolderItem) => 
           'size' in record ? formatFileSize(size) : '—',
       },
@@ -857,6 +898,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         title: t('files.modified'),
         dataIndex: 'uploadedAt',
         key: 'modified',
+        responsive: ['md'],
         render: (date: Date, record: FileItem | FolderItem) => {
           const modDate = 'uploadedAt' in record ? record.uploadedAt : record.createdAt;
           return new Date(modDate).toLocaleDateString();
@@ -899,15 +941,46 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                 />
               </Tooltip>
             )}
-            {(canDelete || (user && ('createdBy' in record ? record.createdBy?.id === user.id : record.uploadedBy?.id === user.id))) && (
+            {!('children' in record) && (
+              <Tooltip title="Share File">
+                <Button 
+                  type="text" 
+                  size="small" 
+                  icon={<ShareAltOutlined />} 
+                  onClick={() => {
+                    setSelectedFileToShare(record as LibraryFile);
+                    setCrossSucursalShareModalVisible(true);
+                  }}
+                />
+              </Tooltip>
+            )}
+                         {!('children' in record) && (
+               <Tooltip title="View Shares">
+                 <Button 
+                   type="text" 
+                   size="small" 
+                   icon={<EyeOutlined />} 
+                   onClick={() => {
+                     handleViewShares(record as LibraryFile);
+                   }}
+                 />
+               </Tooltip>
+             )}
+            {canDelete && (user && ('createdBy' in record ? record.createdBy?.id === user.id : record.uploadedBy?.id === user.id)) && (
               <Tooltip title={t('files.delete')}>
                 <Popconfirm
                   title={t('files.deleteConfirm')}
-                  onConfirm={() => handleDeleteItem(record.id)}
+                  description={t('files.deleteWarning')}
+                  onConfirm={() => handleDeleteItem(record)}
                   okText={t('common.yes')}
                   cancelText={t('common.no')}
                 >
-                  <Button type="text" size="small" danger icon={<DeleteOutlined />} />
+                  <Button 
+                    type="text" 
+                    size="small" 
+                    danger
+                    icon={<DeleteOutlined />} 
+                  />
                 </Popconfirm>
               </Tooltip>
             )}
@@ -934,18 +1007,131 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     }
 
     return (
-      <Table
-        columns={columns}
-        dataSource={items}
-        rowKey="id"
-        pagination={false}
-        size="small"
-        loading={loading}
-        rowSelection={{
-          selectedRowKeys: selectedItems,
-          onChange: (selectedRowKeys: React.Key[]) => setSelectedItems(selectedRowKeys.map(key => String(key))),
-        }}
-      />
+      <>
+        {/* Desktop view - Table */}
+        <div className="hidden md:block">
+          <Table
+            columns={columns}
+            dataSource={items}
+            rowKey="id"
+            pagination={false}
+            size="small"
+            loading={loading}
+            rowSelection={{
+              selectedRowKeys: selectedItems,
+              onChange: (selectedRowKeys: React.Key[]) => setSelectedItems(selectedRowKeys.map(key => String(key))),
+            }}
+          />
+        </div>
+
+        {/* Mobile view - Cards */}
+        <div className="md:hidden">
+          <div className="space-y-3">
+            {items.map((item) => (
+              <Card key={item.id} size="small" className="hover:shadow-md transition-shadow">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <div 
+                      className="flex items-center space-x-3 cursor-pointer hover:text-blue-600"
+                      onClick={() => {
+                        if ('children' in item) {
+                          handleFolderDoubleClick(item.path);
+                        }
+                      }}
+                    >
+                      {getFileIcon(item)}
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium truncate">{item.name}</div>
+                        <div className="text-sm text-gray-500">
+                          {'size' in item ? formatFileSize(item.size) : '—'} • {
+                            new Date('uploadedAt' in item ? item.uploadedAt : item.createdAt).toLocaleDateString()
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                                     <div className="flex flex-row gap-2 ml-2">
+                    {!('children' in item) && (
+                      <Tooltip title={t('files.download')}>
+                        <a
+                          href={(item as FileItem).url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.open((item as FileItem).url, '_blank');
+                          }}
+                          style={{ 
+                            fontSize: '16px', 
+                            color: '#52c41a',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <DownloadOutlined />
+                        </a>
+                      </Tooltip>
+                    )}
+                    {(user && ('createdBy' in item ? item.createdBy?.id === user.id : item.uploadedBy?.id === user.id)) && (
+                      <Tooltip title={t('files.rename')}>
+                        <Button 
+                          type="text" 
+                          size="small" 
+                          icon={<EditOutlined />} 
+                          onClick={() => showRenameModal(item)}
+                        />
+                      </Tooltip>
+                    )}
+                    {!('children' in item) && (
+                      <Tooltip title="Share File">
+                        <Button 
+                          type="text" 
+                          size="small" 
+                          icon={<ShareAltOutlined />} 
+                          onClick={() => {
+                            setSelectedFileToShare(item as LibraryFile);
+                            setCrossSucursalShareModalVisible(true);
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                    {!('children' in item) && (
+                      <Tooltip title="View Shares">
+                        <Button 
+                          type="text" 
+                          size="small" 
+                          icon={<EyeOutlined />} 
+                          onClick={() => {
+                            handleViewShares(item as LibraryFile);
+                          }}
+                        />
+                      </Tooltip>
+                    )}
+                    {canDelete && (user && ('createdBy' in item ? item.createdBy?.id === user.id : item.uploadedBy?.id === user.id)) && (
+                      <Tooltip title={t('files.delete')}>
+                        <Popconfirm
+                          title={t('files.deleteConfirm')}
+                          description={t('files.deleteWarning')}
+                          onConfirm={() => handleDeleteItem(item)}
+                          okText={t('common.yes')}
+                          cancelText={t('common.no')}
+                        >
+                          <Button 
+                            type="text" 
+                            size="small" 
+                            danger
+                            icon={<DeleteOutlined />} 
+                          />
+                        </Popconfirm>
+                      </Tooltip>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </>
     );
   };
 
@@ -1083,55 +1269,70 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
   return (
     <div>
       <Card>
-        <Row justify="space-between" align="middle" style={{ marginBottom: 16 }}>
-          <Col>
+        <Row gutter={[16, 16]} justify="space-between" align="middle" style={{ marginBottom: 16 }}>
+          <Col xs={24} md={8}>
             <Title level={4} style={{ margin: 0 }}>
               {libraryName}
             </Title>
           </Col>
-          <Col>
-            <Space>
-              {/* View Mode Selector */}
-              <Radio.Group value={viewMode} onChange={(e) => setViewMode(e.target.value)}>
-                <Radio.Button value="list">
-                  <UnorderedListOutlined /> {t('files.list')}
-                </Radio.Button>
-                <Radio.Button value="grid">
-                  <AppstoreOutlined /> {t('files.grid')}
-                </Radio.Button>
-              </Radio.Group>
+                     <Col xs={24} md={16}>
+             <div className="flex flex-col gap-3 items-end">
+               {/* View Mode Selector */}
+               <Radio.Group value={viewMode} onChange={(e) => setViewMode(e.target.value)} size="small">
+                 <Radio.Button value="list">
+                   <UnorderedListOutlined /> {t('files.list')}
+                 </Radio.Button>
+                 <Radio.Button value="grid">
+                   <AppstoreOutlined /> {t('files.grid')}
+                 </Radio.Button>
+               </Radio.Group>
 
-              {/* Sort Controls */}
-              <Select value={sortBy} onChange={setSortBy} style={{ width: 100 }}>
-                <Select.Option value="name">{t('files.sortByName')}</Select.Option>
-                <Select.Option value="date">{t('files.sortByDate')}</Select.Option>
-                <Select.Option value="size">{t('files.sortBySize')}</Select.Option>
-                <Select.Option value="type">{t('files.sortByType')}</Select.Option>
-              </Select>
+               {/* Search and Sort Controls */}
+               <div className="flex flex-wrap gap-2 items-center justify-end">
+                 <Input
+                   placeholder={t('files.searchFiles')}
+                   value={searchTerm}
+                   onChange={(e) => setSearchTerm(e.target.value)}
+                   prefix={<SearchOutlined />}
+                   allowClear
+                   style={{ width: 200 }}
+                   size="small"
+                 />
+                 
+                 <Select value={sortBy} onChange={setSortBy} style={{ width: 120 }} size="small">
+                   <Select.Option value="name">{t('files.sortByName')}</Select.Option>
+                   <Select.Option value="date">{t('files.sortByDate')}</Select.Option>
+                   <Select.Option value="size">{t('files.sortBySize')}</Select.Option>
+                   <Select.Option value="type">{t('files.sortByType')}</Select.Option>
+                 </Select>
 
-              <Button
-                icon={sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
-                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-              />
+                 <Button
+                   icon={sortOrder === 'asc' ? <SortAscendingOutlined /> : <SortDescendingOutlined />}
+                   onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                   size="small"
+                 />
 
-              {canWrite && (
-                <>
-                  <Button
-                    type="primary"
-                    icon={<FolderAddOutlined />}
-                    onClick={() => setCreateFolderModalVisible(true)}
-                  >
-                    {t('files.newFolder')}
-                  </Button>
-                  <Button
-                    icon={<UploadOutlined />}
-                    onClick={() => setUploadModalVisible(true)}
-                  >
-                    {t('files.upload')}
-                  </Button>
-                </>
-              )}
-            </Space>
+                 {canWrite && (
+                   <>
+                     <Button
+                       type="primary"
+                       icon={<FolderAddOutlined />}
+                       onClick={() => setCreateFolderModalVisible(true)}
+                       size="small"
+                     >
+                       {t('files.newFolder')}
+                     </Button>
+                     <Button
+                       icon={<UploadOutlined />}
+                       onClick={() => setUploadModalVisible(true)}
+                       size="small"
+                     >
+                       {t('files.upload')}
+                     </Button>
+                   </>
+                 )}
+               </div>
+             </div>
           </Col>
         </Row>
 
@@ -1337,6 +1538,88 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
             </Space>
           </Form.Item>
         </Form>
+      </Modal>
+
+             {/* Cross-Sucursal Share File Modal */}
+       <Modal
+         title={`${t('files.shareFileWithExternalSucursal')} - ${selectedFileToShare?.name || ''}`}
+         open={crossSucursalShareModalVisible}
+         onCancel={() => setCrossSucursalShareModalVisible(false)}
+         footer={null}
+         width={800}
+       >
+        {selectedFileToShare && (
+          <CrossSucursalShare
+            type="file"
+            itemId={selectedFileToShare.id}
+            itemName={selectedFileToShare.name}
+            localShareableUsers={[]} // TODO: Get local users for file sharing
+            fileData={selectedFileToShare}
+            onSuccess={() => {
+              setCrossSucursalShareModalVisible(false);
+              setSelectedFileToShare(null);
+              message.success(t('files.fileSharedSuccessfully'));
+            }}
+            onCancel={() => {
+              setCrossSucursalShareModalVisible(false);
+              setSelectedFileToShare(null);
+            }}
+          />
+        )}
+      </Modal>
+
+      {/* File Shares Modal */}
+      <Modal
+        title={`${t('files.fileShares')} - ${selectedFileShares.length > 0 ? selectedFileShares[0]?.file?.name || 'Unknown File' : 'Unknown File'}`}
+        open={sharesModalVisible}
+        onCancel={() => setSharesModalVisible(false)}
+        footer={[
+          <Button key="close" onClick={() => setSharesModalVisible(false)}>
+            {t('common.close')}
+          </Button>
+        ]}
+        width="90%"
+        style={{ maxWidth: 600 }}
+        centered
+      >
+        {sharesLoading ? (
+          <div style={{ textAlign: 'center', padding: '20px' }}>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto mb-4"></div>
+            {t('files.loadingShares')}
+          </div>
+        ) : selectedFileShares.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '20px', color: '#999' }}>
+            <EyeOutlined style={{ fontSize: '48px', marginBottom: '16px' }} />
+            <div>{t('files.noSharesFound')}</div>
+          </div>
+        ) : (
+          <div>
+            <div style={{ marginBottom: '16px' }}>
+              <Text strong>{t('files.fileSharedWith')} {selectedFileShares.length} {selectedFileShares.length === 1 ? 'user' : 'users'}:</Text>
+            </div>
+            {selectedFileShares.map((share, index) => (
+              <Card 
+                key={share.id} 
+                size="small" 
+                style={{ marginBottom: '12px' }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <div>
+                    <div><strong>Shared with:</strong> {share.sharedWith?.name} ({share.sharedWith?.email})</div>
+                    <div><strong>{t('files.fileSharedBy')}:</strong> {share.sharedBy?.name} ({share.sharedBy?.email})</div>
+                    {share.message && (
+                      <div><strong>{t('files.message')}:</strong> {share.message}</div>
+                    )}
+                    <div><strong>{t('files.sharedAt')}:</strong> {new Date(share.sharedAt).toLocaleString()}</div>
+                    {share.isRemoteShare && (
+                      <div><strong>{t('files.remoteShare')}:</strong> {t('common.yes')}</div>
+                    )}
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        )}
       </Modal>
     </div>
   );

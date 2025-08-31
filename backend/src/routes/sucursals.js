@@ -9,7 +9,7 @@ const currentSucursal = require('../lib/currentSucursal');
 const router = express.Router();
 
 // Get all sucursals
-router.get('/', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
+router.get('/', authenticateToken,  async (req, res) => {
   try {
     const sucursals = await prisma.sucursal.findMany({
       include: {
@@ -32,7 +32,7 @@ router.get('/', authenticateToken, requireRole(['DEVELOPER']), async (req, res) 
 });
 
 // Get sucursal by ID
-router.get('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), async (req, res) => {
+router.get('/:sucursalId', authenticateToken, async (req, res) => {
   try {
     const { sucursalId } = req.params;
     const sucursal = await prisma.sucursal.findUnique({
