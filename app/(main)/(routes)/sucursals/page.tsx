@@ -131,6 +131,7 @@ export default function SucursalManagementPage() {
     console.log('Form values submitted:', values);
     setLoading(true);
     try {
+      // First create the sucursal locally
       const newSucursal = await sucursalService.create({
         name: values.name,
         description: values.description,
@@ -138,10 +139,36 @@ export default function SucursalManagementPage() {
         serverUrl: values.serverUrl,
       });
 
+      // Add to local state
       setSucursals(prev => [...prev, newSucursal]);
+      
+      // Now sync this new sucursal to all existing sucursals
+      try {
+        const syncResults = await sucursalService.syncNewSucursalToAll(
+          {
+            name: values.name,
+            description: values.description,
+            location: values.location || '',
+            serverUrl: values.serverUrl,
+          },
+          sucursals
+        );
+
+        if (syncResults.success) {
+          message.success(`${t('common.success')} - Sucursal synced to all servers`);
+        } else {
+          // Show warning if some syncs failed
+          const warningMsg = `Sucursal created but sync failed for: ${syncResults.failed.join(', ')}`;
+          message.warning(warningMsg);
+          console.warn('Sync results:', syncResults);
+        }
+      } catch (syncError: any) {
+        console.error('Failed to sync sucursal to other servers:', syncError);
+        message.warning('Sucursal created locally but failed to sync to other servers');
+      }
+
       setModalVisible(false);
       form.resetFields();
-      message.success(t('common.success'));
     } catch (error: any) {
       console.error('Failed to create sucursal:', error);
       const errorMessage = error.response?.data?.details || error.response?.data?.error || error.message || t('common.error');

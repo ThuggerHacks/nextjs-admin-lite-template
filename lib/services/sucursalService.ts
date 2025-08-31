@@ -249,4 +249,61 @@ export const sucursalService = {
       throw error;
     }
   },
+
+  // Sync new sucursal to all existing sucursals
+  syncNewSucursalToAll: async (newSucursal: CreateSucursalRequest, existingSucursals: Sucursal[]): Promise<{
+    success: boolean;
+    syncedTo: string[];
+    failed: string[];
+    errors: string[];
+  }> => {
+    const results = {
+      success: true,
+      syncedTo: [] as string[],
+      failed: [] as string[],
+      errors: [] as string[],
+    };
+
+    // Get the token for authentication
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    // Loop through all existing sucursals and sync the new one
+    for (const sucursal of existingSucursals) {
+      if (sucursal.serverUrl === newSucursal.serverUrl) {
+        // Skip if it's the same server
+        continue;
+      }
+
+      try {
+        const url = `${sucursal.serverUrl}/api/sucursals`;
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`,
+          },
+          body: JSON.stringify(newSucursal),
+          signal: AbortSignal.timeout(10000), // 10 second timeout
+        });
+
+        if (response.ok) {
+          results.syncedTo.push(sucursal.name);
+        } else {
+          const errorData = await response.json().catch(() => ({}));
+          results.failed.push(sucursal.name);
+          results.errors.push(`${sucursal.name}: ${errorData.error || `HTTP ${response.status}`}`);
+          results.success = false;
+        }
+      } catch (error: any) {
+        results.failed.push(sucursal.name);
+        results.errors.push(`${sucursal.name}: ${error.message || 'Network error'}`);
+        results.success = false;
+      }
+    }
+
+    return results;
+  },
 };
