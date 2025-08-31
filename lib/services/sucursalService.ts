@@ -191,6 +191,7 @@ export const sucursalService = {
   // Get error logs for a specific sucursal
   getErrorLogs: async (
     sucursalId: string, 
+    serverUrl: string,
     page: number = 1, 
     limit: number = 50,
     startDate?: string,
@@ -215,11 +216,37 @@ export const sucursalService = {
       pages: number;
     };
   }> => {
-    let url = `/error-logs?sucursalId=${sucursalId}&page=${page}&limit=${limit}`;
+    let url = `${serverUrl}/api/error-logs?sucursalId=${sucursalId}&page=${page}&limit=${limit}`;
     if (startDate) url += `&startDate=${startDate}`;
     if (endDate) url += `&endDate=${endDate}`;
     
-    const response = await api.get(url);
-    return response.data;
+    try {
+      // Get the token from localStorage or sessionStorage
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      
+      if (!token) {
+        throw new Error('No authentication token found');
+      }
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        // Add timeout for cross-server requests
+        signal: AbortSignal.timeout(10000), // 10 second timeout
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Failed to fetch error logs from remote server:', error);
+      throw error;
+    }
   },
 };

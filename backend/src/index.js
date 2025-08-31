@@ -108,11 +108,11 @@ app.listen(PORT, async () => {
   console.log(`Environment: ${process.env.NODE_ENV}`);
   
   // Start cron service
-  try {
-    cronService.start();
-  } catch (error) {
-    console.error('Failed to start cron service:', error);
-  }
+  // try {
+  //   cronService.start();
+  // } catch (error) {
+  //   console.error('Failed to start cron service:', error);
+  // }
 });
 
 // Graceful shutdown

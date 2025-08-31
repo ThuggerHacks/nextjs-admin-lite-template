@@ -23,6 +23,8 @@ import {
   Progress,
   Alert,
   DatePicker,
+  Spin,
+  Empty,
 } from 'antd';
 import {
   PlusOutlined,
@@ -36,6 +38,7 @@ import {
   InfoCircleOutlined,
   WarningOutlined,
   DatabaseOutlined,
+  FileTextOutlined,
 } from '@ant-design/icons';
 import { useUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -71,6 +74,7 @@ export default function SucursalManagementPage() {
   }>>([]);
   const [errorLogsLoading, setErrorLogsLoading] = useState(false);
   const [errorLogDateRange, setErrorLogDateRange] = useState<[string, string] | null>(null);
+  const [errorLogsError, setErrorLogsError] = useState<string | null>(null);
 
   const { user } = useUser();
   const { t } = useTranslation();
@@ -116,7 +120,11 @@ export default function SucursalManagementPage() {
   }, []);
 
   const canManageSucursals = () => {
-    return user?.role === UserRole.DEVELOPER;
+    return user?.role === UserRole.DEVELOPER || user?.role === UserRole.SUPER_ADMIN;
+  };
+
+  const canViewErrorLogs = () => {
+    return user?.role === UserRole.DEVELOPER || user?.role === UserRole.SUPER_ADMIN;
   };
 
   const handleCreateSucursal = async (values: any) => {
@@ -293,15 +301,30 @@ export default function SucursalManagementPage() {
   };
 
   // Fetch error logs for a specific sucursal
-  const fetchErrorLogs = async (sucursalId: string, startDate?: string, endDate?: string) => {
+  const fetchErrorLogs = async (sucursalId: string, serverUrl: string, startDate?: string, endDate?: string) => {
+    if (!canViewErrorLogs()) {
+      setErrorLogsError('Access denied: Insufficient permissions to view error logs');
+      setErrorLogs([]);
+      return;
+    }
+
     try {
       setErrorLogsLoading(true);
-      const data = await sucursalService.getErrorLogs(sucursalId, 1, 50, startDate, endDate);
-      setErrorLogs(data.errorLogs);
-    } catch (error) {
+      setErrorLogsError(null);
+      const data = await sucursalService.getErrorLogs(sucursalId, selectedSucursal?.serverUrl || '', 1, 50, startDate, endDate);
+      setErrorLogs(data.errorLogs || []);
+    } catch (error: any) {
       console.error('Failed to fetch error logs:', error);
-      message.error(t('common.error'));
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to fetch error logs';
+      setErrorLogsError(errorMessage);
       setErrorLogs([]);
+      
+      // Show user-friendly error message
+      if (error.response?.status === 403) {
+        message.error('Access denied: You need DEVELOPER or SUPER_ADMIN role to view error logs');
+      } else {
+        message.error(`Failed to fetch error logs: ${errorMessage}`);
+      }
     } finally {
       setErrorLogsLoading(false);
     }
@@ -326,9 +349,6 @@ export default function SucursalManagementPage() {
     return 'exception';
   };
 
-  // This logColumns array is not used anymore - the table columns are defined inline in the drawer
-  // Keeping it for reference but it's not needed
-
   if (!canManageSucursals()) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -343,10 +363,10 @@ export default function SucursalManagementPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-4 md:p-6">
       {/* Header */}
       <Card>
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center space-y-4 lg:space-y-0">
           <div>
             <Title level={3} className="mb-2">
               <DatabaseOutlined className="mr-2" />
@@ -356,7 +376,7 @@ export default function SucursalManagementPage() {
               {t('sucursal.manageSucursals')}
             </Text>
           </div>
-          <Space>
+          <Space direction="vertical" className="w-full lg:w-auto">
             <Button
               icon={<ReloadOutlined />}
               onClick={async () => {
@@ -366,23 +386,25 @@ export default function SucursalManagementPage() {
                 }
               }}
               loading={healthCheckLoading}
+              className="w-full lg:w-auto"
             >
               {t('common.refresh')}
             </Button>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => setModalVisible(true)}
-          >
-            {t('sucursal.addSucursal')}
-          </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => setModalVisible(true)}
+              className="w-full lg:w-auto"
+            >
+              {t('sucursal.addSucursal')}
+            </Button>
           </Space>
         </div>
       </Card>
 
       {/* Overview Stats */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title={t('sucursal.totalSucursals')}
@@ -391,7 +413,7 @@ export default function SucursalManagementPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title={t('sucursal.online')}
@@ -401,7 +423,7 @@ export default function SucursalManagementPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title={t('sucursal.offline')}
@@ -411,7 +433,7 @@ export default function SucursalManagementPage() {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={12} lg={6}>
           <Card>
             <Statistic
               title={t('sucursal.avgUptime')}
@@ -430,12 +452,12 @@ export default function SucursalManagementPage() {
           <Col key={sucursal.id} xs={24} lg={12} xl={8}>
             <Card
               title={
-                <div className="flex items-center justify-between">
-                  <span>{sucursal.name}</span>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                  <span className="text-base font-medium">{sucursal.name}</span>
                   {getServerStatusBadge(sucursal)}
                 </div>
               }
-              extra={
+                            extra={
                 <Space>
                   <Tooltip title={t('sucursal.refreshStatusTooltip')}>
                     <Button
@@ -456,12 +478,12 @@ export default function SucursalManagementPage() {
                     <Button
                       size="small"
                       icon={<EyeOutlined />}
-                      onClick={() => {
-                        setSelectedSucursal(sucursal);
-                        setDetailsDrawerVisible(true);
-                        // Fetch error logs when opening drawer
-                        fetchErrorLogs(sucursal.id);
-                      }}
+                                              onClick={() => {
+                          setSelectedSucursal(sucursal);
+                          setDetailsDrawerVisible(true);
+                          // Fetch error logs when opening drawer
+                          fetchErrorLogs(sucursal.id, sucursal.serverUrl);
+                        }}
                     />
                   </Tooltip>
                 </Space>
@@ -473,7 +495,7 @@ export default function SucursalManagementPage() {
               <div className="space-y-3">
                 <div>
                   <Text strong>{t('sucursal.url')}: </Text>
-                  <Text code>{sucursal.serverUrl}</Text>
+                  <Text code className="break-all">{sucursal.serverUrl}</Text>
                 </div>
                 
                 <div>
@@ -487,7 +509,7 @@ export default function SucursalManagementPage() {
                   </div>
                 )}
                 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <Text type="secondary">{t('sucursal.responseTime')}</Text>
                     <div className="text-lg font-semibold">
@@ -533,7 +555,7 @@ export default function SucursalManagementPage() {
       {/* Create Sucursal Modal */}
       <Modal
         title={t('sucursal.addNewSucursal')}
-        visible={modalVisible}
+        open={modalVisible}
         onCancel={() => {
           setModalVisible(false);
           form.resetFields();
@@ -609,7 +631,7 @@ export default function SucursalManagementPage() {
       {/* Edit Sucursal Modal */}
       <Modal
         title={t('sucursal.editSucursal')}
-        visible={editModalVisible}
+        open={editModalVisible}
         onCancel={() => {
           setEditModalVisible(false);
           editForm.resetFields();
@@ -687,7 +709,7 @@ export default function SucursalManagementPage() {
         title={selectedSucursal?.name}
         placement="right"
         width={800}
-        visible={detailsDrawerVisible}
+        open={detailsDrawerVisible}
         onClose={() => {
           setDetailsDrawerVisible(false);
           setSelectedSucursal(null);
@@ -699,7 +721,7 @@ export default function SucursalManagementPage() {
             <Card size="small" title={t('sucursal.basicInformation')}>
               <div className="space-y-2">
                 <div><Text strong>{t('sucursal.name')}:</Text> {selectedSucursal.name}</div>
-                <div><Text strong>{t('sucursal.url')}:</Text> <Text code>{selectedSucursal.serverUrl}</Text></div>
+                <div><Text strong>{t('sucursal.url')}:</Text> <Text code className="break-all">{selectedSucursal.serverUrl}</Text></div>
                 <div><Text strong>{t('sucursal.description')}:</Text> {selectedSucursal.description || t('sucursal.na')}</div>
                 {selectedSucursal.location && (
                   <div><Text strong>{t('sucursal.location')}:</Text> {selectedSucursal.location}</div>
@@ -713,8 +735,8 @@ export default function SucursalManagementPage() {
 
             {/* Current Status */}
             <Card size="small" title={t('sucursal.currentStatus')}>
-              <Row gutter={16}>
-                <Col span={12}>
+              <Row gutter={[16, 16]}>
+                <Col xs={24} sm={12}>
                   <Statistic
                     title={t('sucursal.status')}
                     value={isOnline(selectedSucursal) ? t('sucursal.online') : t('sucursal.offline')}
@@ -723,14 +745,14 @@ export default function SucursalManagementPage() {
                     }}
                   />
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Statistic
                     title={t('sucursal.responseTime')}
                     value={healthStatus[selectedSucursal.id]?.responseTime || selectedSucursal.diagnostics?.responseTime || t('sucursal.na')}
                     suffix={(healthStatus[selectedSucursal.id]?.responseTime || selectedSucursal.diagnostics?.responseTime) ? t('sucursal.ms') : ''}
                   />
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Statistic
                     title={t('sucursal.uptime')}
                     value={selectedSucursal.diagnostics?.uptime || 100}
@@ -738,7 +760,7 @@ export default function SucursalManagementPage() {
                     suffix={t('sucursal.percent')}
                   />
                 </Col>
-                <Col span={12}>
+                <Col xs={24} sm={12}>
                   <Statistic
                     title={t('sucursal.errorCount')}
                     value={selectedSucursal.diagnostics?.errorCount || 0}
@@ -753,103 +775,141 @@ export default function SucursalManagementPage() {
             {/* Server Logs */}
             <Card 
               size="small" 
-              title={t('sucursal.serverLogs')}
+              title={
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between space-y-2 sm:space-y-0">
+                  <span>{t('sucursal.serverLogs')}</span>
+                  {!canViewErrorLogs() && (
+                    <Tag color="orange" icon={<WarningOutlined />}>
+                      Requires DEVELOPER role
+                    </Tag>
+                  )}
+                </div>
+              }
               extra={
-                <Space>
-                  <DatePicker.RangePicker
-                    size="small"
-                    placeholder={[t('common.startDate'), t('common.endDate')]}
-                    onChange={(dates) => {
-                      if (dates && dates[0] && dates[1]) {
-                        const startDate = dates[0].format('YYYY-MM-DD');
-                        const endDate = dates[1].format('YYYY-MM-DD');
-                        setErrorLogDateRange([startDate, endDate]);
-                        if (selectedSucursal) {
-                          fetchErrorLogs(selectedSucursal.id, startDate, endDate);
+                canViewErrorLogs() && (
+                  <Space direction="vertical" className="w-full sm:w-auto">
+                    <DatePicker.RangePicker
+                      size="small"
+                      placeholder={[t('common.startDate'), t('common.endDate')]}
+                      onChange={(dates) => {
+                        if (dates && dates[0] && dates[1]) {
+                          const startDate = dates[0].format('YYYY-MM-DD');
+                          const endDate = dates[1].format('YYYY-MM-DD');
+                          setErrorLogDateRange([startDate, endDate]);
+                          if (selectedSucursal) {
+                            fetchErrorLogs(selectedSucursal.id, selectedSucursal.serverUrl, startDate, endDate);
+                          }
+                        } else {
+                          setErrorLogDateRange(null);
+                          if (selectedSucursal) {
+                            fetchErrorLogs(selectedSucursal.id, selectedSucursal.serverUrl);
+                          }
                         }
-                      } else {
-                        setErrorLogDateRange(null);
+                      }}
+                    />
+                    <Button
+                      size="small"
+                      icon={<ReloadOutlined />}
+                      onClick={() => {
                         if (selectedSucursal) {
-                          fetchErrorLogs(selectedSucursal.id);
+                          const [startDate, endDate] = errorLogDateRange || [undefined, undefined];
+                          fetchErrorLogs(selectedSucursal.id, selectedSucursal.serverUrl, startDate, endDate);
                         }
-                      }
-                    }}
-                  />
-                  <Button
-                    size="small"
-                    icon={<ReloadOutlined />}
-                    onClick={() => {
-                      if (selectedSucursal) {
-                        const [startDate, endDate] = errorLogDateRange || [undefined, undefined];
-                        fetchErrorLogs(selectedSucursal.id, startDate, endDate);
-                      }
-                    }}
-                  >
-                    {t('common.refresh')}
-                  </Button>
-                </Space>
+                      }}
+                    >
+                      {t('common.refresh')}
+                    </Button>
+                  </Space>
+                )
               }
             >
-              <Table
-                dataSource={errorLogs}
-                columns={[
-                  {
-                    title: t('sucursal.time'),
-                    dataIndex: 'createdAt',
-                    key: 'createdAt',
-                    render: (date: string) => new Date(date).toLocaleString(),
-                    // width: 150,
-                  },
-                  {
-                    title: t('sucursal.errorType'),
-                    dataIndex: 'errorType',
-                    key: 'errorType',
-                    render: (type: string) => (
-                      <Tag color={type === 'ERROR' ? 'red' : type === 'WARNING' ? 'orange' : 'blue'}>
-                        {type}
-                      </Tag>
-                    ),
-                    // width: 100,
-                  },
-                  {
-                    title: t('sucursal.description'),
-                    dataIndex: 'description',
-                    key: 'description',
-                    ellipsis: true,
-                  },
-                  {
-                    title: t('sucursal.details'),
-                    dataIndex: 'errorDetails',
-                    key: 'errorDetails',
-                    render: (details: any, record: any) => {
-                      const detailsText = details ? (
-                        typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details)
-                      ) : '-';
-                      
-                      return (
-                        <Tooltip title={detailsText} placement="topLeft">
-                          <Text type="secondary" style={{ fontSize: '12px' }} ellipsis>
-                            {detailsText}
-                          </Text>
-                        </Tooltip>
-                      );
+              {!canViewErrorLogs() ? (
+                <Alert
+                  message="Access Denied"
+                  description="You need DEVELOPER or SUPER_ADMIN role to view error logs"
+                  type="warning"
+                  showIcon
+                  icon={<WarningOutlined />}
+                />
+              ) : errorLogsError ? (
+                <Alert
+                  message="Error Loading Logs"
+                  description={errorLogsError}
+                  type="error"
+                  showIcon
+                  icon={<ExclamationCircleOutlined />}
+                />
+              ) : (
+                <Table
+                    dataSource={errorLogs}
+                    columns={[
+                    {
+                      title: t('sucursal.time'),
+                      dataIndex: 'createdAt',
+                      key: 'createdAt',
+                      render: (date: string) => new Date(date).toLocaleString(),
                     },
-                    ellipsis: true,
-                    width: 200,
-                  },
-                ]}
-                rowKey="id"
-                size="small"
-                pagination={false}
-                scroll={{ y: 300 }}
-                loading={errorLogsLoading}
-                locale={{ emptyText: t('sucursal.na') }}
-              />
+                    {
+                      title: t('sucursal.errorType'),
+                      dataIndex: 'errorType',
+                      key: 'errorType',
+                      render: (type: string) => (
+                        <Tag color={type === 'ERROR' ? 'red' : type === 'WARNING' ? 'orange' : 'blue'}>
+                          {type}
+                        </Tag>
+                      ),
+                    },
+                    {
+                      title: t('sucursal.description'),
+                      dataIndex: 'description',
+                      key: 'description',
+                      ellipsis: true,
+                      render: (text: string) => (
+                        <Tooltip title={text} placement="topLeft">
+                          <Text ellipsis>{text}</Text>
+                        </Tooltip>
+                      ),
+                    },
+                    {
+                      title: t('sucursal.details'),
+                      dataIndex: 'errorDetails',
+                      key: 'errorDetails',
+                      render: (details: any) => {
+                        const detailsText = details ? (
+                          typeof details === 'object' ? JSON.stringify(details, null, 2) : String(details)
+                        ) : '-';
+                        
+                        return (
+                          <Tooltip title={detailsText} placement="topLeft">
+                            <Text type="secondary" style={{ fontSize: '12px' }} ellipsis>
+                              {detailsText}
+                            </Text>
+                          </Tooltip>
+                        );
+                      },
+                      ellipsis: true,
+                    },
+                  ]}
+                  rowKey="id"
+                  size="small"
+                  pagination={false}
+                  scroll={{ y: 300, x: 600 }}
+                  loading={errorLogsLoading}
+                  locale={{ 
+                    emptyText: errorLogs.length === 0 ? (
+                      <Empty
+                        image={Empty.PRESENTED_IMAGE_SIMPLE}
+                        description="No error logs found"
+                      />
+                    ) : 'No data'
+                  }}
+                />
+              )}
             </Card>
 
             {/* Actions */}
             <Card size="small" title={t('sucursal.actions')}>
-              <Space wrap>
+              <Space>
                 <Button
                   icon={<ReloadOutlined />}
                   loading={refreshing === selectedSucursal.id}
