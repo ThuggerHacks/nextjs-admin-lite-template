@@ -91,8 +91,9 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
   const [uploadProgress, setUploadProgress] = useState<UploadProgressItem[]>([]);
   const [selectedFileToShare, setSelectedFileToShare] = useState<LibraryFile | null>(null);
   const [sharesModalVisible, setSharesModalVisible] = useState(false);
-  const [selectedFileShares, setSelectedFileShares] = useState<any[]>([]);
-  const [sharesLoading, setSharesLoading] = useState(false);
+     const [selectedFileShares, setSelectedFileShares] = useState<any[]>([]);
+   const [sharesLoading, setSharesLoading] = useState(false);
+   const [selectedFileForShares, setSelectedFileForShares] = useState<LibraryFile | null>(null);
   
   // Forms
   const [createFolderForm] = Form.useForm();
@@ -840,25 +841,26 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     setRenameModalVisible(true);
   };
 
-  const handleViewShares = async (file: LibraryFile) => {
-    try {
-      setSharesLoading(true);
-      setSelectedFileShares([]);
-      setSharesModalVisible(true);
+     const handleViewShares = async (file: LibraryFile) => {
+     try {
+       setSharesLoading(true);
+       setSelectedFileShares([]);
+       setSelectedFileForShares(file);
+       setSharesModalVisible(true);
 
-      const result = await libraryFileService.getFileShares(libraryId, file.id);
-      if (result.success && result.shares) {
-        setSelectedFileShares(result.shares);
-      } else {
-        message.error(result.error || 'Failed to load file shares');
-      }
-    } catch (error) {
-      console.error('Error loading file shares:', error);
-      message.error('Failed to load file shares');
-    } finally {
-      setSharesLoading(false);
-    }
-  };
+       const result = await libraryFileService.getFileShares(libraryId, file.id);
+       if (result.success && result.shares) {
+         setSelectedFileShares(result.shares);
+       } else {
+         message.error(result.error || 'Failed to load file shares');
+       }
+     } catch (error) {
+       console.error('Error loading file shares:', error);
+       message.error('Failed to load file shares');
+     } finally {
+       setSharesLoading(false);
+     }
+   };
 
   // View mode components
   const renderListView = () => {
@@ -1568,9 +1570,9 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
         )}
       </Modal>
 
-      {/* File Shares Modal */}
-      <Modal
-        title={`${t('files.fileShares')} - ${selectedFileShares.length > 0 ? selectedFileShares[0]?.file?.name || 'Unknown File' : 'Unknown File'}`}
+             {/* File Shares Modal */}
+       <Modal
+         title={`${t('files.fileShares')} - ${selectedFileForShares?.name || 'Unknown File'}`}
         open={sharesModalVisible}
         onCancel={() => setSharesModalVisible(false)}
         footer={[
@@ -1604,9 +1606,10 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                 style={{ marginBottom: '12px' }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <div><strong>Shared with:</strong> {share.sharedWith?.name} ({share.sharedWith?.email})</div>
-                    <div><strong>{t('files.fileSharedBy')}:</strong> {share.sharedBy?.name} ({share.sharedBy?.email})</div>
+                                     <div>
+                     <div><strong>{t('files.fileSharedWith')}:</strong> {share.sharedWith?.name} ({share.sharedWith?.email})</div>
+                     <div><strong>{t('files.fileSharedBy')}:</strong> {share.sharedBy?.name} ({share.sharedBy?.email})</div>
+                     <div><strong>{t('files.sucursal')}:</strong> {share.sharedBy?.sucursal?.name || user?.sucursal?.name || 'Current Sucursal'}</div>
                     {share.message && (
                       <div><strong>{t('files.message')}:</strong> {share.message}</div>
                     )}

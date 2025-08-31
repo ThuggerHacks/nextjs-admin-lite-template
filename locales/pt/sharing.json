@@ -1,0 +1,22 @@
+{
+  "shareWithLocalUsers": "Compartilhar com Usuários Locais",
+  "selectLocalUsers": "Selecionar Usuários Locais",
+  "selectUsersFromSucursal": "Selecionar usuários da sua sucursal",
+  "shareWithExternalSucursal": "Compartilhar com Sucursal Externa",
+  "selectSucursal": "Selecionar Sucursal",
+  "pleaseSelectSucursal": "Por favor, selecione uma sucursal",
+  "selectRemoteUsers": "Selecionar Usuários Remotos",
+  "pleaseSelectRemoteUsers": "Por favor, selecione pelo menos um usuário remoto",
+  "selectUsersFromSelectedSucursal": "Selecionar usuários da sucursal selecionada",
+  "messageOptional": "Mensagem (Opcional)",
+  "addMessageAboutSharedContent": "Adicione uma mensagem sobre o conteúdo compartilhado...",
+  "share": "Compartilhar",
+  "sharing": "Compartilhando...",
+  "sharedSuccessfully": "Conteúdo compartilhado com sucesso",
+  "failedToShare": "Falha ao compartilhar conteúdo",
+  "pleaseSelectUsersToShareWith": "Por favor, selecione pelo menos um usuário para compartilhar",
+  "pleaseSelectRemoteUsersToShareWith": "Por favor, selecione pelo menos um usuário remoto para compartilhar",
+  "failedToLoadSucursals": "Falha ao carregar sucursais",
+  "failedToLoadUsersFromSucursal": "Falha ao carregar usuários da sucursal selecionada",
+  "localFileSharingNotImplemented": "Compartilhamento local de arquivos ainda não foi implementado"
+}

@@ -39,6 +39,7 @@ import {
   WarningOutlined,
   DatabaseOutlined,
   FileTextOutlined,
+  SyncOutlined,
 } from '@ant-design/icons';
 import { useUser } from '@/contexts/UserContext';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -59,6 +60,7 @@ export default function SucursalManagementPage() {
   const [loading, setLoading] = useState(false);
   const [healthCheckLoading, setHealthCheckLoading] = useState(false);
   const [refreshing, setRefreshing] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState<string | null>(null);
   const [sucursals, setSucursals] = useState<Sucursal[]>([]);
   const [errorLogs, setErrorLogs] = useState<Array<{
     id: string;
@@ -376,6 +378,75 @@ export default function SucursalManagementPage() {
     return 'exception';
   };
 
+  // Sync sucursals from local server to target sucursal
+  const handleSyncSucursals = async (targetSucursal: Sucursal) => {
+    try {
+      setSyncing(targetSucursal.id);
+      
+      // Check if target sucursal is online
+      if (!isOnline(targetSucursal)) {
+        message.error(`${targetSucursal.name} is offline. Cannot sync sucursals.`);
+        return;
+      }
+      
+      // Get all local sucursals
+      const localSucursals = await sucursalService.getAll();
+      
+      // Filter out the target sucursal itself
+      const sucursalsToSync = localSucursals.filter(s => s.id !== targetSucursal.id);
+      
+      if (sucursalsToSync.length === 0) {
+        message.info('No sucursals to sync');
+        return;
+      }
+
+      // Send each sucursal to the target server
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const sucursal of sucursalsToSync) {
+        try {
+          const response = await fetch(`${targetSucursal.serverUrl}/api/sucursals`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            },
+            body: JSON.stringify({
+              name: sucursal.name,
+              description: sucursal.description,
+              location: sucursal.location,
+              serverUrl: sucursal.serverUrl,
+            }),
+          });
+
+          if (response.ok) {
+            successCount++;
+          } else {
+            errorCount++;
+            console.error(`Failed to sync sucursal ${sucursal.name}:`, response.statusText);
+          }
+        } catch (error) {
+          errorCount++;
+          console.error(`Error syncing sucursal ${sucursal.name}:`, error);
+        }
+      }
+
+      if (errorCount === 0) {
+        message.success(`Successfully synced ${successCount} sucursals to ${targetSucursal.name}`);
+      } else if (successCount > 0) {
+        message.warning(`Synced ${successCount} sucursals, ${errorCount} failed`);
+      } else {
+        message.error(`Failed to sync any sucursals to ${targetSucursal.name}`);
+      }
+    } catch (error) {
+      console.error('Failed to sync sucursals:', error);
+      message.error('Failed to sync sucursals');
+    } finally {
+      setSyncing(null);
+    }
+  };
+
   if (!canManageSucursals()) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -505,12 +576,20 @@ export default function SucursalManagementPage() {
                     <Button
                       size="small"
                       icon={<EyeOutlined />}
-                                              onClick={() => {
-                          setSelectedSucursal(sucursal);
-                          setDetailsDrawerVisible(true);
-                          // Fetch error logs when opening drawer
-                          fetchErrorLogs(sucursal.id, sucursal.serverUrl);
-                        }}
+                      onClick={() => {
+                        setSelectedSucursal(sucursal);
+                        setDetailsDrawerVisible(true);
+                        // Fetch error logs when opening drawer
+                        fetchErrorLogs(sucursal.id, sucursal.serverUrl);
+                      }}
+                    />
+                  </Tooltip>
+                  <Tooltip title="Sync Sucursals">
+                    <Button
+                      size="small"
+                      icon={<SyncOutlined />}
+                      loading={syncing === sucursal.id}
+                      onClick={() => handleSyncSucursals(sucursal)}
                     />
                   </Tooltip>
                 </Space>

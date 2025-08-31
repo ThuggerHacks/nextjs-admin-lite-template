@@ -1,0 +1,17 @@
+{
+  "shareGoal": "Compartilhar Meta",
+  "shareGoalInfo": "Compartilhe esta meta com outros usuários",
+  "shareGoalDescription": "Selecione usuários para compartilhar esta meta. Eles poderão visualizar e colaborar nesta meta.",
+  "shareCompletedGoalDescription": "Compartilhe a meta concluída '{goalName}' com outros usuários ou sucursais",
+  "selectUsersToShare": "Selecionar Usuários para Compartilhar",
+  "selectUsers": "Selecionar usuários",
+  "pleaseSelectUsers": "Por favor, selecione pelo menos um usuário para compartilhar",
+  "message": "Mensagem (Opcional)",
+  "shareMessagePlaceholder": "Adicione uma mensagem sobre esta meta compartilhada...",
+  "shareGoal": "Compartilhar Meta",
+  "sharing": "Compartilhando...",
+  "goalSharedSuccessfully": "Meta compartilhada com sucesso",
+  "failedToShareGoal": "Falha ao compartilhar meta",
+  "pleaseSelectUsersToShareWith": "Por favor, selecione pelo menos um usuário para compartilhar",
+  "goals.shareCompletedGoalDescription": "Compartilhe a meta concluída '{goalName}' com outros usuários ou sucursais"
+}

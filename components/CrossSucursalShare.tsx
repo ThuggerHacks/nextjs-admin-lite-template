@@ -315,7 +315,7 @@ export default function CrossSucursalShare({
              {/* Local Sharing Section */}
        {localShareableUsers.length > 0 && (
          <>
-           <h4>{t('sharing.shareWithLocalUsers')}</h4>
+           <h4>{t('sharing.shareWithLocalUsers')} - {user?.sucursal?.name || 'Current Sucursal'}</h4>
            <Form.Item
              label={t('sharing.selectLocalUsers')}
              name="localSharedWithIds"

@@ -929,6 +929,7 @@ export interface Dictionary {
     noSharesFound: string;
     loadingShares: string;
     fileSharedSuccessfully: string;
+    sucursal: string;
   };
   scanner: {
     title: string;
@@ -1048,6 +1049,7 @@ export interface Dictionary {
     errorCount: string;
     ping: string;
     pingSucursal: string;
+    syncSucursals: string;
     pingSuccess: string;
     pingFailed: string;
     serverUnreachable: string;
@@ -2218,6 +2220,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       noSharesFound: 'Nenhuma partilha encontrada para este ficheiro',
       loadingShares: 'A carregar partilhas...',
       fileSharedSuccessfully: 'Ficheiro partilhado com sucesso!',
+      sucursal: 'Sucursal',
       // Clipboard messages
       itemCutToClipboard: '{{name}} cortado para a área de transferência',
       itemCopiedToClipboard: '{{name}} copiado para a área de transferência',
@@ -3514,6 +3517,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       noSharesFound: 'No shares found for this file',
       loadingShares: 'Loading shares...',
       fileSharedSuccessfully: 'File shared successfully!',
+      sucursal: 'Sucursal',
       // Clipboard messages
       itemCutToClipboard: '{{name}} cut to clipboard',
       itemCopiedToClipboard: '{{name}} copied to clipboard',
