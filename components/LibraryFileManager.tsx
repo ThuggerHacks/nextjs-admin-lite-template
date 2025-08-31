@@ -720,18 +720,17 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
     try {
       setLoading(true);
       
-      // First try to find the item in the current fileSystem (display items)
+      // Search in both current fileSystem and completeFileSystem
       let item = fileSystem.find(item => item.id === itemId);
       
-      // If not found in current display, search in the complete file system recursively
       if (!item) {
-        console.log('Item not found in current fileSystem, searching in completeFileSystem...');
+        // Search in completeFileSystem recursively
         const findItemRecursively = (items: (FileItem | FolderItem)[], targetId: string): FileItem | FolderItem | null => {
           for (const item of items) {
             if (item.id === targetId) {
               return item;
             }
-            if ('children' in item && item.children) {
+            if ('children' in item && item.children && item.children.length > 0) {
               const found = findItemRecursively(item.children, targetId);
               if (found) return found;
             }
@@ -743,9 +742,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
       }
       
       if (!item) {
-        console.error('Item not found anywhere for ID:', itemId);
-        console.log('Current fileSystem items:', fileSystem.map(item => ({ id: item.id, name: item.name })));
-        console.log('Complete file system count:', completeFileSystem.length);
+        console.error('Item not found for ID:', itemId);
         message.error('Item not found');
         return;
       }
@@ -973,7 +970,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                 <Popconfirm
                   title={t('files.deleteConfirm')}
                   description={t('files.deleteWarning')}
-                  onConfirm={() => handleDeleteItem(record)}
+                                     onConfirm={() => handleDeleteItem(record.id)}
                   okText={t('common.yes')}
                   cancelText={t('common.no')}
                 >
@@ -1114,7 +1111,7 @@ const LibraryFileManager: React.FC<LibraryFileManagerProps> = ({
                         <Popconfirm
                           title={t('files.deleteConfirm')}
                           description={t('files.deleteWarning')}
-                          onConfirm={() => handleDeleteItem(item)}
+                          onConfirm={() => handleDeleteItem(item.id)}
                           okText={t('common.yes')}
                           cancelText={t('common.no')}
                         >
