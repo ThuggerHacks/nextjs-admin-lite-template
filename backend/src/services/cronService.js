@@ -3,6 +3,7 @@ const axios = require('axios');
 const prisma = require('../lib/prisma');
 const { logError } = require('../utils/errorLogger');
 const currentSucursal = require('../lib/currentSucursal');
+const { checkExpiringItems, checkExpiredItems } = require('./expirationNotificationService');
 
 class CronService {
   constructor() {
@@ -23,6 +24,13 @@ class CronService {
       console.log('Running sucursal sync cron job...');
       await this.syncSucursals();
       await this.discoverNewSucursals();
+    });
+
+    // Run every hour - check for expiring list items
+    cron.schedule('0 * * * *', async () => {
+      console.log('Running expiration check cron job...');
+      await checkExpiringItems();
+      await checkExpiredItems();
     });
 
     console.log('Cron service started successfully');

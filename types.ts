@@ -301,3 +301,88 @@ export interface Activity {
   user: User;
   timestamp: Date;
 }
+
+// List Management Types
+export interface List {
+  id: string;
+  name: string;
+  description?: string;
+  createdById: string;
+  sucursalId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: User;
+  members: ListMember[];
+  items: ListItem[];
+  _count: {
+    members: number;
+    items: number;
+  };
+}
+
+export interface ListMember {
+  id: string;
+  listId: string;
+  userId: string;
+  role: 'MEMBER' | 'ADMIN';
+  joinedAt: Date;
+  user: User;
+}
+
+export interface ListItem {
+  id: string;
+  listId: string;
+  name: string;
+  description?: string;
+  value?: number; // Value in MZN
+  startDate?: Date;
+  endDate?: Date;
+  createdById: string;
+  createdAt: Date;
+  updatedAt: Date;
+  createdBy: User;
+}
+
+// API Request/Response Types
+export interface CreateListRequest {
+  name: string;
+  description?: string;
+  memberIds?: string[];
+}
+
+export interface UpdateListRequest {
+  name?: string;
+  description?: string;
+}
+
+export interface CreateListItemRequest {
+  name: string;
+  description?: string;
+  value?: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface UpdateListItemRequest {
+  name?: string;
+  description?: string;
+  value?: number;
+  startDate?: string;
+  endDate?: string;
+}
+
+export interface ListFilters {
+  startDate?: string;
+  endDate?: string;
+  name?: string;
+}
+
+export interface ExpiringItem {
+  id: string;
+  name: string;
+  endDate: Date;
+  daysUntilExpiry: number;
+  isExpired: boolean;
+  isExpiringToday: boolean;
+  isExpiringTomorrow: boolean;
+}

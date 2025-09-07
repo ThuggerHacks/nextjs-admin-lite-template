@@ -62,6 +62,7 @@ app.use('/api/requests', require('./routes/requests'));
 app.use('/api/error-logs', require('./routes/errorLogs'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/temperatures', require('./routes/temperatures'));
+app.use('/api/lists', require('./routes/lists'));
 
 // Error handling middleware
 app.use(async (err, req, res, next) => {

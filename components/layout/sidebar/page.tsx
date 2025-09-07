@@ -28,6 +28,7 @@ import {
   EditOutlined,
   GlobalOutlined,
   FireOutlined,
+  UnorderedListOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Menu, ConfigProvider, Divider } from "antd";
@@ -141,6 +142,11 @@ const SiderPage = () => {
         getItem(t("navigation.temperature"), "/temperature", <FireOutlined />)
       );
     }
+
+    // Lists - Available to all users
+    items.push(
+      getItem(t("navigation.lists"), "/lists", <UnorderedListOutlined />)
+    );
 
     // Management section - Admin, Supervisor, Super Admin, Developer
     if (isAdmin || isSupervisor || isSuperAdmin || isDeveloper) {

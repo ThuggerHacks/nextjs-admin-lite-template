@@ -36,6 +36,7 @@ model Sucursal {
   sourceConnections SucursalConnection[] @relation("SourceConnections")
   targetConnections SucursalConnection[] @relation("TargetConnections")
   temperatures Temperature[]
+  lists       List[]
 
   @@map("sucursals")
 }
@@ -119,6 +120,9 @@ model User {
   receivedSharedLibraryFiles LibraryFileShare[] @relation("LibraryFileSharedWith")
   sharedLibraryFileShares LibraryFileShare[] @relation("LibraryFileSharedBy")
   temperatures Temperature[]
+  lists       List[]
+  listMembers ListMember[]
+  listItems   ListItem[]
 
   @@map("users")
 }
@@ -481,4 +485,53 @@ model Temperature {
   sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
 
   @@map("temperatures")
+}
+
+model List {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  createdById String
+  sucursalId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  createdBy   User        @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  sucursal    Sucursal    @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+  members     ListMember[]
+  items       ListItem[]
+
+  @@map("lists")
+}
+
+model ListMember {
+  id        String   @id @default(cuid())
+  listId    String
+  userId    String
+  role      String   @default("MEMBER") // MEMBER, ADMIN
+  joinedAt  DateTime @default(now())
+
+  list      List     @relation(fields: [listId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([listId, userId])
+  @@map("list_members")
+}
+
+model ListItem {
+  id          String    @id @default(cuid())
+  listId      String
+  name        String
+  description String?
+  value       Float?    // Value in MZN
+  startDate   DateTime?
+  endDate     DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  list        List      @relation(fields: [listId], references: [id], onDelete: Cascade)
+  createdBy   User      @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@map("list_items")
 } 

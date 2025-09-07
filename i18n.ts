@@ -206,6 +206,83 @@ export interface Dictionary {
     manageDepartments: string;
     departmentManagement: string;
   };
+  lists: {
+    title: string;
+    myLists: string;
+    createList: string;
+    editList: string;
+    deleteList: string;
+    listName: string;
+    listDescription: string;
+    addMember: string;
+    removeMember: string;
+    members: string;
+    items: string;
+    addItem: string;
+    editItem: string;
+    deleteItem: string;
+    itemName: string;
+    itemDescription: string;
+    value: string;
+    startDate: string;
+    endDate: string;
+    createdBy: string;
+    createdAt: string;
+    updatedAt: string;
+    filters: string;
+    filterByDate: string;
+    filterByName: string;
+    clearFilters: string;
+    noItems: string;
+    noLists: string;
+    createFirstList: string;
+    addFirstItem: string;
+    expirationStatus: string;
+    expiringToday: string;
+    expiringTomorrow: string;
+    expired: string;
+    valid: string;
+    daysLeft: string;
+    expiredDaysAgo: string;
+    valueInMZN: string;
+    selectMembers: string;
+    memberRole: string;
+    admin: string;
+    member: string;
+    listManagement: string;
+    itemManagement: string;
+    expirationAlerts: string;
+    notifications: string;
+    confirmDeleteList: string;
+    confirmDeleteItem: string;
+    cannotRemoveCreator: string;
+    alreadyMember: string;
+    noPermissionToList: string;
+    noPermissionToItem: string;
+    listNotFound: string;
+    itemNotFound: string;
+    success: {
+      listCreated: string;
+      listUpdated: string;
+      listDeleted: string;
+      memberAdded: string;
+      memberRemoved: string;
+      itemCreated: string;
+      itemUpdated: string;
+      itemDeleted: string;
+    };
+    errors: {
+      listNameRequired: string;
+      itemNameRequired: string;
+      invalidValue: string;
+      invalidDate: string;
+      memberAlreadyExists: string;
+      cannotRemoveCreator: string;
+      noPermission: string;
+      listNotFound: string;
+      itemNotFound: string;
+    };
+  };
   users: {
     title: string;
     create: string;
@@ -1418,6 +1495,83 @@ const dictionaries: Record<Locale, Dictionary> = {
       users: 'usuários',
       manageDepartments: 'Gerenciar Departamentos',
       departmentManagement: 'Gerenciamento de Departamentos',
+    },
+    lists: {
+      title: 'Listas',
+      myLists: 'Minhas Listas',
+      createList: 'Criar Lista',
+      editList: 'Editar Lista',
+      deleteList: 'Excluir Lista',
+      listName: 'Nome da Lista',
+      listDescription: 'Descrição da Lista',
+      addMember: 'Adicionar Membro',
+      removeMember: 'Remover Membro',
+      members: 'Membros',
+      items: 'Itens',
+      addItem: 'Adicionar Item',
+      editItem: 'Editar Item',
+      deleteItem: 'Excluir Item',
+      itemName: 'Nome do Item',
+      itemDescription: 'Descrição do Item',
+      value: 'Valor',
+      startDate: 'Data de Início',
+      endDate: 'Data de Fim',
+      createdBy: 'Criado por',
+      createdAt: 'Criado em',
+      updatedAt: 'Atualizado em',
+      filters: 'Filtros',
+      filterByDate: 'Filtrar por Data',
+      filterByName: 'Filtrar por Nome',
+      clearFilters: 'Limpar Filtros',
+      noItems: 'Nenhum item encontrado',
+      noLists: 'Nenhuma lista encontrada',
+      createFirstList: 'Crie sua primeira lista',
+      addFirstItem: 'Adicione seu primeiro item',
+      expirationStatus: 'Status de Expiração',
+      expiringToday: 'Expira Hoje',
+      expiringTomorrow: 'Expira Amanhã',
+      expired: 'Expirado',
+      valid: 'Válido',
+      daysLeft: 'dias restantes',
+      expiredDaysAgo: 'dias atrás',
+      valueInMZN: 'Valor em MZN',
+      selectMembers: 'Selecionar Membros',
+      memberRole: 'Função do Membro',
+      admin: 'Administrador',
+      member: 'Membro',
+      listManagement: 'Gerenciamento de Listas',
+      itemManagement: 'Gerenciamento de Itens',
+      expirationAlerts: 'Alertas de Expiração',
+      notifications: 'Notificações',
+      confirmDeleteList: 'Tem certeza que deseja excluir esta lista?',
+      confirmDeleteItem: 'Tem certeza que deseja excluir este item?',
+      cannotRemoveCreator: 'Não é possível remover o criador da lista',
+      alreadyMember: 'Usuário já é membro desta lista',
+      noPermissionToList: 'Você não tem permissão para acessar esta lista',
+      noPermissionToItem: 'Você não tem permissão para editar este item',
+      listNotFound: 'Lista não encontrada',
+      itemNotFound: 'Item não encontrado',
+      success: {
+        listCreated: 'Lista criada com sucesso',
+        listUpdated: 'Lista atualizada com sucesso',
+        listDeleted: 'Lista excluída com sucesso',
+        memberAdded: 'Membro adicionado com sucesso',
+        memberRemoved: 'Membro removido com sucesso',
+        itemCreated: 'Item criado com sucesso',
+        itemUpdated: 'Item atualizado com sucesso',
+        itemDeleted: 'Item excluído com sucesso',
+      },
+      errors: {
+        listNameRequired: 'Nome da lista é obrigatório',
+        itemNameRequired: 'Nome do item é obrigatório',
+        invalidValue: 'Valor deve ser um número positivo',
+        invalidDate: 'Data deve ser válida',
+        memberAlreadyExists: 'Usuário já é membro desta lista',
+        cannotRemoveCreator: 'Não é possível remover o criador da lista',
+        noPermission: 'Você não tem permissão para esta ação',
+        listNotFound: 'Lista não encontrada',
+        itemNotFound: 'Item não encontrado',
+      },
     },
     users: {
       title: 'Usuários',
@@ -2778,6 +2932,83 @@ const dictionaries: Record<Locale, Dictionary> = {
       users: 'users',
       manageDepartments: 'Manage Departments',
       departmentManagement: 'Department Management',
+    },
+    lists: {
+      title: 'Lists',
+      myLists: 'My Lists',
+      createList: 'Create List',
+      editList: 'Edit List',
+      deleteList: 'Delete List',
+      listName: 'List Name',
+      listDescription: 'List Description',
+      addMember: 'Add Member',
+      removeMember: 'Remove Member',
+      members: 'Members',
+      items: 'Items',
+      addItem: 'Add Item',
+      editItem: 'Edit Item',
+      deleteItem: 'Delete Item',
+      itemName: 'Item Name',
+      itemDescription: 'Item Description',
+      value: 'Value',
+      startDate: 'Start Date',
+      endDate: 'End Date',
+      createdBy: 'Created By',
+      createdAt: 'Created At',
+      updatedAt: 'Updated At',
+      filters: 'Filters',
+      filterByDate: 'Filter by Date',
+      filterByName: 'Filter by Name',
+      clearFilters: 'Clear Filters',
+      noItems: 'No items found',
+      noLists: 'No lists found',
+      createFirstList: 'Create your first list',
+      addFirstItem: 'Add your first item',
+      expirationStatus: 'Expiration Status',
+      expiringToday: 'Expires Today',
+      expiringTomorrow: 'Expires Tomorrow',
+      expired: 'Expired',
+      valid: 'Valid',
+      daysLeft: 'days left',
+      expiredDaysAgo: 'days ago',
+      valueInMZN: 'Value in MZN',
+      selectMembers: 'Select Members',
+      memberRole: 'Member Role',
+      admin: 'Admin',
+      member: 'Member',
+      listManagement: 'List Management',
+      itemManagement: 'Item Management',
+      expirationAlerts: 'Expiration Alerts',
+      notifications: 'Notifications',
+      confirmDeleteList: 'Are you sure you want to delete this list?',
+      confirmDeleteItem: 'Are you sure you want to delete this item?',
+      cannotRemoveCreator: 'Cannot remove the list creator',
+      alreadyMember: 'User is already a member of this list',
+      noPermissionToList: 'You do not have permission to access this list',
+      noPermissionToItem: 'You do not have permission to edit this item',
+      listNotFound: 'List not found',
+      itemNotFound: 'Item not found',
+      success: {
+        listCreated: 'List created successfully',
+        listUpdated: 'List updated successfully',
+        listDeleted: 'List deleted successfully',
+        memberAdded: 'Member added successfully',
+        memberRemoved: 'Member removed successfully',
+        itemCreated: 'Item created successfully',
+        itemUpdated: 'Item updated successfully',
+        itemDeleted: 'Item deleted successfully',
+      },
+      errors: {
+        listNameRequired: 'List name is required',
+        itemNameRequired: 'Item name is required',
+        invalidValue: 'Value must be a positive number',
+        invalidDate: 'Date must be valid',
+        memberAlreadyExists: 'User is already a member of this list',
+        cannotRemoveCreator: 'Cannot remove the list creator',
+        noPermission: 'You do not have permission for this action',
+        listNotFound: 'List not found',
+        itemNotFound: 'Item not found',
+      },
     },
     users: {
       title: 'Users',
