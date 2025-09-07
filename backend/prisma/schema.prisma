@@ -59,6 +59,7 @@ model Department {
   description String?
   sucursalId  String
   supervisorId String?
+  canSeeTemperatureMenu Boolean? @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

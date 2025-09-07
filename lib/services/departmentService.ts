@@ -5,6 +5,7 @@ export interface Department {
   name: string;
   description?: string;
   supervisorId?: string;
+  canSeeTemperatureMenu?: boolean;
   sucursalId: string;
   createdAt: string;
   updatedAt: string;
@@ -30,12 +31,14 @@ export interface CreateDepartmentRequest {
   name: string;
   description?: string;
   supervisorId?: string;
+  canSeeTemperatureMenu?: boolean;
 }
 
 export interface UpdateDepartmentRequest {
   name?: string;
   description?: string;
   supervisorId?: string;
+  canSeeTemperatureMenu?: boolean;
 }
 
 export const departmentService = {
@@ -82,10 +85,13 @@ export const departmentService = {
 
   update: async (id: string, data: UpdateDepartmentRequest): Promise<Department | null> => {
     try {
+      console.log(`Updating department ${id} with data:`, data);
       const response = await api.put(`/departments/${id}`, data);
+      console.log('Update response:', response.data);
       return response.data.data || null;
     } catch (error) {
       console.error(`Failed to update department ${id}:`, error);
+      console.error('Error response:', error.response?.data);
       return null;
     }
   },

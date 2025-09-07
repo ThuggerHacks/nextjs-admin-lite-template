@@ -64,6 +64,7 @@ export interface User {
     id: string;
     name: string;
     description?: string;
+    canSeeTemperatureMenu?: boolean;
   };
   avatar?: string;
   phone?: string;
@@ -85,6 +86,7 @@ export interface Department {
   description?: string;
   adminId?: string; // User ID of department admin
   adminUser?: User; // Department admin user
+  canSeeTemperatureMenu?: boolean;
   createdBy: User;
   createdAt: Date;
   updatedAt: Date;

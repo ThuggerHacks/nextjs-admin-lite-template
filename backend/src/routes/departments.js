@@ -140,7 +140,8 @@ router.get('/:departmentId/users', authenticateToken, async (req, res) => {
 router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), [
   body('name').notEmpty().withMessage('Department name is required'),
   body('description').optional().isString().withMessage('Description must be a string'),
-  body('supervisorId').optional().isString().withMessage('Supervisor ID must be a string')
+  body('supervisorId').optional().isString().withMessage('Supervisor ID must be a string'),
+  body('canSeeTemperatureMenu').optional().isBoolean().withMessage('Can see temperature menu must be a boolean')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -148,7 +149,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELO
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, description, supervisorId } = req.body;
+    const { name, description, supervisorId, canSeeTemperatureMenu } = req.body;
 
     const existingDepartment = await prisma.department.findFirst({
       where: {
@@ -186,6 +187,7 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELO
         name,
         description,
         supervisorId,
+        canSeeTemperatureMenu: canSeeTemperatureMenu || false,
         sucursalId: req.user.sucursalId
       },
       include: {
@@ -223,16 +225,20 @@ router.post('/', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELO
 router.put('/:departmentId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADMIN', 'DEVELOPER']), [
   body('name').optional().notEmpty().withMessage('Department name cannot be empty'),
   body('description').optional().isString().withMessage('Description must be a string'),
-  body('supervisorId').optional().isString().withMessage('Supervisor ID must be a string')
+  body('supervisorId').optional().isString().withMessage('Supervisor ID must be a string'),
+  body('canSeeTemperatureMenu').optional().isBoolean().withMessage('Can see temperature menu must be a boolean')
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
+      console.log('Update validation errors:', errors.array());
       return res.status(400).json({ errors: errors.array() });
     }
 
     const { departmentId } = req.params;
-    const { name, description, supervisorId } = req.body;
+    const { name, description, supervisorId, canSeeTemperatureMenu } = req.body;
+    
+    console.log('Update department request:', { departmentId, name, description, supervisorId, canSeeTemperatureMenu });
 
     const department = await prisma.department.findUnique({
       where: { id: departmentId }
@@ -284,6 +290,9 @@ router.put('/:departmentId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADM
     }
     if (description !== undefined) updateData.description = description;
     if (supervisorId !== undefined) updateData.supervisorId = supervisorId;
+    if (canSeeTemperatureMenu !== undefined) updateData.canSeeTemperatureMenu = canSeeTemperatureMenu;
+    
+    console.log('Update data:', updateData);
 
     const updatedDepartment = await prisma.department.update({
       where: { id: departmentId },
@@ -314,6 +323,7 @@ router.put('/:departmentId', authenticateToken, requireRole(['ADMIN', 'SUPER_ADM
       data: updatedDepartment
     });
   } catch (error) {
+    console.error('Update department error:', error);
     await logError('DATABASE_ERROR', 'Update department failed', error);
     res.status(500).json({ error: 'Failed to update department' });
   }

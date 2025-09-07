@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Button, Table, Modal, Form, Input, Select, message, Space, Popconfirm, Card, Typography } from 'antd';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Button, Table, Modal, Form, Input, Select, message, Space, Popconfirm, Card, Typography, Switch } from 'antd';
 import { PlusOutlined, EditOutlined, DeleteOutlined, UsergroupAddOutlined } from '@ant-design/icons';
 import { departmentService, userService } from '@/lib/services';
 import { useTranslation } from '@/contexts/LanguageContext';
@@ -24,12 +24,13 @@ const DepartmentsPage: React.FC = () => {
   const [form] = Form.useForm();
   const [searchText, setSearchText] = useState('');
   const [selectedSupervisorId, setSelectedSupervisorId] = useState<string | null>(null);
+  const [canSeeTemperatureMenu, setCanSeeTemperatureMenu] = useState<boolean>(false);
 
   const { user, canAccess, hasRole } = useUser();
   const { t } = useTranslation();
 
   // Load departments
-  const loadDepartments = async () => {
+  const loadDepartments = useCallback(async () => {
     try {
       setLoading(true);
       const departments = await departmentService.getAll();
@@ -40,10 +41,10 @@ const DepartmentsPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t]);
 
   // Load users for supervisor selection
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
     try {
       setUsersLoading(true);
       const response = await userService.getAll();
@@ -55,7 +56,7 @@ const DepartmentsPage: React.FC = () => {
     } finally {
       setUsersLoading(false);
     }
-  };
+  }, [t]);
 
   useEffect(() => {
     loadDepartments();
@@ -66,18 +67,24 @@ const DepartmentsPage: React.FC = () => {
     setEditingDepartment(null);
     setIsModalVisible(true);
     setSelectedSupervisorId(null);
+    setCanSeeTemperatureMenu(false);
     form.resetFields();
   };
 
   const handleEdit = (department: Department) => {
+    console.log('Editing department:', department);
+    console.log('canSeeTemperatureMenu from department:', department.canSeeTemperatureMenu);
     setEditingDepartment(department);
     setIsModalVisible(true);
     const supervisorId = department.supervisorId || null;
     setSelectedSupervisorId(supervisorId);
+    const temperatureMenuValue = department.canSeeTemperatureMenu || false;
+    setCanSeeTemperatureMenu(temperatureMenuValue);
     form.setFieldsValue({
       name: department.name,
       description: department.description,
       supervisorId: supervisorId,
+      canSeeTemperatureMenu: temperatureMenuValue,
     });
   };
 
@@ -96,11 +103,17 @@ const DepartmentsPage: React.FC = () => {
     try {
       const values = await form.validateFields();
       
+      console.log('Form values:', values);
+      console.log('canSeeTemperatureMenu value:', values.canSeeTemperatureMenu);
+      
       const departmentData: CreateDepartmentRequest = {
         name: values.name,
         description: values.description,
         supervisorId: selectedSupervisorId || undefined,
+        canSeeTemperatureMenu: canSeeTemperatureMenu,
       };
+
+      console.log('Frontend sending department data:', departmentData);
 
       if (editingDepartment) {
         const result = await departmentService.update(editingDepartment.id, departmentData);
@@ -135,6 +148,7 @@ const DepartmentsPage: React.FC = () => {
     setIsModalVisible(false);
     form.resetFields();
     setSelectedSupervisorId(null);
+    setCanSeeTemperatureMenu(false);
     setEditingDepartment(null);
   };
 
@@ -360,6 +374,24 @@ const DepartmentsPage: React.FC = () => {
             </Select>
             <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
               {t('departments.supervisorNote')}
+            </div>
+          </Form.Item>
+
+          <Form.Item
+            label="Can See Temperature Menu"
+          >
+            <Switch 
+              checked={canSeeTemperatureMenu}
+              checkedChildren="Yes" 
+              unCheckedChildren="No"
+              onChange={(checked) => {
+                setCanSeeTemperatureMenu(checked);
+                form.setFieldValue('canSeeTemperatureMenu', checked);
+                console.log('Switch changed to:', checked);
+              }}
+            />
+            <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
+              Allow users in this department to access the temperature monitoring system
             </div>
           </Form.Item>
         </Form>

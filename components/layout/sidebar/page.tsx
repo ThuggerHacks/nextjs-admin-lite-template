@@ -132,10 +132,15 @@ const SiderPage = () => {
       getItem(t("navigation.libraries"), "/libraries", <FolderOutlined />)
     );
 
-    // Temperature - All users
-    items.push(
-      getItem(t("navigation.temperature"), "/temperature", <FireOutlined />)
-    );
+    // Temperature - Users with department permission or Super Admin/Developer
+    const canSeeTemperature = isSuperAdmin || isDeveloper || 
+      (user.department?.canSeeTemperatureMenu === true);
+    
+    if (canSeeTemperature) {
+      items.push(
+        getItem(t("navigation.temperature"), "/temperature", <FireOutlined />)
+      );
+    }
 
     // Management section - Admin, Supervisor, Super Admin, Developer
     if (isAdmin || isSupervisor || isSuperAdmin || isDeveloper) {
