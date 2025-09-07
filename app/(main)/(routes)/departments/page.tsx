@@ -61,7 +61,7 @@ const DepartmentsPage: React.FC = () => {
   useEffect(() => {
     loadDepartments();
     loadUsers();
-  }, []);
+  }, [loadDepartments, loadUsers]);
 
   const handleCreate = () => {
     setEditingDepartment(null);
@@ -378,12 +378,12 @@ const DepartmentsPage: React.FC = () => {
           </Form.Item>
 
           <Form.Item
-            label="Can See Temperature Menu"
+            label={t('departments.canSeeTemperatureMenu')}
           >
             <Switch 
               checked={canSeeTemperatureMenu}
-              checkedChildren="Yes" 
-              unCheckedChildren="No"
+              checkedChildren={t('common.yes')} 
+              unCheckedChildren={t('common.no')}
               onChange={(checked) => {
                 setCanSeeTemperatureMenu(checked);
                 form.setFieldValue('canSeeTemperatureMenu', checked);
@@ -391,7 +391,7 @@ const DepartmentsPage: React.FC = () => {
               }}
             />
             <div style={{ marginTop: '4px', fontSize: '12px', color: '#666' }}>
-              Allow users in this department to access the temperature monitoring system
+              {t('departments.temperatureMenuNote')}
             </div>
           </Form.Item>
         </Form>
