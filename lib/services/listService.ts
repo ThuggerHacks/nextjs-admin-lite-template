@@ -78,6 +78,19 @@ export const listService = {
   async getExpiringItems(listId: string, days: number = 1): Promise<{ expiringItems: ExpiringItem[] }> {
     const response = await api.get(`/lists/${listId}/expiring?days=${days}`);
     return response.data;
+  },
+
+  // Excel Export
+  async exportToExcel(listId: string, filters?: ListFilters): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (filters?.startDate) params.append('startDate', filters.startDate);
+    if (filters?.endDate) params.append('endDate', filters.endDate);
+    if (filters?.name) params.append('name', filters.name);
+
+    const response = await api.get(`/lists/${listId}/export?${params.toString()}`, {
+      responseType: 'blob'
+    });
+    return response.data;
   }
 };
 

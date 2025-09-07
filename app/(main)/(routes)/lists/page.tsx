@@ -85,7 +85,7 @@ export default function ListsPage() {
   // Load users for member selection
   const loadUsers = useCallback(async () => {
     try {
-      const response = await userService.getUsers();
+      const response = await userService.getAll({ limit: 1000 }); // Get all users
       setAvailableUsers(response.users);
     } catch (error) {
       console.error('Error loading users:', error);
@@ -140,6 +140,8 @@ export default function ListsPage() {
 
   // Handle list selection
   const handleListSelect = (list: ListType) => {
+    console.log('Selected list:', list);
+    console.log('List members:', list.members);
     setSelectedList(list);
     setSearchTerm('');
     setFilters({});
@@ -260,6 +262,8 @@ export default function ListsPage() {
   // Handle add members
   const handleAddMembers = () => {
     if (!selectedList) return;
+    console.log('Available users:', availableUsers);
+    console.log('Current members:', selectedList.members);
     setSelectedMemberIds([]);
     setMemberModalVisible(true);
   };
@@ -308,24 +312,12 @@ export default function ListsPage() {
     if (!selectedList) return;
     
     try {
-      // Build query parameters for filters
-      const params = new URLSearchParams();
-      if (filters.startDate) params.append('startDate', filters.startDate);
-      if (filters.endDate) params.append('endDate', filters.endDate);
-      if (searchTerm) params.append('name', searchTerm);
+      const exportFilters = {
+        ...filters,
+        name: searchTerm || undefined
+      };
 
-      const response = await fetch(`/api/lists/${selectedList.id}/export?${params.toString()}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-        },
-      });
-
-      if (!response.ok) {
-        throw new Error('Export failed');
-      }
-
-      const blob = await response.blob();
+      const blob = await listService.exportToExcel(selectedList.id, exportFilters);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -417,9 +409,9 @@ export default function ListsPage() {
         </Row>
       </Card>
 
-      <Row gutter={[24, 24]}>
+      <Row gutter={[16, 16]}>
         {/* Lists Sidebar */}
-        <Col xs={24} lg={8}>
+        <Col xs={24} lg={8} xl={6}>
           <Card 
             title={t('lists.myLists')} 
             extra={
@@ -501,35 +493,38 @@ export default function ListsPage() {
         </Col>
 
         {/* Items Content */}
-        <Col xs={24} lg={16}>
+        <Col xs={24} lg={16} xl={18}>
           {selectedList ? (
             <Card
               title={
-                <div className="flex justify-between items-center">
-                  <div>
-                    <Title level={4} style={{ margin: 0 }}>{selectedList.name}</Title>
-                    <Text type="secondary">{selectedList.description}</Text>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <div className="flex-1 min-w-0">
+                    <Title level={4} style={{ margin: 0 }} className="truncate">{selectedList.name}</Title>
+                    <Text type="secondary" className="truncate block">{selectedList.description}</Text>
                   </div>
-                  <Space>
+                  <Space wrap>
                     <Button 
                       icon={<DownloadOutlined />}
                       onClick={handleExportExcel}
+                      size="small"
                     >
-                      Exportar Excel
+                      <span className="hidden sm:inline">Exportar Excel</span>
                     </Button>
                     {canEditList(selectedList) && (
                       <Button 
                         icon={<TeamOutlined />}
                         onClick={handleAddMembers}
+                        size="small"
                       >
-                        {t('lists.addMember')}
+                        <span className="hidden sm:inline">{t('lists.addMember')}</span>
                       </Button>
                     )}
                     <Button 
                       icon={<PlusOutlined />}
                       onClick={handleCreateItem}
+                      size="small"
                     >
-                      {t('lists.addItem')}
+                      <span className="hidden sm:inline">{t('lists.addItem')}</span>
                     </Button>
                   </Space>
                 </div>
@@ -538,41 +533,44 @@ export default function ListsPage() {
               {/* Members Section */}
               <div className="mb-4 p-4 bg-blue-50 rounded">
                 <div className="flex justify-between items-center mb-2">
-                  <Text strong>{t('lists.members')} ({selectedList.members.length})</Text>
+                  <Text strong>{t('lists.members')} ({selectedList.members?.length || 0})</Text>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  {selectedList.members.map((member) => (
+                  {selectedList.members?.map((member) => (
                     <Tag
                       key={member.id}
                       closable={canEditList(selectedList) && member.userId !== selectedList.createdById}
                       onClose={() => handleRemoveMember(member.userId)}
                       color={member.role === 'ADMIN' ? 'blue' : 'default'}
                     >
-                      {member.user.name} {member.role === 'ADMIN' && '(Admin)'}
+                      {member.user?.name || 'Unknown User'} {member.role === 'ADMIN' && '(Admin)'}
                     </Tag>
-                  ))}
+                  )) || []}
                 </div>
               </div>
 
               {/* Filters */}
-              <div className="mb-4 p-4 bg-gray-50 rounded">
-                <Row gutter={[16, 16]} align="middle">
+              <div className="mb-4 p-3 sm:p-4 bg-gray-50 rounded">
+                <Row gutter={[12, 12]} align="middle">
                   <Col xs={24} sm={12} md={8}>
                     <Input
                       placeholder={t('lists.filterByName')}
                       prefix={<SearchOutlined />}
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
+                      size="small"
                     />
                   </Col>
                   <Col xs={24} sm={12} md={8}>
                     <RangePicker
                       placeholder={[t('lists.startDate'), t('lists.endDate')]}
+                      style={{ width: '100%' }}
+                      size="small"
                       onChange={(dates) => {
-                        if (dates) {
+                        if (dates && dates[0] && dates[1]) {
                           handleFilterChange({
-                            startDate: dates[0]?.format('YYYY-MM-DD'),
-                            endDate: dates[1]?.format('YYYY-MM-DD'),
+                            startDate: dates[0].format('YYYY-MM-DD'),
+                            endDate: dates[1].format('YYYY-MM-DD'),
                           });
                         } else {
                           handleFilterChange({});
@@ -581,7 +579,7 @@ export default function ListsPage() {
                     />
                   </Col>
                   <Col xs={24} sm={12} md={8}>
-                    <Button onClick={handleClearFilters}>
+                    <Button onClick={handleClearFilters} size="small" block>
                       {t('lists.clearFilters')}
                     </Button>
                   </Col>
@@ -633,9 +631,9 @@ export default function ListsPage() {
                       >
                         <List.Item.Meta
                           title={
-                            <div className="flex items-center gap-2">
-                              <span>{item.name}</span>
-                              <Tag color={expiration.color}>
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                              <span className="truncate">{item.name}</span>
+                              <Tag color={expiration.color} className="flex-shrink-0">
                                 {expiration.text}
                               </Tag>
                             </div>
@@ -643,30 +641,30 @@ export default function ListsPage() {
                           description={
                             <div>
                               {item.description && (
-                                <div className="text-gray-600 mb-2">{item.description}</div>
+                                <div className="text-gray-600 mb-2 text-sm">{item.description}</div>
                               )}
-                              <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs sm:text-sm text-gray-500">
                                 {item.value && (
-                                  <span>
-                                    <DollarOutlined className="mr-1" />
-                                    {item.value} MZN
+                                  <span className="flex items-center">
+                                    <DollarOutlined className="mr-1 flex-shrink-0" />
+                                    <span className="truncate">{item.value} MZN</span>
                                   </span>
                                 )}
                                 {item.startDate && (
-                                  <span>
-                                    <CalendarOutlined className="mr-1" />
-                                    {t('lists.startDate')}: {dayjs(item.startDate).format('DD/MM/YYYY')}
+                                  <span className="flex items-center">
+                                    <CalendarOutlined className="mr-1 flex-shrink-0" />
+                                    <span className="truncate">{t('lists.startDate')}: {dayjs(item.startDate).format('DD/MM/YYYY')}</span>
                                   </span>
                                 )}
                                 {item.endDate && (
-                                  <span>
-                                    <CalendarOutlined className="mr-1" />
-                                    {t('lists.endDate')}: {dayjs(item.endDate).format('DD/MM/YYYY')}
+                                  <span className="flex items-center">
+                                    <CalendarOutlined className="mr-1 flex-shrink-0" />
+                                    <span className="truncate">{t('lists.endDate')}: {dayjs(item.endDate).format('DD/MM/YYYY')}</span>
                                   </span>
                                 )}
-                                <span>
-                                  <UserOutlined className="mr-1" />
-                                  {t('lists.createdBy')}: {item.createdBy.name}
+                                <span className="flex items-center">
+                                  <UserOutlined className="mr-1 flex-shrink-0" />
+                                  <span className="truncate">{t('lists.createdBy')}: {item.createdBy.name}</span>
                                 </span>
                               </div>
                             </div>
