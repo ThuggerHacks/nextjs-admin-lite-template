@@ -28,6 +28,7 @@ export interface Dictionary {
     notifications: string;
     requests: string;
     profile: string;
+    temperature: string;
   };
   common: {
     login: string;
@@ -1130,6 +1131,66 @@ export interface Dictionary {
       email: string;
     };
   };
+  temperature: {
+    temperatureDashboard: string;
+    temperatureMonitoring: string;
+    recordTemperature: string;
+    temperatureValue: string;
+    temperatureInCelsius: string;
+    recordedAt: string;
+    recordedBy: string;
+    selectDate: string;
+    filterByDate: string;
+    today: string;
+    yesterday: string;
+    lastWeek: string;
+    lastMonth: string;
+    customRange: string;
+    temperatureChart: string;
+    temperatureOverTime: string;
+    last24Hours: string;
+    noDataAvailable: string;
+    addTemperatureData: string;
+    enterTemperature: string;
+    temperaturePlaceholder: string;
+    invalidTemperature: string;
+    temperatureRecorded: string;
+    failedToRecordTemperature: string;
+    exportData: string;
+    exportToExcel: string;
+    exportingData: string;
+    dataExported: string;
+    failedToExport: string;
+    statistics: string;
+    averageTemperature: string;
+    minTemperature: string;
+    maxTemperature: string;
+    totalReadings: string;
+    temperatureRange: string;
+    normalRange: string;
+    feverRange: string;
+    highFeverRange: string;
+    hypothermiaRange: string;
+    timeRange: string;
+    hourlyData: string;
+    refreshData: string;
+    loadingData: string;
+    errorLoadingData: string;
+    retry: string;
+    deleteRecord: string;
+    confirmDelete: string;
+    recordDeleted: string;
+    failedToDelete: string;
+    noRecordsFound: string;
+    searchRecords: string;
+    filterRecords: string;
+    sortBy: string;
+    sortByTime: string;
+    sortByTemperature: string;
+    sortByUser: string;
+    ascending: string;
+    descending: string;
+  };
 }
 
 const dictionaries: Record<Locale, Dictionary> = {
@@ -1158,6 +1219,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       notifications: 'Notificações',
       requests: 'Solicitações',
       profile: 'Perfil',
+      temperature: 'Temperatura',
     },
     common: {
       login: 'Entrar',
@@ -1201,6 +1263,7 @@ const dictionaries: Record<Locale, Dictionary> = {
           department: 'Departamento',
     logoutSuccess: 'Logout realizado com sucesso',
     logoutError: 'Erro durante o logout, mas sessão foi limpa',
+    time: 'Tempo',
   },
     auth: {
       welcomeBack: 'Bem-vindo de volta',
@@ -2428,6 +2491,66 @@ const dictionaries: Record<Locale, Dictionary> = {
         email: 'Digite um e-mail válido',
       },
     },
+    temperature: {
+      temperatureDashboard: 'Painel de Temperatura',
+      temperatureMonitoring: 'Sistema de Monitoramento de Temperatura',
+      recordTemperature: 'Registrar Temperatura',
+      temperatureValue: 'Valor da Temperatura',
+      temperatureInCelsius: 'Temperatura (°C)',
+      recordedAt: 'Registrado Em',
+      recordedBy: 'Registrado Por',
+      selectDate: 'Selecionar Data',
+      filterByDate: 'Filtrar por Data',
+      today: 'Hoje',
+      yesterday: 'Ontem',
+      lastWeek: 'Última Semana',
+      lastMonth: 'Último Mês',
+      customRange: 'Período Personalizado',
+      temperatureChart: 'Gráfico de Temperatura',
+      temperatureOverTime: 'Temperatura ao Longo do Tempo',
+      last24Hours: 'Últimas 24 Horas',
+      noDataAvailable: 'Nenhum dado de temperatura disponível para a data selecionada',
+      addTemperatureData: 'Adicionar Dados de Temperatura',
+      enterTemperature: 'Inserir Temperatura',
+      temperaturePlaceholder: 'Digite a temperatura em Celsius',
+      invalidTemperature: 'Por favor, insira uma temperatura válida entre 30-50°C',
+      temperatureRecorded: 'Temperatura registrada com sucesso',
+      failedToRecordTemperature: 'Falha ao registrar temperatura',
+      exportData: 'Exportar Dados',
+      exportToExcel: 'Exportar para Excel',
+      exportingData: 'Exportando dados...',
+      dataExported: 'Dados exportados com sucesso',
+      failedToExport: 'Falha ao exportar dados',
+      statistics: 'Estatísticas',
+      averageTemperature: 'Temperatura Média',
+      minTemperature: 'Temperatura Mínima',
+      maxTemperature: 'Temperatura Máxima',
+      totalReadings: 'Total de Leituras',
+      temperatureRange: 'Faixa de Temperatura',
+      normalRange: 'Faixa Normal (36-37,5°C)',
+      feverRange: 'Faixa de Febre (37,5-39°C)',
+      highFeverRange: 'Febre Alta (>39°C)',
+      hypothermiaRange: 'Hipotermia (<36°C)',
+      timeRange: 'Período de Tempo',
+      hourlyData: 'Dados por Hora',
+      refreshData: 'Atualizar Dados',
+      loadingData: 'Carregando dados de temperatura...',
+      errorLoadingData: 'Erro ao carregar dados de temperatura',
+      retry: 'Tentar Novamente',
+      deleteRecord: 'Excluir Registro',
+      confirmDelete: 'Tem certeza de que deseja excluir este registro de temperatura?',
+      recordDeleted: 'Registro de temperatura excluído com sucesso',
+      failedToDelete: 'Falha ao excluir registro de temperatura',
+      noRecordsFound: 'Nenhum registro de temperatura encontrado',
+      searchRecords: 'Pesquisar Registros',
+      filterRecords: 'Filtrar Registros',
+      sortBy: 'Ordenar Por',
+      sortByTime: 'Ordenar por Tempo',
+      sortByTemperature: 'Ordenar por Temperatura',
+      sortByUser: 'Ordenar por Usuário',
+      ascending: 'Crescente',
+      descending: 'Decrescente',
+    },
   },
   en: {
     navigation: {
@@ -2441,6 +2564,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       createGoals: 'Create Goals',
       editGoals: 'Edit Goals',
       scanner: 'Scanner',
+      temperature: 'Temperature',
 
 
       fileManagement: 'File Management',
@@ -2497,6 +2621,7 @@ const dictionaries: Record<Locale, Dictionary> = {
           department: 'Department',
     logoutSuccess: 'Logged out successfully',
     logoutError: 'Error during logout, but session cleared',
+    time: 'Time',
   },
     auth: {
       welcomeBack: 'Welcome back',
@@ -3724,6 +3849,66 @@ const dictionaries: Record<Locale, Dictionary> = {
         required: 'This field is required',
         email: 'Please enter a valid email',
       },
+    },
+    temperature: {
+      temperatureDashboard: 'Temperature Dashboard',
+      temperatureMonitoring: 'Temperature Monitoring System',
+      recordTemperature: 'Record Temperature',
+      temperatureValue: 'Temperature Value',
+      temperatureInCelsius: 'Temperature (°C)',
+      recordedAt: 'Recorded At',
+      recordedBy: 'Recorded By',
+      selectDate: 'Select Date',
+      filterByDate: 'Filter by Date',
+      today: 'Today',
+      yesterday: 'Yesterday',
+      lastWeek: 'Last Week',
+      lastMonth: 'Last Month',
+      customRange: 'Custom Range',
+      temperatureChart: 'Temperature Chart',
+      temperatureOverTime: 'Temperature over Time',
+      last24Hours: 'Last 24 Hours',
+      noDataAvailable: 'No temperature data available for the selected date',
+      addTemperatureData: 'Add Temperature Data',
+      enterTemperature: 'Enter Temperature',
+      temperaturePlaceholder: 'Enter temperature in Celsius',
+      invalidTemperature: 'Please enter a valid temperature between 30-50°C',
+      temperatureRecorded: 'Temperature recorded successfully',
+      failedToRecordTemperature: 'Failed to record temperature',
+      exportData: 'Export Data',
+      exportToExcel: 'Export to Excel',
+      exportingData: 'Exporting data...',
+      dataExported: 'Data exported successfully',
+      failedToExport: 'Failed to export data',
+      statistics: 'Statistics',
+      averageTemperature: 'Average Temperature',
+      minTemperature: 'Minimum Temperature',
+      maxTemperature: 'Maximum Temperature',
+      totalReadings: 'Total Readings',
+      temperatureRange: 'Temperature Range',
+      normalRange: 'Normal Range (36-37.5°C)',
+      feverRange: 'Fever Range (37.5-39°C)',
+      highFeverRange: 'High Fever (>39°C)',
+      hypothermiaRange: 'Hypothermia (<36°C)',
+      timeRange: 'Time Range',
+      hourlyData: 'Hourly Data',
+      refreshData: 'Refresh Data',
+      loadingData: 'Loading temperature data...',
+      errorLoadingData: 'Error loading temperature data',
+      retry: 'Retry',
+      deleteRecord: 'Delete Record',
+      confirmDelete: 'Are you sure you want to delete this temperature record?',
+      recordDeleted: 'Temperature record deleted successfully',
+      failedToDelete: 'Failed to delete temperature record',
+      noRecordsFound: 'No temperature records found',
+      searchRecords: 'Search Records',
+      filterRecords: 'Filter Records',
+      sortBy: 'Sort By',
+      sortByTime: 'Sort by Time',
+      sortByTemperature: 'Sort by Temperature',
+      sortByUser: 'Sort by User',
+      ascending: 'Ascending',
+      descending: 'Descending',
     },
   },
 };

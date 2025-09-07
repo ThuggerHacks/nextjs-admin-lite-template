@@ -12,3 +12,4 @@ export * from './reportService';
 export * from './scannerService';
 export * from './dashboardService';
 export * from './documentsService';
+export * from './temperatureService';

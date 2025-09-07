@@ -35,6 +35,7 @@ model Sucursal {
   scans       Scan[]
   sourceConnections SucursalConnection[] @relation("SourceConnections")
   targetConnections SucursalConnection[] @relation("TargetConnections")
+  temperatures Temperature[]
 
   @@map("sucursals")
 }
@@ -116,6 +117,7 @@ model User {
   sharedLibraryFiles LibraryFile[] @relation("LibraryFileSharedBy")
   receivedSharedLibraryFiles LibraryFileShare[] @relation("LibraryFileSharedWith")
   sharedLibraryFileShares LibraryFileShare[] @relation("LibraryFileSharedBy")
+  temperatures Temperature[]
 
   @@map("users")
 }
@@ -463,4 +465,19 @@ model ErrorLog {
   sucursal      Sucursal  @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
 
   @@map("error_logs")
+}
+
+model Temperature {
+  id          String   @id @default(cuid())
+  temperature Float    // Temperature in Celsius
+  recordedAt  DateTime @default(now())
+  userId      String
+  sucursalId  String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sucursal    Sucursal @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
+
+  @@map("temperatures")
 } 

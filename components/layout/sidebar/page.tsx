@@ -27,6 +27,7 @@ import {
   UploadOutlined,
   EditOutlined,
   GlobalOutlined,
+  FireOutlined,
 } from "@ant-design/icons";
 import type { MenuProps } from "antd";
 import { Menu, ConfigProvider, Divider } from "antd";
@@ -129,6 +130,11 @@ const SiderPage = () => {
     // Libraries - All users
     items.push(
       getItem(t("navigation.libraries"), "/libraries", <FolderOutlined />)
+    );
+
+    // Temperature - All users
+    items.push(
+      getItem(t("navigation.temperature"), "/temperature", <FireOutlined />)
     );
 
     // Management section - Admin, Supervisor, Super Admin, Developer

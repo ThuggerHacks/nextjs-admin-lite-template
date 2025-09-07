@@ -44,5 +44,6 @@
   "pending": "Pending",
   "completed": "Completed",
   "failed": "Failed",
-  "unknown": "Unknown"
+  "unknown": "Unknown",
+  "time": "Time"
 }
