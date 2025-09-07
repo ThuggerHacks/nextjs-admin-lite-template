@@ -42,7 +42,7 @@ import {
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
-import { listService } from '@/lib/services';
+import { listService, userService } from '@/lib/services';
 import { List as ListType, ListItem, CreateListRequest, CreateListItemRequest, ListFilters } from '@/types';
 import dayjs from 'dayjs';
 
@@ -68,6 +68,10 @@ export default function ListsPage() {
   const [editingList, setEditingList] = useState<ListType | null>(null);
   const [editingItem, setEditingItem] = useState<ListItem | null>(null);
   
+  // Member management
+  const [availableUsers, setAvailableUsers] = useState<any[]>([]);
+  const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
+  
   // Form instances
   const [listForm] = Form.useForm();
   const [itemForm] = Form.useForm();
@@ -77,19 +81,34 @@ export default function ListsPage() {
   const [filters, setFilters] = useState<ListFilters>({});
   const [searchTerm, setSearchTerm] = useState('');
 
+  // Load users for member selection
+  const loadUsers = useCallback(async () => {
+    try {
+      const response = await userService.getUsers();
+      setAvailableUsers(response.users);
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
+  }, []);
+
   // Load lists on component mount
   const loadLists = useCallback(async () => {
     try {
       setLoading(true);
       const response = await listService.getLists();
       setLists(response.lists);
+      
+      // Auto-select first list if none selected and lists exist
+      if (response.lists.length > 0 && !selectedList) {
+        setSelectedList(response.lists[0]);
+      }
     } catch (error) {
       console.error('Error loading lists:', error);
       message.error('Failed to load lists');
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [selectedList]);
 
   // Load list items
   const loadListItems = useCallback(async (listId: string) => {
@@ -108,7 +127,8 @@ export default function ListsPage() {
   // Load data on mount
   useEffect(() => {
     loadLists();
-  }, [loadLists]);
+    loadUsers();
+  }, [loadLists, loadUsers]);
 
   // Load items when list is selected or filters change
   useEffect(() => {
@@ -236,6 +256,44 @@ export default function ListsPage() {
     }
   };
 
+  // Handle add members
+  const handleAddMembers = () => {
+    if (!selectedList) return;
+    setSelectedMemberIds([]);
+    setMemberModalVisible(true);
+  };
+
+  // Handle member form submission
+  const handleMemberSubmit = async () => {
+    if (!selectedList || selectedMemberIds.length === 0) return;
+    
+    try {
+      for (const userId of selectedMemberIds) {
+        await listService.addMember(selectedList.id, userId);
+      }
+      message.success(t('lists.success.memberAdded'));
+      setMemberModalVisible(false);
+      loadLists(); // Reload to get updated member list
+    } catch (error) {
+      console.error('Error adding members:', error);
+      message.error('Failed to add members');
+    }
+  };
+
+  // Handle remove member
+  const handleRemoveMember = async (userId: string) => {
+    if (!selectedList) return;
+    
+    try {
+      await listService.removeMember(selectedList.id, userId);
+      message.success(t('lists.success.memberRemoved'));
+      loadLists(); // Reload to get updated member list
+    } catch (error) {
+      console.error('Error removing member:', error);
+      message.error('Failed to remove member');
+    }
+  };
+
   // Handle filters
   const handleFilterChange = (newFilters: ListFilters) => {
     setFilters(newFilters);
@@ -275,16 +333,14 @@ export default function ListsPage() {
     (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Check if user can edit list
+  // Check if user can edit list (only list creator)
   const canEditList = (list: ListType) => {
-    return list.createdById === user?.id || 
-           list.members.some(member => member.userId === user?.id && member.role === 'ADMIN');
+    return list.createdById === user?.id;
   };
 
-  // Check if user can edit item
+  // Check if user can edit item (only item creator)
   const canEditItem = (item: ListItem) => {
-    return item.createdById === user?.id || 
-           (selectedList && canEditList(selectedList));
+    return item.createdById === user?.id;
   };
 
   return (
@@ -407,6 +463,14 @@ export default function ListsPage() {
                     <Text type="secondary">{selectedList.description}</Text>
                   </div>
                   <Space>
+                    {canEditList(selectedList) && (
+                      <Button 
+                        icon={<TeamOutlined />}
+                        onClick={handleAddMembers}
+                      >
+                        {t('lists.addMember')}
+                      </Button>
+                    )}
                     <Button 
                       icon={<PlusOutlined />}
                       onClick={handleCreateItem}
@@ -417,6 +481,25 @@ export default function ListsPage() {
                 </div>
               }
             >
+              {/* Members Section */}
+              <div className="mb-4 p-4 bg-blue-50 rounded">
+                <div className="flex justify-between items-center mb-2">
+                  <Text strong>{t('lists.members')} ({selectedList.members.length})</Text>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {selectedList.members.map((member) => (
+                    <Tag
+                      key={member.id}
+                      closable={canEditList(selectedList) && member.userId !== selectedList.createdById}
+                      onClose={() => handleRemoveMember(member.userId)}
+                      color={member.role === 'ADMIN' ? 'blue' : 'default'}
+                    >
+                      {member.user.name} {member.role === 'ADMIN' && '(Admin)'}
+                    </Tag>
+                  ))}
+                </div>
+              </div>
+
               {/* Filters */}
               <div className="mb-4 p-4 bg-gray-50 rounded">
                 <Row gutter={[16, 16]} align="middle">
@@ -640,8 +723,39 @@ export default function ListsPage() {
           >
             <DatePicker style={{ width: '100%' }} />
           </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  );
-}
+          </Form>
+        </Modal>
+
+        {/* Member Management Modal */}
+        <Modal
+          title={t('lists.addMember')}
+          open={memberModalVisible}
+          onCancel={() => setMemberModalVisible(false)}
+          onOk={handleMemberSubmit}
+          okText={t('common.add')}
+          cancelText={t('common.cancel')}
+        >
+          <div className="mb-4">
+            <Text type="secondary">
+              {t('lists.selectMembers')}
+            </Text>
+          </div>
+          <Select
+            mode="multiple"
+            style={{ width: '100%' }}
+            placeholder={t('lists.selectMembers')}
+            value={selectedMemberIds}
+            onChange={setSelectedMemberIds}
+            options={availableUsers
+              .filter(u => u.id !== user?.id) // Exclude current user
+              .filter(u => !selectedList?.members.some(member => member.userId === u.id)) // Exclude existing members
+              .map(u => ({
+                label: `${u.name} (${u.email})`,
+                value: u.id
+              }))
+            }
+          />
+        </Modal>
+      </div>
+    );
+  }

@@ -1286,6 +1286,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       editGoals: 'Editar Metas',
       scanner: 'Scanner',
               scan: 'Scanner',
+              lists:'Listas',
 
       fileManagement: 'Gestão de Arquivos',
       libraries: 'Bibliotecas',
@@ -2722,6 +2723,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       createGoals: 'Create Goals',
       editGoals: 'Edit Goals',
       scanner: 'Scanner',
+      lists: 'Lists',
       temperature: 'Temperature',
 
 
