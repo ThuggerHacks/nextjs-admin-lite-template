@@ -39,6 +39,7 @@ import {
   ClockCircleOutlined,
   SearchOutlined,
   FilterOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons';
 import { useTranslation } from '@/contexts/LanguageContext';
 import { useUser } from '@/contexts/UserContext';
@@ -108,7 +109,7 @@ export default function ListsPage() {
     } finally {
       setLoading(false);
     }
-  }, [selectedList]);
+  }, []);
 
   // Load list items
   const loadListItems = useCallback(async (listId: string) => {
@@ -273,7 +274,11 @@ export default function ListsPage() {
       }
       message.success(t('lists.success.memberAdded'));
       setMemberModalVisible(false);
-      loadLists(); // Reload to get updated member list
+      
+      // Reload the specific list to get updated member list
+      const updatedList = await listService.getList(selectedList.id);
+      setSelectedList(updatedList.list);
+      loadLists(); // Also reload all lists
     } catch (error) {
       console.error('Error adding members:', error);
       message.error('Failed to add members');
@@ -287,10 +292,53 @@ export default function ListsPage() {
     try {
       await listService.removeMember(selectedList.id, userId);
       message.success(t('lists.success.memberRemoved'));
-      loadLists(); // Reload to get updated member list
+      
+      // Reload the specific list to get updated member list
+      const updatedList = await listService.getList(selectedList.id);
+      setSelectedList(updatedList.list);
+      loadLists(); // Also reload all lists
     } catch (error) {
       console.error('Error removing member:', error);
       message.error('Failed to remove member');
+    }
+  };
+
+  // Handle Excel export
+  const handleExportExcel = async () => {
+    if (!selectedList) return;
+    
+    try {
+      // Build query parameters for filters
+      const params = new URLSearchParams();
+      if (filters.startDate) params.append('startDate', filters.startDate);
+      if (filters.endDate) params.append('endDate', filters.endDate);
+      if (searchTerm) params.append('name', searchTerm);
+
+      const response = await fetch(`/api/lists/${selectedList.id}/export?${params.toString()}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Export failed');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selectedList.name}_items_${dayjs().format('YYYY-MM-DD')}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      message.success('Excel exportado com sucesso!');
+    } catch (error) {
+      console.error('Error exporting to Excel:', error);
+      message.error('Falha ao exportar para Excel');
     }
   };
 
@@ -463,6 +511,12 @@ export default function ListsPage() {
                     <Text type="secondary">{selectedList.description}</Text>
                   </div>
                   <Space>
+                    <Button 
+                      icon={<DownloadOutlined />}
+                      onClick={handleExportExcel}
+                    >
+                      Exportar Excel
+                    </Button>
                     {canEditList(selectedList) && (
                       <Button 
                         icon={<TeamOutlined />}
@@ -693,21 +747,19 @@ export default function ListsPage() {
           >
             <TextArea rows={3} placeholder={t('lists.itemDescription')} />
           </Form.Item>
+          <Form.Item
+            name="value"
+            label={t('lists.valueInMZN')}
+          >
+            <InputNumber
+              min={0}
+              placeholder="0.00"
+              style={{ width: '100%' }}
+              formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
+              parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
+            />
+          </Form.Item>
           <Row gutter={16}>
-            <Col span={12}>
-              <Form.Item
-                name="value"
-                label={t('lists.valueInMZN')}
-              >
-                <InputNumber
-                  min={0}
-                  placeholder="0.00"
-                  style={{ width: '100%' }}
-                  formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-                  parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
-                />
-              </Form.Item>
-            </Col>
             <Col span={12}>
               <Form.Item
                 name="startDate"
@@ -716,13 +768,15 @@ export default function ListsPage() {
                 <DatePicker style={{ width: '100%' }} />
               </Form.Item>
             </Col>
+            <Col span={12}>
+              <Form.Item
+                name="endDate"
+                label={t('lists.endDate')}
+              >
+                <DatePicker style={{ width: '100%' }} />
+              </Form.Item>
+            </Col>
           </Row>
-          <Form.Item
-            name="endDate"
-            label={t('lists.endDate')}
-          >
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
           </Form>
         </Modal>
 

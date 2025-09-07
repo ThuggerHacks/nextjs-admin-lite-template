@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const { logError } = require('../utils/errorLogger');
 const { createNotification } = require('../utils/notifications');
+const ExcelJS = require('exceljs');
 
 const router = express.Router();
 
@@ -641,6 +642,190 @@ router.get('/:listId/expiring', authenticateToken, async (req, res) => {
   } catch (error) {
     await logError('DATABASE_ERROR', 'Get expiring items failed', error);
     res.status(500).json({ error: 'Failed to fetch expiring items' });
+  }
+});
+
+// Export list items to Excel
+router.get('/:listId/export', authenticateToken, async (req, res) => {
+  try {
+    const { listId } = req.params;
+    const { startDate, endDate, name } = req.query;
+
+    // Check if user has access to the list
+    const list = await prisma.list.findFirst({
+      where: {
+        id: listId,
+        sucursalId: req.user.sucursalId,
+        OR: [
+          { createdById: req.user.id },
+          { members: { some: { userId: req.user.id } } }
+        ]
+      },
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true }
+        },
+        members: {
+          include: {
+            user: {
+              select: { id: true, name: true, email: true }
+            }
+          }
+        }
+      }
+    });
+
+    if (!list) {
+      return res.status(404).json({ error: 'List not found' });
+    }
+
+    // Build filter conditions
+    const where = { listId };
+
+    if (startDate || endDate) {
+      where.OR = [];
+      if (startDate) {
+        where.OR.push({ startDate: { gte: new Date(startDate) } });
+      }
+      if (endDate) {
+        where.OR.push({ endDate: { lte: new Date(endDate) } });
+      }
+    }
+
+    if (name) {
+      where.name = { contains: name, mode: 'insensitive' };
+    }
+
+    // Get filtered items
+    const items = await prisma.listItem.findMany({
+      where,
+      include: {
+        createdBy: {
+          select: { id: true, name: true, email: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    // Create Excel workbook
+    const workbook = new ExcelJS.Workbook();
+    const worksheet = workbook.addWorksheet('Itens da Lista');
+
+    // Define columns
+    worksheet.columns = [
+      { header: 'Nome do Item', key: 'name', width: 30 },
+      { header: 'Descrição', key: 'description', width: 40 },
+      { header: 'Valor (MZN)', key: 'value', width: 15 },
+      { header: 'Data de Início', key: 'startDate', width: 15 },
+      { header: 'Data de Fim', key: 'endDate', width: 15 },
+      { header: 'Status de Expiração', key: 'expirationStatus', width: 20 },
+      { header: 'Criado por', key: 'createdBy', width: 25 },
+      { header: 'Data de Criação', key: 'createdAt', width: 20 },
+    ];
+
+    // Style header row
+    worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFF' } };
+    worksheet.getRow(1).fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: '366092' }
+    };
+    worksheet.getRow(1).alignment = { horizontal: 'center', vertical: 'middle' };
+
+    // Add data rows
+    items.forEach((item, index) => {
+      const now = new Date();
+      const endDate = item.endDate ? new Date(item.endDate) : null;
+      let expirationStatus = 'Válido';
+      let statusColor = 'green';
+
+      if (endDate) {
+        const daysDiff = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+        
+        if (daysDiff < 0) {
+          expirationStatus = `Expirado há ${Math.abs(daysDiff)} dias`;
+          statusColor = 'red';
+        } else if (daysDiff === 0) {
+          expirationStatus = 'Expira Hoje';
+          statusColor = 'orange';
+        } else if (daysDiff === 1) {
+          expirationStatus = 'Expira Amanhã';
+          statusColor = 'yellow';
+        } else {
+          expirationStatus = `${daysDiff} dias restantes`;
+          statusColor = 'green';
+        }
+      }
+
+      const row = worksheet.addRow({
+        name: item.name,
+        description: item.description || '',
+        value: item.value ? `MZN ${item.value.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : '',
+        startDate: item.startDate ? new Date(item.startDate).toLocaleDateString('pt-BR') : '',
+        endDate: item.endDate ? new Date(item.endDate).toLocaleDateString('pt-BR') : '',
+        expirationStatus: expirationStatus,
+        createdBy: item.createdBy.name,
+        createdAt: new Date(item.createdAt).toLocaleString('pt-BR')
+      });
+
+      // Color code expiration status
+      const statusCell = row.getCell('expirationStatus');
+      if (statusColor === 'red') {
+        statusCell.font = { color: { argb: 'FF0000' }, bold: true };
+      } else if (statusColor === 'orange') {
+        statusCell.font = { color: { argb: 'FF8C00' }, bold: true };
+      } else if (statusColor === 'yellow') {
+        statusCell.font = { color: { argb: 'FFD700' }, bold: true };
+      } else {
+        statusCell.font = { color: { argb: '008000' }, bold: true };
+      }
+
+      // Alternate row colors
+      if (index % 2 === 0) {
+        row.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'F8F9FA' }
+        };
+      }
+    });
+
+    // Add borders to all cells
+    worksheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell, colNumber) => {
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' }
+        };
+      });
+    });
+
+    // Add summary section
+    const summaryRow = worksheet.rowCount + 2;
+    worksheet.getCell(`A${summaryRow}`).value = 'Resumo da Lista';
+    worksheet.getCell(`A${summaryRow}`).font = { bold: true, size: 14 };
+    
+    worksheet.getCell(`A${summaryRow + 1}`).value = `Nome da Lista: ${list.name}`;
+    worksheet.getCell(`A${summaryRow + 2}`).value = `Descrição: ${list.description || 'N/A'}`;
+    worksheet.getCell(`A${summaryRow + 3}`).value = `Total de Itens: ${items.length}`;
+    worksheet.getCell(`A${summaryRow + 4}`).value = `Total de Membros: ${list.members.length}`;
+    worksheet.getCell(`A${summaryRow + 5}`).value = `Criado por: ${list.createdBy.name}`;
+    worksheet.getCell(`A${summaryRow + 6}`).value = `Data de Exportação: ${new Date().toLocaleString('pt-BR')}`;
+
+    // Set response headers
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${list.name}_items_${new Date().toISOString().split('T')[0]}.xlsx"`);
+
+    // Write to response
+    await workbook.xlsx.write(res);
+    res.end();
+
+  } catch (error) {
+    console.error('Error exporting list items:', error);
+    await logError('EXPORT_ERROR', 'Export list items failed', error);
+    res.status(500).json({ error: 'Failed to export list items' });
   }
 });
 
