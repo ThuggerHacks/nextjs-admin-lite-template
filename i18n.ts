@@ -199,6 +199,8 @@ export interface Dictionary {
     noSupervisor: string;
     selectDepartmentFirst: string;
     supervisorNote: string;
+    canSeeTemperatureMenu: string;
+    temperatureMenuNote: string;
     confirmDelete: string;
     users: string;
     manageDepartments: string;
@@ -1410,6 +1412,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       noSupervisor: 'Sem supervisor',
       selectDepartmentFirst: 'Selecione o Departamento Primeiro',
       supervisorNote: 'Supervisores podem ser atribuídos de qualquer usuário ativo com papéis de Supervisor, Admin ou Super Admin',
+      canSeeTemperatureMenu: 'Pode Ver Menu de Temperatura',
+      temperatureMenuNote: 'Permitir que usuários deste departamento acessem o sistema de monitoramento de temperatura',
       confirmDelete: 'Tem certeza que deseja excluir este departamento?',
       users: 'usuários',
       manageDepartments: 'Gerenciar Departamentos',
@@ -2768,6 +2772,8 @@ const dictionaries: Record<Locale, Dictionary> = {
       noSupervisor: 'No Supervisor',
       selectDepartmentFirst: 'Select Department First',
       supervisorNote: 'Supervisors can be assigned to any active user with Supervisor, Admin, or Super Admin roles',
+      canSeeTemperatureMenu: 'Can See Temperature Menu',
+      temperatureMenuNote: 'Allow users in this department to access the temperature monitoring system',
       confirmDelete: 'Are you sure you want to delete this department?',
       users: 'users',
       manageDepartments: 'Manage Departments',

@@ -61,7 +61,7 @@ const DepartmentsPage: React.FC = () => {
   useEffect(() => {
     loadDepartments();
     loadUsers();
-  }, [loadDepartments, loadUsers]);
+  }, []);
 
   const handleCreate = () => {
     setEditingDepartment(null);
