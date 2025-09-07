@@ -16,6 +16,8 @@ export interface Dictionary {
     editGoals: string;
     scanner: string;
     scan: string;
+    lists: string;
+    createLists: string;
 
     fileManagement: string;
     libraries: string;
@@ -36,6 +38,7 @@ export interface Dictionary {
     save: string;
     cancel: string;
     "delete": string;
+    add: string;
     edit: string;
     view: string;
     create: string;
@@ -1304,6 +1307,7 @@ const dictionaries: Record<Locale, Dictionary> = {
     common: {
       login: 'Entrar',
       logout: 'Sair',
+      add: 'Adicionar',
       save: 'Salvar',
       cancel: 'Cancelar',
       delete: 'Excluir',
@@ -2742,6 +2746,7 @@ const dictionaries: Record<Locale, Dictionary> = {
     common: {
       login: 'Login',
       logout: 'Logout',
+      add: 'Add',
       save: 'Save',
       cancel: 'Cancel',
       delete: 'Delete',

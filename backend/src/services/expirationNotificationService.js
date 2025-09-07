@@ -7,16 +7,19 @@ const checkExpiringItems = async () => {
   try {
     console.log('Checking for expiring list items...');
     
-    const today = new Date();
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate()); // Start of today
+    const dayAfterTomorrow = new Date(today);
+    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2); // Start of day after tomorrow
     
-    // Find items expiring today or tomorrow
+    console.log('Checking for items expiring between:', today.toISOString(), 'and', dayAfterTomorrow.toISOString());
+    
+    // Find items expiring in the next 2 days (today, tomorrow, day after tomorrow)
     const expiringItems = await prisma.listItem.findMany({
       where: {
         endDate: {
           gte: today,
-          lte: tomorrow
+          lt: dayAfterTomorrow
         }
       },
       include: {
@@ -40,8 +43,18 @@ const checkExpiringItems = async () => {
     console.log(`Found ${expiringItems.length} expiring items`);
 
     for (const item of expiringItems) {
-      const isExpiringToday = item.endDate.toDateString() === today.toDateString();
-      const isExpiringTomorrow = item.endDate.toDateString() === tomorrow.toDateString();
+      const itemEndDate = new Date(item.endDate);
+      const itemEndDateOnly = new Date(itemEndDate.getFullYear(), itemEndDate.getMonth(), itemEndDate.getDate());
+      
+      const tomorrow = new Date(today);
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      
+      const isExpiringToday = itemEndDateOnly.getTime() === today.getTime();
+      const isExpiringTomorrow = itemEndDateOnly.getTime() === tomorrow.getTime();
+      const isExpiringIn2Days = itemEndDateOnly.getTime() === dayAfterTomorrow.getTime();
+
+      console.log(`Item: ${item.name}, EndDate: ${itemEndDateOnly.toISOString()}, Today: ${today.toISOString()}, Tomorrow: ${tomorrow.toISOString()}, DayAfterTomorrow: ${dayAfterTomorrow.toISOString()}`);
+      console.log(`IsToday: ${isExpiringToday}, IsTomorrow: ${isExpiringTomorrow}, IsIn2Days: ${isExpiringIn2Days}`);
 
       let notificationTitle, notificationDescription;
 
@@ -51,18 +64,46 @@ const checkExpiringItems = async () => {
       } else if (isExpiringTomorrow) {
         notificationTitle = 'Item Expira Amanhã';
         notificationDescription = `O item "${item.name}" da lista "${item.list.name}" expira amanhã!`;
+      } else if (isExpiringIn2Days) {
+        notificationTitle = 'Item Expira em 2 Dias';
+        notificationDescription = `O item "${item.name}" da lista "${item.list.name}" expira em 2 dias!`;
+      } else {
+        // Skip items that don't match our criteria
+        continue;
       }
 
       // Send notification to all list members
       for (const member of item.list.members) {
         try {
-          await createNotification(
-            member.user.id,
-            'EXPIRATION_WARNING',
-            notificationTitle,
-            notificationDescription,
-            item.list.sucursalId
-          );
+          // Check if notification was already sent today for this item
+          const today = new Date();
+          const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+          
+          const existingNotification = await prisma.notification.findFirst({
+            where: {
+              userId: member.user.id,
+              type: 'EXPIRATION_WARNING',
+              description: notificationDescription,
+              createdAt: {
+                gte: startOfDay,
+                lt: endOfDay
+              }
+            }
+          });
+
+          if (!existingNotification) {
+            console.log(`Sending notification to user ${member.user.name} (${member.user.email}) for item: ${item.name}`);
+            await createNotification(
+              member.user.id,
+              'EXPIRATION_WARNING',
+              notificationTitle,
+              notificationDescription,
+              item.list.sucursalId
+            );
+          } else {
+            console.log(`Notification already sent today to user ${member.user.name} for item: ${item.name}`);
+          }
         } catch (error) {
           console.error(`Failed to send notification to user ${member.user.id}:`, error);
         }
@@ -118,13 +159,35 @@ const checkExpiredItems = async () => {
       // Send notification to all list members
       for (const member of item.list.members) {
         try {
-          await createNotification(
-            member.user.id,
-            'EXPIRATION_ALERT',
-            notificationTitle,
-            notificationDescription,
-            item.list.sucursalId
-          );
+          // Check if notification was already sent today for this item
+          const today = new Date();
+          const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+          const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+          
+          const existingNotification = await prisma.notification.findFirst({
+            where: {
+              userId: member.user.id,
+              type: 'EXPIRATION_ALERT',
+              description: notificationDescription,
+              createdAt: {
+                gte: startOfDay,
+                lt: endOfDay
+              }
+            }
+          });
+
+          if (!existingNotification) {
+            console.log(`Sending expired notification to user ${member.user.name} (${member.user.email}) for item: ${item.name}`);
+            await createNotification(
+              member.user.id,
+              'EXPIRATION_ALERT',
+              notificationTitle,
+              notificationDescription,
+              item.list.sucursalId
+            );
+          } else {
+            console.log(`Expired notification already sent today to user ${member.user.name} for item: ${item.name}`);
+          }
         } catch (error) {
           console.error(`Failed to send notification to user ${member.user.id}:`, error);
         }
@@ -138,7 +201,15 @@ const checkExpiredItems = async () => {
   }
 };
 
+// Manual trigger for testing
+const triggerExpirationCheck = async () => {
+  console.log('Manually triggering expiration check...');
+  await checkExpiringItems();
+  await checkExpiredItems();
+};
+
 module.exports = {
   checkExpiringItems,
-  checkExpiredItems
+  checkExpiredItems,
+  triggerExpirationCheck
 };

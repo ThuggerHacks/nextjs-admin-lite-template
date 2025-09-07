@@ -4,6 +4,7 @@ const prisma = require('../lib/prisma');
 const { authenticateToken } = require('../middleware/auth');
 const { logError } = require('../utils/errorLogger');
 const { createNotification } = require('../utils/notifications');
+const { triggerExpirationCheck } = require('../services/expirationNotificationService');
 const ExcelJS = require('exceljs');
 
 const router = express.Router();
@@ -161,6 +162,21 @@ router.post('/', authenticateToken, [
         }
       }
     });
+
+    // Send notifications to all added members (excluding creator)
+    for (const memberId of memberIds) {
+      try {
+        await createNotification(
+          memberId,
+          'LIST_MEMBER_ADDED',
+          'Você foi adicionado a uma lista',
+          `Você foi adicionado à lista "${name}" por ${req.user.name}.`,
+          req.user.sucursalId
+        );
+      } catch (error) {
+        console.error(`Failed to send notification to user ${memberId}:`, error);
+      }
+    }
 
     res.status(201).json({ list });
   } catch (error) {
@@ -334,6 +350,15 @@ router.post('/:listId/members', authenticateToken, [
       }
     });
 
+    // Send notification to the added user
+    await createNotification(
+      userId,
+      'LIST_MEMBER_ADDED',
+      'Você foi adicionado a uma lista',
+      `Você foi adicionado à lista "${list.name}" por ${req.user.name}.`,
+      req.user.sucursalId
+    );
+
     res.status(201).json({ member });
   } catch (error) {
     await logError('DATABASE_ERROR', 'Add member failed', error);
@@ -486,9 +511,59 @@ router.post('/:listId/items', authenticateToken, [
       include: {
         createdBy: {
           select: { id: true, name: true, email: true }
+        },
+        list: {
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true }
+                }
+              }
+            }
+          }
         }
       }
     });
+
+    // Check if item expires soon and send immediate notification
+    if (item.endDate) {
+      const now = new Date();
+      const itemEndDate = new Date(item.endDate);
+      const daysDiff = Math.floor((itemEndDate - now) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff >= 0 && daysDiff <= 2) {
+        let notificationTitle, notificationDescription;
+        
+        if (daysDiff === 0) {
+          notificationTitle = 'Item Expira Hoje';
+          notificationDescription = `O item "${item.name}" da lista "${item.list.name}" expira hoje!`;
+        } else if (daysDiff === 1) {
+          notificationTitle = 'Item Expira Amanhã';
+          notificationDescription = `O item "${item.name}" da lista "${item.list.name}" expira amanhã!`;
+        } else if (daysDiff === 2) {
+          notificationTitle = 'Item Expira em 2 Dias';
+          notificationDescription = `O item "${item.name}" da lista "${item.list.name}" expira em 2 dias!`;
+        }
+
+        // Send notification to all list members (except creator)
+        for (const member of item.list.members) {
+          if (member.userId !== req.user.id) {
+            try {
+              await createNotification(
+                member.userId,
+                'EXPIRATION_WARNING',
+                notificationTitle,
+                notificationDescription,
+                req.user.sucursalId
+              );
+            } catch (error) {
+              console.error(`Failed to send immediate notification to user ${member.userId}:`, error);
+            }
+          }
+        }
+      }
+    }
 
     res.status(201).json({ item });
   } catch (error) {
@@ -551,9 +626,59 @@ router.put('/:listId/items/:itemId', authenticateToken, [
       include: {
         createdBy: {
           select: { id: true, name: true, email: true }
+        },
+        list: {
+          include: {
+            members: {
+              include: {
+                user: {
+                  select: { id: true, name: true, email: true }
+                }
+              }
+            }
+          }
         }
       }
     });
+
+    // Check if updated item expires soon and send immediate notification
+    if (updatedItem.endDate) {
+      const now = new Date();
+      const itemEndDate = new Date(updatedItem.endDate);
+      const daysDiff = Math.floor((itemEndDate - now) / (1000 * 60 * 60 * 24));
+      
+      if (daysDiff >= 0 && daysDiff <= 2) {
+        let notificationTitle, notificationDescription;
+        
+        if (daysDiff === 0) {
+          notificationTitle = 'Item Expira Hoje';
+          notificationDescription = `O item "${updatedItem.name}" da lista "${updatedItem.list.name}" expira hoje!`;
+        } else if (daysDiff === 1) {
+          notificationTitle = 'Item Expira Amanhã';
+          notificationDescription = `O item "${updatedItem.name}" da lista "${updatedItem.list.name}" expira amanhã!`;
+        } else if (daysDiff === 2) {
+          notificationTitle = 'Item Expira em 2 Dias';
+          notificationDescription = `O item "${updatedItem.name}" da lista "${updatedItem.list.name}" expira em 2 dias!`;
+        }
+
+        // Send notification to all list members (except updater)
+        for (const member of updatedItem.list.members) {
+          if (member.userId !== req.user.id) {
+            try {
+              await createNotification(
+                member.userId,
+                'EXPIRATION_WARNING',
+                notificationTitle,
+                notificationDescription,
+                req.user.sucursalId
+              );
+            } catch (error) {
+              console.error(`Failed to send immediate notification to user ${member.userId}:`, error);
+            }
+          }
+        }
+      }
+    }
 
     res.json({ item: updatedItem });
   } catch (error) {
@@ -740,7 +865,7 @@ router.get('/:listId/export', authenticateToken, async (req, res) => {
       let statusColor = 'green';
 
       if (endDate) {
-        const daysDiff = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+        const daysDiff = Math.floor((endDate - now) / (1000 * 60 * 60 * 24));
         
         if (daysDiff < 0) {
           expirationStatus = `Expirado há ${Math.abs(daysDiff)} dias`;
@@ -826,6 +951,17 @@ router.get('/:listId/export', authenticateToken, async (req, res) => {
     console.error('Error exporting list items:', error);
     await logError('EXPORT_ERROR', 'Export list items failed', error);
     res.status(500).json({ error: 'Failed to export list items' });
+  }
+});
+
+// Test endpoint to manually trigger expiration check
+router.post('/test-expiration-check', authenticateToken, async (req, res) => {
+  try {
+    await triggerExpirationCheck();
+    res.json({ message: 'Expiration check triggered successfully' });
+  } catch (error) {
+    console.error('Error triggering expiration check:', error);
+    res.status(500).json({ error: 'Failed to trigger expiration check' });
   }
 });
 
