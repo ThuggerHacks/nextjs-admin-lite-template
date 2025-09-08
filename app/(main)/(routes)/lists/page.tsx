@@ -582,9 +582,9 @@ export default function ListsPage() {
               />
               
               {/* Lists Pagination */}
-              <div className="mt-2 text-xs text-gray-500 text-center">
+              {/* <div className="mt-2 text-xs text-gray-500 text-center">
                 Debug: Total={listsPagination.total}, Current={listsPagination.current}, PageSize={listsPagination.pageSize}
-              </div>
+              </div> */}
               {listsPagination.total > 0 && (
                 <div className="mt-4 text-center">
                   <Pagination
