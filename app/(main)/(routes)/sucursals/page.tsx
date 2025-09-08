@@ -139,6 +139,7 @@ export default function SucursalManagementPage() {
         description: values.description,
         location: values.location || '',
         serverUrl: values.serverUrl,
+        remoteUrl: values.remoteUrl,
       });
 
       // Add to local state
@@ -191,6 +192,7 @@ export default function SucursalManagementPage() {
         description: values.description,
         location: values.location,
         serverUrl: values.serverUrl,
+        remoteUrl: values.remoteUrl,
       });
 
       setSucursals(prev => prev.map(s => s.id === selectedSucursal.id ? { ...s, ...updatedSucursal } : s));
@@ -240,6 +242,7 @@ export default function SucursalManagementPage() {
       description: sucursal.description,
       location: sucursal.location,
       serverUrl: sucursal.serverUrl,
+      remoteUrl: sucursal.remoteUrl,
     });
     setEditModalVisible(true);
   };
@@ -711,6 +714,19 @@ export default function SucursalManagementPage() {
             />
           </Form.Item>
 
+          <Form.Item
+            label={t('sucursal.remoteUrl')}
+            name="remoteUrl"
+            rules={[
+              { type: 'url', message: t('sucursal.pleaseEnterValidUrl') }
+            ]}
+          >
+            <Input 
+              placeholder={t('sucursal.enterRemoteUrl')} 
+              size="large" 
+            />
+          </Form.Item>
+
           <Form.Item>
             <Space>
               <Button
@@ -784,6 +800,19 @@ export default function SucursalManagementPage() {
             <TextArea
               rows={3}
               placeholder={t('sucursal.enterDescription')}
+            />
+          </Form.Item>
+
+          <Form.Item
+            label={t('sucursal.remoteUrl')}
+            name="remoteUrl"
+            rules={[
+              { type: 'url', message: t('sucursal.pleaseEnterValidUrl') }
+            ]}
+          >
+            <Input 
+              placeholder={t('sucursal.enterRemoteUrl')} 
+              size="large" 
             />
           </Form.Item>
 

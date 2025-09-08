@@ -12,8 +12,13 @@ import {
 
 export const listService = {
   // List Management
-  async getLists(): Promise<{ lists: List[] }> {
-    const response = await api.get('/lists');
+  async getLists(params?: { page?: number; limit?: number; search?: string }): Promise<{ lists: List[]; total?: number }> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    if (params?.search) queryParams.append('search', params.search);
+
+    const response = await api.get(`/lists?${queryParams.toString()}`);
     return response.data;
   },
 
@@ -49,11 +54,13 @@ export const listService = {
   },
 
   // Item Management
-  async getListItems(listId: string, filters?: ListFilters): Promise<{ items: ListItem[] }> {
+  async getListItems(listId: string, filters?: ListFilters & { page?: number; limit?: number }): Promise<{ items: ListItem[]; total?: number }> {
     const params = new URLSearchParams();
     if (filters?.startDate) params.append('startDate', filters.startDate);
     if (filters?.endDate) params.append('endDate', filters.endDate);
     if (filters?.name) params.append('name', filters.name);
+    if (filters?.page) params.append('page', filters.page.toString());
+    if (filters?.limit) params.append('limit', filters.limit.toString());
 
     const response = await api.get(`/lists/${listId}/items?${params.toString()}`);
     return response.data;

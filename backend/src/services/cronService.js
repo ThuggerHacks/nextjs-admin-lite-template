@@ -1,9 +1,10 @@
 const cron = require('node-cron');
 const axios = require('axios');
 const prisma = require('../lib/prisma');
-const { logError } = require('../utils/errorLogger');
+const { logError, retryUnsentErrorLogs } = require('../utils/errorLogger');
 const currentSucursal = require('../lib/currentSucursal');
 const { checkExpiringItems, checkExpiredItems } = require('./expirationNotificationService');
+const backupService = require('./backupService');
 
 class CronService {
   constructor() {
@@ -31,6 +32,25 @@ class CronService {
       console.log('Running expiration check cron job...');
       await checkExpiringItems();
       await checkExpiredItems();
+    });
+
+    // Run every 3 hours - create database backups
+    cron.schedule('0 */3 * * *', async () => {
+      console.log('Running database backup cron job...');
+      await backupService.createAllBackups();
+      await backupService.cleanupOldBackups();
+    });
+
+    // Run every 30 minutes - sync pending backups to remote servers
+    cron.schedule('*/30 * * * *', async () => {
+      console.log('Running backup sync cron job...');
+      await backupService.syncPendingBackups();
+    });
+
+    //Run every hour - retry unsent error logs (fallback for failed real-time sends)
+    cron.schedule('0 * * * *', async () => {
+      console.log('Running error log retry cron job...');
+      await retryUnsentErrorLogs();
     });
 
     console.log('Cron service started successfully');
@@ -185,6 +205,7 @@ class CronService {
     // For now, returning null - you might want to create a system user or use a different approach
     return null;
   }
+
 
   async manualSync() {
     console.log('Starting manual sucursal sync...');

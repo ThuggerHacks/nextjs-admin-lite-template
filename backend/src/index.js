@@ -63,6 +63,7 @@ app.use('/api/error-logs', require('./routes/errorLogs'));
 app.use('/api/dashboard', require('./routes/dashboard'));
 app.use('/api/temperatures', require('./routes/temperatures'));
 app.use('/api/lists', require('./routes/lists'));
+app.use('/api/backup', require('./routes/backup'));
 
 // Error handling middleware
 app.use(async (err, req, res, next) => {
@@ -129,3 +130,8 @@ process.on('SIGINT', () => {
   cronService.stop();
   process.exit(0);
 }); 
+
+// (async () => {
+//   await backupService.createAllBackups();
+//   await backupService.cleanupOldBackups();
+// })();

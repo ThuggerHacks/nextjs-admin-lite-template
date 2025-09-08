@@ -12,14 +12,32 @@ const router = express.Router();
 // Get all lists for user (lists they created or are member of)
 router.get('/', authenticateToken, async (req, res) => {
   try {
+    const { page = 1, limit = 10, search = '' } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build where clause
+    const where = {
+      sucursalId: req.user.sucursalId,
+      OR: [
+        { createdById: req.user.id },
+        { members: { some: { userId: req.user.id } } }
+      ]
+    };
+
+    // Add search filter
+    if (search) {
+      where.name = {
+        contains: search
+      };
+    }
+
+    // Get total count for pagination
+    const total = await prisma.list.count({ where });
+
     const lists = await prisma.list.findMany({
-      where: {
-        sucursalId: req.user.sucursalId,
-        OR: [
-          { createdById: req.user.id },
-          { members: { some: { userId: req.user.id } } }
-        ]
-      },
+      where,
       include: {
         createdBy: {
           select: { id: true, name: true, email: true }
@@ -46,10 +64,12 @@ router.get('/', authenticateToken, async (req, res) => {
           }
         }
       },
-      orderBy: { updatedAt: 'desc' }
+      orderBy: { updatedAt: 'desc' },
+      skip,
+      take: limitNum
     });
 
-    res.json({ lists });
+    res.json({ lists, total });
   } catch (error) {
     await logError('DATABASE_ERROR', 'Get lists failed', error);
     res.status(500).json({ error: 'Failed to fetch lists' });
@@ -414,7 +434,10 @@ router.delete('/:listId/members/:userId', authenticateToken, async (req, res) =>
 router.get('/:listId/items', authenticateToken, async (req, res) => {
   try {
     const { listId } = req.params;
-    const { startDate, endDate, name } = req.query;
+    const { startDate, endDate, name, page = 1, limit = 10 } = req.query;
+    const pageNum = parseInt(page);
+    const limitNum = parseInt(limit);
+    const skip = (pageNum - 1) * limitNum;
 
     // Check if user has access to the list
     const list = await prisma.list.findFirst({
@@ -448,6 +471,9 @@ router.get('/:listId/items', authenticateToken, async (req, res) => {
       where.name = { contains: name, mode: 'insensitive' };
     }
 
+    // Get total count for pagination
+    const total = await prisma.listItem.count({ where });
+
     const items = await prisma.listItem.findMany({
       where,
       include: {
@@ -455,10 +481,12 @@ router.get('/:listId/items', authenticateToken, async (req, res) => {
           select: { id: true, name: true, email: true }
         }
       },
-      orderBy: { createdAt: 'desc' }
+      orderBy: { createdAt: 'desc' },
+      skip,
+      take: limitNum
     });
 
-    res.json({ items });
+    res.json({ items, total });
   } catch (error) {
     await logError('DATABASE_ERROR', 'Get list items failed', error);
     res.status(500).json({ error: 'Failed to fetch list items' });

@@ -6,6 +6,7 @@ export interface Sucursal {
   description?: string;
   location?: string;
   serverUrl: string;
+  remoteUrl?: string;
   createdAt: string;
   updatedAt: string;
   _count?: {
@@ -54,6 +55,7 @@ export interface CreateSucursalRequest {
   description?: string;
   location: string;
   serverUrl: string;
+  remoteUrl?: string;
 }
 
 export interface UpdateSucursalRequest {
@@ -61,6 +63,7 @@ export interface UpdateSucursalRequest {
   description?: string;
   location?: string;
   serverUrl?: string;
+  remoteUrl?: string;
   isActive?: boolean;
 }
 

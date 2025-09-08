@@ -210,4 +210,54 @@ router.delete('/clear/all', authenticateToken, requireRole(['DEVELOPER']), async
   }
 });
 
+// Receive error logs from remote server
+router.post('/receive', async (req, res) => {
+  try {
+    const { logs } = req.body;
+    
+    if (!logs || !Array.isArray(logs)) {
+      return res.status(400).json({ error: 'Invalid logs data' });
+    }
+
+    console.log(`Received ${logs.length} error logs from remote server`);
+
+    // Process each log
+    const processedLogs = [];
+    for (const log of logs) {
+      try {
+        // Create error log entry
+        const errorLog = await prisma.errorLog.create({
+          data: {
+            id: log.id,
+            sucursalId: req.user?.sucursalId || 'unknown', // Use current sucursal or unknown
+            errorType: log.errorType,
+            description: log.description,
+            errorDetails: log.errorDetails,
+            sentToRemote: true, // Mark as received from remote
+            createdAt: new Date(log.createdAt)
+          }
+        });
+        
+        processedLogs.push(errorLog);
+      } catch (error) {
+        console.error(`Failed to process error log ${log.id}:`, error);
+        // Continue processing other logs
+      }
+    }
+
+    console.log(`Successfully processed ${processedLogs.length} error logs`);
+
+    res.json({
+      message: 'Error logs received successfully',
+      processed: processedLogs.length,
+      total: logs.length
+    });
+
+  } catch (error) {
+    console.error('Error receiving error logs:', error);
+    await logError('BACKUP_ERROR', 'Failed to receive error logs', error);
+    res.status(500).json({ error: 'Failed to receive error logs' });
+  }
+});
+
 module.exports = router; 

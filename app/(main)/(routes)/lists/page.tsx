@@ -24,6 +24,7 @@ import {
   Empty,
   Spin,
   Tabs,
+  Pagination,
 } from 'antd';
 import {
   UnorderedListOutlined,
@@ -62,6 +63,18 @@ export default function ListsPage() {
   const [loading, setLoading] = useState(true);
   const [itemsLoading, setItemsLoading] = useState(false);
   
+  // Pagination states
+  const [listsPagination, setListsPagination] = useState({
+    current: 1,
+    pageSize: 4,
+    total: 0
+  });
+  const [itemsPagination, setItemsPagination] = useState({
+    current: 1,
+    pageSize: 10,
+    total: 0
+  });
+  
   // Modal states
   const [listModalVisible, setListModalVisible] = useState(false);
   const [itemModalVisible, setItemModalVisible] = useState(false);
@@ -78,9 +91,10 @@ export default function ListsPage() {
   const [itemForm] = Form.useForm();
   const [memberForm] = Form.useForm();
   
-  // Filters
+  // Filters and search
   const [filters, setFilters] = useState<ListFilters>({});
   const [searchTerm, setSearchTerm] = useState('');
+  const [listSearchTerm, setListSearchTerm] = useState('');
 
   // Load users for member selection
   const loadUsers = useCallback(async () => {
@@ -93,11 +107,24 @@ export default function ListsPage() {
   }, []);
 
   // Load lists on component mount
-  const loadLists = useCallback(async () => {
+  const loadLists = useCallback(async (page = 1, search = '') => {
     try {
       setLoading(true);
-      const response = await listService.getLists();
+      const response = await listService.getLists({
+        page,
+        limit: listsPagination.pageSize,
+        search
+      });
       setLists(response.lists);
+      setListsPagination(prev => {
+        const newPagination = {
+          ...prev,
+          current: page,
+          total: response.total || response.lists.length
+        };
+        console.log('Lists pagination updated:', newPagination);
+        return newPagination;
+      });
       
       // Auto-select first list if none selected and lists exist
       if (response.lists.length > 0 && !selectedList) {
@@ -109,21 +136,30 @@ export default function ListsPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [listsPagination.pageSize, selectedList]);
 
   // Load list items
-  const loadListItems = useCallback(async (listId: string) => {
+  const loadListItems = useCallback(async (listId: string, page = 1) => {
     try {
       setItemsLoading(true);
-      const response = await listService.getListItems(listId, filters);
+      const response = await listService.getListItems(listId, {
+        ...filters,
+        page,
+        limit: itemsPagination.pageSize
+      });
       setListItems(response.items);
+      setItemsPagination(prev => ({
+        ...prev,
+        current: page,
+        total: response.total || response.items.length
+      }));
     } catch (error) {
       console.error('Error loading list items:', error);
       message.error('Failed to load list items');
     } finally {
       setItemsLoading(false);
     }
-  }, [filters]);
+  }, [filters, itemsPagination.pageSize]);
 
   // Load data on mount
   useEffect(() => {
@@ -131,10 +167,56 @@ export default function ListsPage() {
     loadUsers();
   }, [loadLists, loadUsers]);
 
+  // Search handlers with debounce
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+
   // Load items when list is selected or filters change
   useEffect(() => {
     if (selectedList) {
       loadListItems(selectedList.id);
+    }
+  }, [selectedList, loadListItems]);
+
+  // Cleanup search timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchTimeout]);
+  
+  const handleListSearch = useCallback((value: string) => {
+    setListSearchTerm(value);
+    
+    // Clear previous timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+    
+    // Set new timeout for search
+    const timeoutId = setTimeout(() => {
+      loadLists(1, value);
+    }, 300);
+    
+    setSearchTimeout(timeoutId);
+  }, [loadLists, searchTimeout]);
+
+  const handleItemSearch = useCallback((value: string) => {
+    setSearchTerm(value);
+    if (selectedList) {
+      loadListItems(selectedList.id, 1);
+    }
+  }, [selectedList, loadListItems]);
+
+  // Pagination handlers
+  const handleListPageChange = useCallback((page: number) => {
+    loadLists(page, listSearchTerm);
+  }, [loadLists, listSearchTerm]);
+
+  const handleItemPageChange = useCallback((page: number) => {
+    if (selectedList) {
+      loadListItems(selectedList.id, page);
     }
   }, [selectedList, loadListItems]);
 
@@ -367,11 +449,8 @@ export default function ListsPage() {
     }
   };
 
-  // Filter items based on search term
-  const filteredItems = listItems.filter(item =>
-    item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.description && item.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Use backend search instead of frontend filtering
+  const filteredItems = listItems;
 
   // Check if user can edit list (only list creator)
   const canEditList = (list: ListType) => {
@@ -384,7 +463,7 @@ export default function ListsPage() {
   };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 overflow-x-hidden">
       {/* Header */}
       <Card>
         <Row justify="space-between" align="middle">
@@ -422,26 +501,38 @@ export default function ListsPage() {
               />
             }
           >
+            {/* Search for lists */}
+            <div className="mb-4">
+              <Input
+                placeholder={t('lists.searchLists')}
+                prefix={<SearchOutlined />}
+                value={listSearchTerm}
+                onChange={(e) => handleListSearch(e.target.value)}
+                allowClear
+              />
+            </div>
+
             {loading ? (
               <div className="text-center py-8">
                 <Spin />
               </div>
             ) : lists.length === 0 ? (
               <Empty 
-                description={t('lists.createFirstList')}
+                description={listSearchTerm ? t('lists.noListsFound') : t('lists.createFirstList')}
                 image={Empty.PRESENTED_IMAGE_SIMPLE}
               />
             ) : (
-              <List
-                dataSource={lists}
-                renderItem={(list) => (
-                  <List.Item
-                    className={`cursor-pointer p-3 rounded hover:bg-gray-50 ${
-                      selectedList?.id === list.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
-                    }`}
-                    onClick={() => handleListSelect(list)}
-                  >
-                    <List.Item.Meta
+              <>
+                <List
+                  dataSource={lists}
+                  renderItem={(list) => (
+                    <List.Item
+                      className={`cursor-pointer p-3 rounded hover:bg-gray-50 ${
+                        selectedList?.id === list.id ? 'bg-blue-50 border-l-4 border-blue-500' : ''
+                      }`}
+                      onClick={() => handleListSelect(list)}
+                    >
+                      <List.Item.Meta
                       avatar={<UnorderedListOutlined className="text-xl text-blue-500" />}
                       title={list.name}
                       description={
@@ -473,7 +564,8 @@ export default function ListsPage() {
                             e?.stopPropagation();
                             handleDeleteList(list.id);
                           }}
-                          onClick={(e) => e?.stopPropagation()}
+                          overlayStyle={{ maxWidth: '90vw' }}
+                          placement="topRight"
                         >
                           <Button 
                             icon={<DeleteOutlined />} 
@@ -488,6 +580,25 @@ export default function ListsPage() {
                   </List.Item>
                 )}
               />
+              
+              {/* Lists Pagination */}
+              <div className="mt-2 text-xs text-gray-500 text-center">
+                Debug: Total={listsPagination.total}, Current={listsPagination.current}, PageSize={listsPagination.pageSize}
+              </div>
+              {listsPagination.total > 0 && (
+                <div className="mt-4 text-center">
+                  <Pagination
+                    current={listsPagination.current}
+                    total={listsPagination.total}
+                    pageSize={listsPagination.pageSize}
+                    onChange={handleListPageChange}
+                    showSizeChanger={false}
+                    showQuickJumper
+                    size="small"
+                  />
+                </div>
+              )}
+            </>
             )}
           </Card>
         </Col>
@@ -557,7 +668,7 @@ export default function ListsPage() {
                       placeholder={t('lists.filterByName')}
                       prefix={<SearchOutlined />}
                       value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
+                      onChange={(e) => handleItemSearch(e.target.value)}
                       size="small"
                     />
                   </Col>
@@ -601,6 +712,7 @@ export default function ListsPage() {
                   </Button>
                 </Empty>
               ) : (
+                <>
                 <List
                   dataSource={filteredItems}
                   renderItem={(item) => {
@@ -619,6 +731,8 @@ export default function ListsPage() {
                             key="delete"
                             title={t('lists.confirmDeleteItem')}
                             onConfirm={() => handleDeleteItem(item.id)}
+                            overlayStyle={{ maxWidth: '90vw' }}
+                            placement="topRight"
                           >
                             <Button 
                               icon={<DeleteOutlined />} 
@@ -674,6 +788,22 @@ export default function ListsPage() {
                     );
                   }}
                 />
+                
+                {/* Items Pagination */}
+                {itemsPagination.total > itemsPagination.pageSize && (
+                  <div className="mt-4 text-center">
+                    <Pagination
+                      current={itemsPagination.current}
+                      total={itemsPagination.total}
+                      pageSize={itemsPagination.pageSize}
+                      onChange={handleItemPageChange}
+                      showSizeChanger={false}
+                      showQuickJumper
+                      size="small"
+                    />
+                  </div>
+                )}
+                </>
               )}
             </Card>
           ) : (
@@ -754,7 +884,6 @@ export default function ListsPage() {
               placeholder="0.00"
               style={{ width: '100%' }}
               formatter={(value) => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
-              parser={(value) => value!.replace(/\$\s?|(,*)/g, '')}
             />
           </Form.Item>
           <Row gutter={16}>

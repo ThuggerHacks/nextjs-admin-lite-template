@@ -90,6 +90,7 @@ router.post('/', authenticateToken, requireRole(['DEVELOPER']), [
   body('description').optional().isString().withMessage('Description must be a string'),
   body('location').optional().isString().withMessage('Location must be a string'),
   // body('serverUrl').isURL().withMessage('Valid server URL is required'),
+  // body('remoteUrl').optional().isURL().withMessage('Remote URL must be a valid URL'),
   body('connectedSucursalIds').optional().isArray().withMessage('Connected sucursal IDs must be an array')
 ], async (req, res) => {
   try {
@@ -101,7 +102,7 @@ router.post('/', authenticateToken, requireRole(['DEVELOPER']), [
       return res.status(400).json({ errors: errors.array() });
     }
 
-    const { name, description, location, serverUrl, connectedSucursalIds = [] } = req.body;
+    const { name, description, location, serverUrl, remoteUrl, connectedSucursalIds = [] } = req.body;
 
     const existingSucursal = await prisma.sucursal.findFirst({
       where: {
@@ -124,6 +125,7 @@ router.post('/', authenticateToken, requireRole(['DEVELOPER']), [
          description,
          location,
          serverUrl,
+         remoteUrl,
          sourceConnections: {
            create: connectedSucursalIds.map(connectedId => ({
              targetSucursalId: connectedId
@@ -264,7 +266,8 @@ router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), [
   body('name').optional().notEmpty().withMessage('Sucursal name cannot be empty'),
   body('description').optional().isString().withMessage('Description must be a string'),
   body('location').optional().isString().withMessage('Location must be a string'),
-  // body('serverUrl').optional().isURL().withMessage('Valid server URL is required')
+  // body('serverUrl').optional().withMessage('Valid server URL is required'),
+  // body('remoteUrl').optional().withMessage('Remote URL must be a valid URL')
 ], async (req, res) => {
   try {
     console.log('Update sucursal request:', { sucursalId: req.params.sucursalId, body: req.body });
@@ -276,7 +279,7 @@ router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), [
     }
 
     const { sucursalId } = req.params;
-    const { name, description, location, serverUrl } = req.body;
+    const { name, description, location, serverUrl, remoteUrl } = req.body;
 
     const existingSucursal = await prisma.sucursal.findUnique({
       where: { id: sucursalId }
@@ -313,6 +316,7 @@ router.put('/:sucursalId', authenticateToken, requireRole(['DEVELOPER']), [
     if (description !== undefined) updateData.description = description;
     if (location !== undefined) updateData.location = location;
     if (serverUrl !== undefined) updateData.serverUrl = serverUrl;
+    if (remoteUrl !== undefined) updateData.remoteUrl = remoteUrl;
 
     console.log('Updating sucursal with data:', updateData);
 

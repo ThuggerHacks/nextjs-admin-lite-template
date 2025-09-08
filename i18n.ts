@@ -230,6 +230,9 @@ export interface Dictionary {
     startDate: string;
     endDate: string;
     createdBy: string;
+    searchLists: string;
+    noListsFound: string;
+    filterByName: string;
     createdAt: string;
     updatedAt: string;
     filters: string;
@@ -1086,8 +1089,9 @@ export interface Dictionary {
     manageSucursals: string;
     addSucursal: string;
     sucursalName: string;
-    serverUrl: string;
-    description: string;
+      serverUrl: string;
+      remoteUrl: string;
+      description: string;
     totalSucursals: string;
     online: string;
     offline: string;
@@ -1522,6 +1526,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       startDate: 'Data de Início',
       endDate: 'Data de Fim',
       createdBy: 'Criado por',
+      searchLists: 'Pesquisar listas...',
+      noListsFound: 'Nenhuma lista encontrada',
+      filterByName: 'Filtrar por nome',
       createdAt: 'Criado em',
       updatedAt: 'Atualizado em',
       filters: 'Filtros',
@@ -1727,6 +1734,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       addSucursal: 'Adicionar Nova Sucursal',
       sucursalName: 'Nome da Sucursal',
       serverUrl: 'URL do Servidor',
+      remoteUrl: 'URL Remota',
       description: 'Descrição',
       totalSucursals: 'Total de Sucursais',
       online: 'Online',
@@ -1760,6 +1768,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       pleaseEnterValidUrl: 'Por favor, digite uma URL válida',
       pleaseEnterLocation: 'Por favor, digite a localização',
       enterLocation: 'Digite a localização',
+      enterRemoteUrl: 'Digite a URL remota (opcional)',
       sucursalWithNameOrUrlExists: 'Sucursal com este nome ou URL já existe',
       refreshStatusTooltip: 'Atualizar Status',
       viewDetailsTooltip: 'Ver Detalhes',
@@ -2530,6 +2539,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       addSucursal: 'Adicionar Nova Sucursal',
       sucursalName: 'Nome da Sucursal',
       serverUrl: 'URL do Servidor',
+      remoteUrl: 'URL Remota',
       description: 'Descrição',
       totalSucursals: 'Total de Sucursais',
       online: 'Online',
@@ -2562,6 +2572,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       pleaseEnterValidUrl: 'Por favor, digite uma URL válida',
       pleaseEnterLocation: 'Por favor, digite a localização',
       enterLocation: 'Digite a localização',
+      enterRemoteUrl: 'Digite a URL remota (opcional)',
       sucursalWithNameOrUrlExists: 'Sucursal com este nome ou URL já existe',
       refreshStatusTooltip: 'Atualizar Status',
       viewDetailsTooltip: 'Ver Detalhes',
@@ -2961,6 +2972,9 @@ const dictionaries: Record<Locale, Dictionary> = {
       startDate: 'Start Date',
       endDate: 'End Date',
       createdBy: 'Created By',
+      searchLists: 'Search lists...',
+      noListsFound: 'No lists found',
+      filterByName: 'Filter by name',
       createdAt: 'Created At',
       updatedAt: 'Updated At',
       filters: 'Filters',
@@ -3166,6 +3180,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       addSucursal: 'Add New Sucursal',
       sucursalName: 'Sucursal Name',
       serverUrl: 'Server URL',
+      remoteUrl: 'Remote URL',
       description: 'Description',
       totalSucursals: 'Total Sucursals',
       online: 'Online',
@@ -3199,6 +3214,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       pleaseEnterValidUrl: 'Please enter a valid URL',
       pleaseEnterLocation: 'Please enter location',
       enterLocation: 'Enter location',
+      enterRemoteUrl: 'Enter remote URL (optional)',
       sucursalWithNameOrUrlExists: 'Sucursal with this name or URL already exists',
       refreshStatusTooltip: 'Refresh Status',
       viewDetailsTooltip: 'View Details',
@@ -3970,6 +3986,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       addSucursal: 'Add New Sucursal',
       sucursalName: 'Sucursal Name',
       serverUrl: 'Server URL',
+      remoteUrl: 'Remote URL',
       description: 'Description',
       totalSucursals: 'Total Sucursals',
       online: 'Online',
@@ -4002,6 +4019,7 @@ const dictionaries: Record<Locale, Dictionary> = {
       pleaseEnterValidUrl: 'Please enter a valid URL',
       pleaseEnterLocation: 'Please enter location',
       enterLocation: 'Enter location',
+      enterRemoteUrl: 'Enter remote URL (optional)',
       sucursalWithNameOrUrlExists: 'Sucursal with this name or URL already exists',
       refreshStatusTooltip: 'Refresh Status',
       viewDetailsTooltip: 'View Details',

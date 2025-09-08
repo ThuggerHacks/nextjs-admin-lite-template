@@ -17,6 +17,7 @@ model Sucursal {
   description String?
   location    String?
   serverUrl   String   @unique
+  remoteUrl   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -465,6 +466,7 @@ model ErrorLog {
   errorType     String
   description   String
   errorDetails  String?
+  sentToRemote  Boolean   @default(false)
   createdAt     DateTime  @default(now())
 
   sucursal      Sucursal  @relation(fields: [sucursalId], references: [id], onDelete: Cascade)
